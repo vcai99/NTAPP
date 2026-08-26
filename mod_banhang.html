@@ -1,0 +1,2436 @@
+<!-- ════════════════════════════════════════════════════════════════
+      BÁN HÀNG MODULE - POS (mod_banhang.html)
+      EPIC 5.0 / Sprint 5.1: Workspace & Layout
+      Clone 100% Layout & Workflow từ TheLight
+      Theme: APP_v1.3 Dark Theme (An Phúc)
+     ════════════════════════════════════════════════════════════════ -->
+
+<style>
+/* ──────────────────────────────────────────────────────────────
+   PAGE CONTAINER
+   ────────────────────────────────────────────────────────────── */
+#page-banhang {
+  display: none;
+  flex-direction: column;
+  height: calc(100vh - 52px);
+  overflow: hidden;
+  background: var(--bg);
+}
+#page-banhang.show { display: flex; }
+
+/* Sprint 6.0 — Overlay Mode: khi Sale Workspace được TÁI SỬ DỤNG làm UI
+   Container để xem/sửa hóa đơn từ module khác (Danh sách Phiếu Xuất). Module
+   hiện hành (curPage) và menu active KHÔNG đổi — chỉ hiển thị đè lên trên
+   bằng position:fixed, page bên dưới vẫn giữ nguyên trạng thái.
+   z-index PHẢI thấp hơn .topbar (100, core_styles.html) — KHÔNG PHẢI chỉ
+   thấp hơn .tb-menu-panel (250). Vì .topbar tự tạo stacking context riêng
+   (position:sticky + z-index:100), z-index của các phần tử BÊN TRONG nó
+   (panel dropdown 250) bị giới hạn ở đúng mức 100 khi so với phần tử NGOÀI
+   .topbar — không "thoát" ra để so trực tiếp 250 với z-index của overlay.
+   Do đó overlay chỉ cần thấp hơn 100 là toàn bộ topbar (kể cả panel dropdown
+   bên trong) luôn nổi lên trên, bất kể panel đó khai z-index bao nhiêu. */
+#page-banhang.show.bh-overlay-mode {
+  position: fixed;
+  top: 40px; left: 0; right: 0; bottom: 0;
+  height: auto;
+  z-index: 50;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   TAB BAR (Hóa đơn 1, Hóa đơn 2 ..., + )
+   Clone 100% from TheLight multi-tab behavior
+   ────────────────────────────────────────────────────────────── */
+.bh-tabbar {
+  background: #091626;
+  border-bottom: 2px solid var(--border);
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  height: 33px;
+  padding: 0 6px 0 0;
+  gap: 0;
+  justify-content: space-between;
+}
+.bh-tabbar-left {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  overflow-x: auto;
+  flex: 1;
+  padding: 4px 4px 0;
+}
+.bh-tabbar-left::-webkit-scrollbar { height: 2px; }
+
+.bh-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  background: #0d1f3c;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  font-size: var(--fs-2);
+  font-weight: 600;
+  color: var(--text2);
+  white-space: nowrap;
+  transition: all .12s;
+  user-select: none;
+}
+.bh-tab.active {
+  background: var(--bg);
+  color: var(--text);
+  border-color: var(--border);
+  border-bottom-color: var(--bg);
+  z-index: 1;
+}
+.bh-tab:hover:not(.active) {
+  background: #122448;
+  color: var(--text);
+}
+.bh-tab-close {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  line-height: 1;
+  transition: all .1s;
+  padding: 0;
+}
+.bh-tab-close:hover { background: rgba(255,80,80,.25); color: #ff6060; }
+.bh-tab-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--h-2);
+  height: var(--h-2);
+  border-radius: 4px 4px 0 0;
+  background: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: var(--fs-icon-lg);
+  font-weight: 400;
+  align-self: flex-end;
+  transition: all .12s;
+  flex-shrink: 0;
+}
+.bh-tab-add:hover { color: #fff; background: rgba(255,255,255,.1); }
+
+.bh-store-name {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  font-size: var(--fs-1);
+  color: var(--text2);
+  flex-shrink: 0;
+  gap: 5px;
+  border-left: 1px solid var(--border);
+}
+.bh-store-name .bh-store-user {
+  color: #64B5F6;
+  font-weight: 700;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   HEADER ROW 1: INVOICE INFO
+   Clone from TheLight: Phiếu xuất | Khách | Điểm | Số phiếu | Ngày | HTTT | Bác sĩ | Người bán
+   ────────────────────────────────────────────────────────────── */
+.bh-header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 5px 10px;
+  /* Fixed Layout: không wrap, scroll ngang nếu nhỏ */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.bh-header::-webkit-scrollbar { height: 0; }
+
+.bh-phieu-btn {
+  height: var(--h-5);
+  padding: 0 14px;
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: var(--fs-3);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background .12s;
+}
+.bh-phieu-btn:hover { background: var(--blue-dark); }
+
+.bh-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 1;  /* coó thể co nhỏ khi màn hình nhỏ */
+  white-space: normal;  /* Reset từ parent nowrap */
+}
+.bh-lbl {
+  font-size: var(--fs-1);
+  color: var(--text2);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  white-space: nowrap;
+}
+.bh-inp, .bh-sel {
+  height: var(--h-4);
+  padding: 0 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: var(--fs-3);
+  transition: border .12s;
+  /* Fixed: fill parent container width exactly */
+  width: 100%;
+  box-sizing: border-box;
+}
+.bh-inp:focus, .bh-sel:focus {
+  outline: none;
+  border-color: #1976D2;
+  background: #0d2a5e;
+}
+.bh-inp[readonly] {
+  background: #091930;
+  color: #90caf9;
+  font-weight: 700;
+  cursor: default;
+}
+.bh-inp::placeholder { color: #3d5a7a; }
+select.bh-sel option { background: #0d2347; color: var(--text); }
+
+/* Điểm badge trong header */
+.bh-diem-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.bh-head-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  position: relative;
+  z-index: 101;
+}
+
+.bh-ib {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  position: relative;
+  z-index: 100;
+}
+
+.bh-diem-badge {
+  background: #1565C0;
+  color: #fff;
+  font-size: var(--fs-1);
+  font-weight: 700;
+  padding: 0 8px;
+  border-radius: 10px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  flex-shrink: 0;
+}
+
+/* Nút + thêm khách / thêm bác sĩ */
+.bh-plus-btn {
+  width: var(--h-3);
+  height: var(--h-3);
+  background: var(--green);
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: var(--fs-icon-lg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background .12s;
+}
+.bh-plus-btn:hover { background: var(--green-dark); }
+
+/* Dropdown popup overlay */
+.bh-pw { position: relative; }
+.bh-dd {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  min-width: 260px;
+  max-width: 340px;
+  background: #0d2347;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  z-index: 600;
+  max-height: 220px;
+  overflow-y: auto;
+  display: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,.55);
+}
+.bh-dd.open { display: block; }
+/* .bh-header has overflow-x: auto for small-screen scrolling, which per the
+   CSS spec forces its overflow-y to behave as auto too — clipping any
+   absolutely positioned dropdown that pops below the row. Switching the open
+   dropdown to fixed positioning (top/left set in JS) escapes that clip. */
+.bh-dd-fixed { position: fixed !important; }
+.bh-dd-item {
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: var(--fs-2);
+  border-bottom: 1px solid #0d1f3c;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.bh-dd-item:hover { background: #112244; }
+.bh-dd-empty {
+  padding: 16px 10px;
+  text-align: center;
+  color: var(--text2);
+  font-style: italic;
+  font-size: var(--fs-2);
+}
+
+/* Dropdown kết quả tìm kiếm SP – style TheLight */
+.bh-sp-dd-row {
+  padding: 7px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #0d1f3c;
+  transition: background .08s;
+}
+.bh-sp-dd-row:hover { background: #112244; }
+.bh-sp-dd-row-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--fs-3);
+  color: var(--text);
+}
+.bh-sp-dd-name { flex: 1; font-weight: 600; }
+.bh-sp-dd-price {
+  font-weight: 700;
+  color: #90caf9;
+  white-space: nowrap;
+  margin-left: 12px;
+}
+.bh-sp-dd-row-info {
+  font-size: var(--fs-1);
+  color: var(--text2);
+  margin-top: 2px;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   HEADER ROW 2 / INPUT BAR: PRODUCT SEARCH
+   Clone from TheLight: F3 Search | DVT | Lô/HSD-Tồn | SL | Giá | [icon btns] | Tìm đơn thuốc
+   ────────────────────────────────────────────────────────────── */
+.bh-inputbar {
+  background: #081d38;
+  border-bottom: 1px solid var(--border);
+  padding: 5px 10px;
+  /* Fixed Layout: không wrap, scroll ngang nếu nhỏ */
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.bh-inputbar::-webkit-scrollbar { height: 0; }
+.bh-ib-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 1;  /* có thể co nhỏ khi màn hình nhỏ */
+  white-space: normal;  /* Reset từ parent nowrap */
+}
+.bh-ib-lbl {
+  font-size: var(--fs-1);
+  color: var(--text2);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .35px;
+  white-space: nowrap;
+}
+.bh-ib-inp, .bh-ib-sel {
+  height: var(--h-4);
+  padding: 0 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: var(--fs-3);
+  transition: border .12s;
+  /* Fixed: fill parent container width exactly */
+  width: 100%;
+  box-sizing: border-box;
+}
+.bh-ib-inp:focus, .bh-ib-sel:focus {
+  outline: none;
+  border-color: #1976D2;
+  box-shadow: 0 0 0 2px rgba(25,118,210,.18);
+}
+.bh-ib-inp::placeholder { color: #3d5a7a; }
+select.bh-ib-sel option { background: #0d2347; color: var(--text); }
+
+/* Icon buttons in input bar */
+.bh-ib-icon {
+  width: var(--h-4);
+  height: var(--h-4);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-icon);
+  flex-shrink: 0;
+  transition: all .12s;
+  align-self: flex-end;
+}
+.bh-ib-icon:hover { background: #1565C0; border-color: #1565C0; color: #fff; }
+
+/* Tìm đơn thuốc button */
+.bh-ib-btn {
+  height: var(--h-4);
+  padding: 0 10px;
+  background: var(--green);
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: var(--fs-3);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  align-self: flex-end;
+  transition: background .12s;
+}
+.bh-ib-btn:hover { background: var(--green-dark); }
+
+/* ──────────────────────────────────────────────────────────────
+   INVOICE GRID TABLE
+   Clone from TheLight: STT | Mã SP | Tên SP | ĐVT | Số lô/HSD | SL | Giá bán | Tổng | %CK | CK | Còn lại | Chỉ dẫn | X
+   ────────────────────────────────────────────────────────────── */
+.bh-grid-wrap {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+  background: var(--bg);
+}
+.bh-grid {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 960px;
+}
+.bh-grid thead th {
+  background: #081e3a;
+  color: var(--text2);
+  padding: 8px 8px;
+  text-align: left;
+  font-size: var(--fs-1);
+  font-weight: 700;
+  white-space: nowrap;
+  border-bottom: 2px solid var(--border);
+  border-right: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.bh-grid thead th:last-child { border-right: none; }
+.bh-grid thead th.num { text-align: right; }
+.bh-grid tbody tr {
+  border-bottom: 1px solid #0d1f3c;
+  transition: background .08s;
+}
+.bh-grid tbody tr:hover { background: #0d2347; }
+.bh-grid tbody tr.selected { background: #123a6b; }
+.bh-grid tbody tr.selected:hover { background: #123a6b; }
+.bh-grid tbody td {
+  padding: 7px 8px;
+  font-size: var(--fs-2);
+  color: var(--text);
+  border-right: 1px solid #0d1f3c;
+  vertical-align: middle;
+}
+.bh-grid tbody td:last-child { border-right: none; }
+.bh-td-num { text-align: right; font-variant-numeric: tabular-nums; }
+.bh-td-center { text-align: center; }
+.bh-grid-empty {
+  text-align: center !important;
+  padding: 44px 16px !important;
+  color: var(--text2);
+  font-style: italic;
+  font-size: var(--fs-3);
+}
+
+/* Row context menu trigger */
+.bh-ctx-btn {
+  width: var(--h-1);
+  height: var(--h-1);
+  border: 1px solid #C62828;
+  border-radius: 3px;
+  background: transparent;
+  color: #EF5350;
+  cursor: pointer;
+  font-size: var(--fs-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .1s;
+}
+.bh-ctx-btn:hover { background: #C62828; color: #fff; }
+
+/* ──────────────────────────────────────────────────────────────
+   FOOTER: PAYMENT & ACTION BUTTONS
+   Clone from TheLight: Row 1 = summary fields | Row 2 = checkboxes + action buttons
+   ────────────────────────────────────────────────────────────── */
+.bh-footer {
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  padding: 5px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Footer Row 1: Summary inputs — Fixed Layout */
+.bh-footer-r1 {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.bh-footer-r1::-webkit-scrollbar { height: 0; }
+.bh-ft-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 1;  /* có thể co nhỏ khi màn hình nhỏ */
+  white-space: normal;  /* Reset từ parent nowrap */
+}
+.bh-ft-lbl {
+  font-size: var(--fs-1);
+  color: var(--text2);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .35px;
+  white-space: nowrap;
+}
+.bh-ft-inp {
+  height: var(--h-4);
+  padding: 0 8px;
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: var(--fs-3);
+  transition: border .12s;
+  /* Fixed: fill parent container width exactly */
+  width: 100%;
+  box-sizing: border-box;
+}
+.bh-ft-inp:focus { outline: none; border-color: #1976D2; }
+.bh-ft-inp[readonly] { cursor: default; }
+.bh-ft-inp::placeholder { color: #3d5a7a; }
+.bh-ft-inp.total { background: #001a00; color: #69F0AE; border-color: #2E7D32; font-weight: 700; }
+.bh-ft-inp.pay   { background: #001230; color: #90CAF9; border-color: #1565C0; font-weight: 700; }
+.bh-ft-inp.debt  { background: #2d0000; color: #EF9A9A; border-color: #C62828; font-weight: 700; }
+.bh-ft-inp.diem  { background: #001a2d; color: #90CAF9; border-color: #0d47a1; font-weight: 700; }
+
+/* Tiny icon buttons at end of footer row 1 */
+.bh-ft-icon {
+  width: var(--h-4);
+  height: var(--h-4);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-icon);
+  flex-shrink: 0;
+  align-self: flex-end;
+  transition: all .12s;
+}
+.bh-ft-icon:hover { background: var(--border); color: #fff; }
+
+/* Footer Row 2: Checkboxes + buttons — Fixed Layout */
+.bh-footer-r2 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.bh-footer-r2::-webkit-scrollbar { height: 0; }
+.bh-chk {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text2);
+  font-size: var(--fs-2);
+  cursor: pointer;
+  padding: 0 8px;
+  height: var(--h-4);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  white-space: nowrap;
+  user-select: none;
+  transition: border .12s;
+}
+.bh-chk:hover { border-color: #1976D2; color: var(--text); }
+.bh-chk input[type=checkbox] { accent-color: var(--green); width: 15px; height: 15px; cursor: pointer; }
+
+.bh-spacer { flex: 1; }
+
+/* Footer action buttons */
+.bh-ft-btn {
+  height: var(--h-5);
+  padding: 0 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: var(--fs-3);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  transition: all .12s;
+}
+.bh-ft-btn.gray {
+  background: var(--bg); border: 1px solid var(--border); color: var(--text2);
+}
+.bh-ft-btn.gray:hover { background: var(--border); color: #fff; }
+.bh-ft-btn.teal { background: #00897B; color: #fff; }
+.bh-ft-btn.teal:hover { background: #00695C; }
+.bh-ft-btn.save {
+  background: var(--green); color: #fff;
+  font-size: var(--fs-4); height: var(--h-5); padding: 0 16px;
+}
+.bh-ft-btn.save:hover { background: var(--green-dark); }
+.bh-ft-btn.savein {
+  background: #0D47A1; color: #fff;
+  font-size: var(--fs-4); height: var(--h-5); padding: 0 16px;
+}
+.bh-ft-btn.savein:hover { background: #0a3280; }
+
+/* ──────────────────────────────────────────────────────────────
+   DIALOGS (Sprint 5.2)
+   ────────────────────────────────────────────────────────────── */
+.bh-dialog-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.65);
+  display: none; align-items: center; justify-content: center;
+  z-index: 1000;
+}
+.bh-dialog-overlay.show { display: flex; }
+.bh-dialog {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: 400px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  display: flex; flex-direction: column;
+}
+.bh-dialog-header {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  font-size: var(--fs-4); font-weight: 700; color: #fff;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.bh-dialog-close {
+  background: transparent; border: none; color: var(--text2);
+  cursor: pointer; font-size: var(--fs-icon);
+}
+.bh-dialog-close:hover { color: #ff5252; }
+.bh-dialog-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.bh-dialog-footer {
+  padding: 12px 16px; border-top: 1px solid var(--border);
+  display: flex; justify-content: flex-end; gap: 8px;
+}
+</style>
+
+<!-- ══════════════════════════════════════════════════════════════
+     BÁN HÀNG PAGE - POS WORKSPACE
+     ══════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-banhang">
+
+  <!-- ── TAB BAR ─────────────────────────── -->
+  <div class="bh-tabbar">
+    <div class="bh-tabbar-left" id="bh-tab-list"><!-- Tabs rendered by JS --></div>
+    <div class="bh-store-name">
+      NHÀ THUỐC AN PHÚC – <span class="bh-store-user" id="bh-username">admin</span>
+    </div>
+  </div>
+
+  <!-- ── HEADER: INVOICE INFO ──────────────
+       Layout: [Phiếu xuất] [Tìm khách hàng] [Điểm] [+] [Số phiếu] [Ngày bán] [HTTT] [Bác sĩ kê đơn] [+] [Người bán]
+       ────────────────────────────────────── -->
+  <div class="bh-header">
+
+    <!-- Loại phiếu -->
+    <button class="bh-phieu-btn" id="bh-loai-btn">Phiếu xuất</button>
+
+    <!-- Tìm khách hàng — elastic: chiếm phần dư, min 140px, max 220px -->
+    <div class="bh-field" style="flex: 1 1 140px; min-width: 140px; max-width: 220px">
+      <span class="bh-lbl">Tìm khách hàng</span>
+      <div class="bh-diem-row">
+        <div class="bh-pw" style="flex:1;min-width:0">
+          <input id="bh-kh" class="bh-inp" autocomplete="off" placeholder="Khách hàng lẻ"
+                 oninput="BanhangModule.filterKhach(this.value)"
+                 onfocus="BanhangModule.filterKhach(this.value)">
+          <div class="bh-dd" id="bh-kh-dd"></div>
+        </div>
+        <div class="bh-diem-badge" id="bh-diem-kh" title="Điểm tích lũy">0</div>
+        <button class="bh-plus-btn" title="Thêm khách hàng mới" onclick="BanhangModule.openAddKhach()">+</button>
+      </div>
+    </div>
+
+    <!-- Số phiếu (readonly) -->
+    <div class="bh-field" style="width:110px">
+      <span class="bh-lbl">Số phiếu</span>
+      <input id="bh-sophieu" class="bh-inp" readonly placeholder="PX000001">
+    </div>
+
+    <!-- Ngày bán -->
+    <div class="bh-field" style="width:155px">
+      <span class="bh-lbl">Ngày bán</span>
+      <input id="bh-ngayban" class="bh-inp" type="datetime-local">
+    </div>
+
+    <!-- HTTT -->
+    <div class="bh-field" style="width:115px">
+      <span class="bh-lbl">HTTT</span>
+      <select id="bh-httt" class="bh-sel">
+        <option>Tiền mặt</option>
+        <option>Chuyển khoản</option>
+        <option>Công nợ</option>
+      </select>
+    </div>
+
+    <!-- Bác sĩ kê đơn — có thể co nhỏ nhưng không giãn rộng -->
+    <div class="bh-field" style="flex: 0 1 160px; min-width: 120px">
+      <span class="bh-lbl">Bác sĩ kê đơn</span>
+      <div class="bh-diem-row">
+        <div class="bh-pw" style="flex:1;min-width:0">
+          <input id="bh-bacsi" class="bh-inp" autocomplete="off" placeholder="Chọn bác sĩ"
+                 oninput="BanhangModule.filterBacSi(this.value)"
+                 onfocus="BanhangModule.filterBacSi(this.value)">
+          <div class="bh-dd" id="bh-bacsi-dd"></div>
+        </div>
+        <button class="bh-plus-btn" title="Thêm bác sĩ mới" onclick="BanhangModule.openAddBacSi()">+</button>
+      </div>
+    </div>
+
+    <!-- Người bán (readonly) -->
+    <div class="bh-field" style="width:95px">
+      <span class="bh-lbl">Người bán</span>
+      <input id="bh-nguoiban" class="bh-inp" readonly value="admin">
+    </div>
+  </div>
+
+  <!-- ── INPUT BAR: PRODUCT SEARCH ─────────
+       Layout: [Tìm SP(F3)] [DVT] [Số lô/HSD-Tồn] [SL] [Giá bán] [icons] [Tìm đơn thuốc] [upload] [reset]
+       ────────────────────────────────────── -->
+  <div class="bh-inputbar">
+
+    <!-- Tìm kiếm sản phẩm (F3) — elastic: chiếm phần dư, min 180px -->
+    <div class="bh-ib-field" style="flex: 1 1 180px; min-width: 160px">
+      <span class="bh-ib-lbl">Tìm kiếm sản phẩm (F3)</span>
+      <div class="bh-pw">
+        <input id="bh-sp" class="bh-ib-inp" autocomplete="off"
+               placeholder="Tên, mã vạch, SDK... Tất cả SP (Z)"
+               oninput="BanhangModule.filterSP(this.value)"
+               onfocus="BanhangModule.filterSP(this.value)">
+        <div class="bh-dd" id="bh-sp-dd"></div>
+      </div>
+    </div>
+
+    <!-- Đơn vị tính -->
+    <div class="bh-ib-field" style="width:115px">
+      <span class="bh-ib-lbl">Đơn vị tính</span>
+      <select id="bh-dvt" class="bh-ib-sel" onchange="BanhangModule.onDvtChange()">
+        <option value="">Đơn v...</option>
+      </select>
+    </div>
+
+    <!-- Số lô / HSD – Tồn -->
+    <div class="bh-ib-field" style="width:175px">
+      <span class="bh-ib-lbl">SL/HSD – Tồn:</span>
+      <select id="bh-lo" class="bh-ib-sel">
+        <option value="">Chọn số lô/hạn ...</option>
+      </select>
+    </div>
+
+    <!-- Số lượng -->
+    <div class="bh-ib-field" style="width:78px">
+      <span class="bh-ib-lbl">Số lượng</span>
+      <input id="bh-sl" class="bh-ib-inp" type="number" value="1" min="1"
+             style="text-align:right"
+             onkeydown="BanhangModule.onSlKeydown(event)">
+    </div>
+
+    <!-- Giá bán -->
+    <div class="bh-ib-field" style="width:115px">
+      <span class="bh-ib-lbl">Giá bán</span>
+      <input id="bh-gia" class="bh-ib-inp money-input" type="text" inputmode="numeric" placeholder="Giá bán"
+             style="text-align:right"
+             onkeydown="BanhangModule.onGiaKeydown(event)"
+             oninput="BanhangModule.onGiaInput()">
+    </div>
+
+    <!-- Icon: Quét mã vạch -->
+    <button class="bh-ib-icon" id="bh-btn-barcode" title="Quét mã vạch">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 9V6a1 1 0 0 1 1-1h3M15 5h3a1 1 0 0 1 1 1v3M3 15v3a1 1 0 0 0 1 1h3M15 19h3a1 1 0 0 0 1-1v-3"/>
+        <line x1="7" y1="8" x2="7" y2="16"/>
+        <line x1="11" y1="8" x2="11" y2="16"/>
+        <line x1="15" y1="8" x2="15" y2="16"/>
+      </svg>
+    </button>
+
+    <!-- Icon: Chọn đơn mẫu / Combo -->
+    <button class="bh-ib-icon" id="bh-btn-donmau" title="Chọn đơn mẫu / Combo" onclick="BanhangModule.openDonMau()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+      </svg>
+    </button>
+
+    <!-- Icon: Thêm vào hóa đơn -->
+    <button class="bh-ib-icon" id="bh-btn-add" title="Thêm vào hóa đơn (Enter)" onclick="BanhangModule.addLine()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+      </svg>
+    </button>
+
+    <!-- Tìm đơn thuốc điện tử -->
+    <button class="bh-ib-btn" id="bh-btn-timdon" onclick="BanhangModule.openTimDon()">
+      Tìm đơn thuốc
+    </button>
+
+    <!-- Icon: Upload ảnh đơn thuốc -->
+    <button class="bh-ib-icon" id="bh-btn-upload" title="Upload ảnh đơn thuốc">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+    </button>
+
+    <!-- Icon: Reset / Làm mới ô nhập -->
+    <button class="bh-ib-icon" id="bh-btn-reset" title="Làm mới ô nhập liệu" onclick="BanhangModule.resetInputBar()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="1 4 1 10 7 10"/>
+        <path d="M3.51 15a9 9 0 1 0 .49-3.37"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- ── INVOICE GRID ─────────────────────────
+       Clone columns from TheLight:
+       STT | Mã SP | Tên sản phẩm | ĐVT | Số lô/HSD | SL | Giá bán | Tổng tiền | %CK | Chiết khấu | Còn lại | Chỉ dẫn | [X]
+       ─────────────────────────────────────── -->
+  <div class="bh-grid-wrap">
+    <table class="bh-grid" id="bh-grid">
+      <thead>
+        <tr>
+          <th style="width:36px;text-align:center">STT</th>
+          <th style="width:88px">Mã SP</th>
+          <th style="min-width:170px">Tên sản phẩm</th>
+          <th style="width:68px">ĐVT</th>
+          <th style="width:130px">Số lô/Hạn dùng</th>
+          <th style="width:72px" class="num">Số lượng</th>
+          <th style="width:110px" class="num">Giá bán</th>
+          <th style="width:118px" class="num">Tổng tiền</th>
+          <th style="width:52px" class="num">%CK</th>
+          <th style="width:100px" class="num">Chiết khấu</th>
+          <th style="width:110px" class="num">Còn lại</th>
+          <th style="width:100px">Chỉ dẫn</th>
+          <th style="width:36px;text-align:center"></th>
+        </tr>
+      </thead>
+      <tbody id="bh-tbody">
+        <tr>
+          <td colspan="13" class="bh-grid-empty">
+            Chưa có sản phẩm — tìm và thêm ở thanh phía trên (F3)
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── FOOTER: PAYMENT & ACTIONS ──────────
+       Row 1: [Chẩn đoán] [Điểm SD] [Tổng tiền] [Tiền đổi điểm] [Chiết khấu] [Tiền phải thu] [Thanh toán] [icon] [≡]
+       Row 2: [Xuất hủy] [Giá bán buôn] [Tạo đơn mẫu] [Kết nối QR] | ... | [Thêm DVT] [In phiếu] [LƯU-F6] [LƯU&IN-F7]
+       ────────────────────────────────────── -->
+  <div class="bh-footer">
+
+    <!-- Footer Row 1: Financial summary -->
+    <div class="bh-footer-r1">
+
+      <!-- Chẩn đoán – Ghi chú -->
+      <div class="bh-ft-field" style="flex:1;min-width:160px">
+        <span class="bh-ft-lbl">Chẩn đoán – Ghi chú</span>
+        <input id="bh-chandoan" class="bh-ft-inp" placeholder="Chẩn đoán – ghi chú">
+      </div>
+
+      <!-- Điểm SD -->
+      <div class="bh-ft-field" style="width:80px">
+        <span class="bh-ft-lbl">Điểm SD</span>
+        <input id="bh-diem-sd" class="bh-ft-inp diem" type="number" min="0" value="0"
+               placeholder="Điểm SD" oninput="BanhangModule.recalc()">
+      </div>
+
+      <!-- Tổng tiền -->
+      <div class="bh-ft-field" style="width:118px">
+        <span class="bh-ft-lbl">Tổng tiền</span>
+        <input id="bh-tong-tien" class="bh-ft-inp total" placeholder="0" readonly>
+      </div>
+
+      <!-- Tiền đổi điểm -->
+      <div class="bh-ft-field" style="width:100px">
+        <span class="bh-ft-lbl">Tiền đổi điểm</span>
+        <input id="bh-tien-diem" class="bh-ft-inp" placeholder="0" readonly>
+      </div>
+
+      <!-- Chiết khấu HĐ -->
+      <div class="bh-ft-field" style="width:100px">
+        <span class="bh-ft-lbl">Chiết khấu</span>
+        <input id="bh-ck-hd" class="bh-ft-inp money-input" type="text" inputmode="numeric" value="0"
+               placeholder="0" oninput="BanhangModule.recalc()">
+      </div>
+
+      <!-- Tiền phải thu -->
+      <div class="bh-ft-field" style="width:118px">
+        <span class="bh-ft-lbl">Tiền phải thu</span>
+        <input id="bh-phai-thu" class="bh-ft-inp pay" placeholder="0" readonly>
+      </div>
+
+      <!-- Thanh toán (Tiền khách đưa) -->
+      <div class="bh-ft-field" style="width:118px">
+        <span class="bh-ft-lbl">Thanh toán</span>
+        <input id="bh-thanh-toan" class="bh-ft-inp money-input" type="text" inputmode="numeric" value="0"
+               placeholder="0" oninput="BanhangModule.recalc()">
+      </div>
+
+      <!-- Icon: In phiếu nhanh -->
+      <button class="bh-ft-icon" title="In phiếu nhanh" onclick="BanhangModule.inPhieuNhanh()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6 9 6 2 18 2 18 9"/>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+          <rect x="6" y="14" width="12" height="8"/>
+        </svg>
+      </button>
+
+      <!-- Icon: Menu mở rộng -->
+      <button class="bh-ft-icon" title="Menu mở rộng">≡</button>
+    </div>
+
+    <!-- Footer Row 2: Options + Action Buttons -->
+    <div class="bh-footer-r2">
+      <label class="bh-chk"><input type="checkbox" id="bh-chk-xuathuy"> Xuất hủy</label>
+      <label class="bh-chk"><input type="checkbox" id="bh-chk-buon" onchange="BanhangModule.onGiaBuonToggle()"> Giá bán buôn</label>
+      <label class="bh-chk"><input type="checkbox" id="bh-chk-donmau"> Tạo đơn mẫu</label>
+
+      <button class="bh-ft-btn gray" style="font-size:var(--fs-2)" title="Kết nối thiết bị QR">
+        Kết nối thiết bị QR
+      </button>
+
+      <div class="bh-spacer"></div>
+
+      <!-- Sprint 6.0 (Danh sách Phiếu Xuất) BR-PX-09: chỉ hiện khi hóa đơn
+           được mở từ Danh sách Phiếu Xuất — ẩn khi tạo hóa đơn mới bình thường.
+           "Sửa phiếu" (BR-PX-06/07) nằm ở nút góc trái #bh-loai-btn, không
+           phải nút riêng ở footer — xem applyModeLock_(). -->
+      <button class="bh-ft-btn gray" id="bh-btn-dongxem" style="display:none" onclick="BanhangModule.closeInvoiceView_()">
+        Đóng
+      </button>
+
+      <button class="bh-ft-btn teal" id="bh-btn-themdvt" onclick="BanhangModule.openThemDVT()">
+        Thêm DVT
+      </button>
+      <button class="bh-ft-btn gray" id="bh-btn-in" onclick="BanhangModule.inPhieuNhanh()">
+        In phiếu
+      </button>
+      <button class="bh-ft-btn save" id="bh-btn-luu" onclick="BanhangModule.save(false)">
+        LƯU – F6
+      </button>
+      <button class="bh-ft-btn savein" id="bh-btn-luuin" onclick="BanhangModule.save(true)">
+        LƯU &amp; IN – F7
+      </button>
+    </div>
+  </div>
+
+  <!-- DIALOG: Thêm Khách Hàng -->
+  <div class="bh-dialog-overlay" id="bh-dlg-khach">
+    <div class="bh-dialog">
+      <div class="bh-dialog-header">
+        <span>Thêm Khách Hàng Nhanh</span>
+        <button class="bh-dialog-close" onclick="BanhangModule.closeAddKhach()">✕</button>
+      </div>
+      <div class="bh-dialog-body">
+        <div class="bh-field">
+          <span class="bh-lbl">Tên Khách Hàng <span style="color:#ff5252">*</span></span>
+          <input id="bh-dlg-kh-ten" class="bh-inp" placeholder="Nhập tên khách hàng...">
+        </div>
+        <div class="bh-field">
+          <span class="bh-lbl">Số Điện Thoại</span>
+          <input id="bh-dlg-kh-sdt" class="bh-inp" placeholder="Nhập số điện thoại...">
+        </div>
+        <div class="bh-field">
+          <span class="bh-lbl">Địa Chỉ</span>
+          <input id="bh-dlg-kh-dc" class="bh-inp" placeholder="Nhập địa chỉ...">
+        </div>
+      </div>
+      <div class="bh-dialog-footer">
+        <button class="bh-ft-btn gray" onclick="BanhangModule.closeAddKhach()">Hủy</button>
+        <button class="bh-ft-btn save" onclick="BanhangModule.saveAddKhach()">Lưu Lại</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DIALOG: Thêm Bác Sĩ -->
+  <div class="bh-dialog-overlay" id="bh-dlg-bacsi">
+    <div class="bh-dialog">
+      <div class="bh-dialog-header">
+        <span>Thêm Bác Sĩ Nhanh</span>
+        <button class="bh-dialog-close" onclick="BanhangModule.closeAddBacSi()">✕</button>
+      </div>
+      <div class="bh-dialog-body">
+        <div class="bh-field">
+          <span class="bh-lbl">Tên Bác Sĩ <span style="color:#ff5252">*</span></span>
+          <input id="bh-dlg-bs-ten" class="bh-inp" placeholder="Nhập tên bác sĩ...">
+        </div>
+        <div class="bh-field">
+          <span class="bh-lbl">Số Điện Thoại</span>
+          <input id="bh-dlg-bs-sdt" class="bh-inp" placeholder="Nhập số điện thoại...">
+        </div>
+        <div class="bh-field">
+          <span class="bh-lbl">Chuyên Khoa</span>
+          <input id="bh-dlg-bs-ck" class="bh-inp" placeholder="Nhập chuyên khoa (không bắt buộc)...">
+        </div>
+      </div>
+      <div class="bh-dialog-footer">
+        <button class="bh-ft-btn gray" onclick="BanhangModule.closeAddBacSi()">Hủy</button>
+        <button class="bh-ft-btn save" onclick="BanhangModule.saveAddBacSi()">Lưu Lại</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dialog "Thêm ĐVT" giờ dùng chung: xem dialog_product_uom_editor.html
+       (ProductUomEditor), gọi qua BanhangModule.openThemDVT() bên dưới. -->
+
+</div>
+<!-- END #page-banhang -->
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  CONTROLLER LAYER: BanhangModule (mod_banhang.html)
+//  Epic 5.0 / Sprint 5.1 — Workspace & Layout
+//  Clone 100% Layout & Workflow từ TheLight — APP_v1.3 Dark Theme
+// ════════════════════════════════════════════════════════════════
+const BanhangModule = {
+
+  // ── STATE ─────────────────────────────────────────────────────
+  // Each entry in `tabs` owns a full, independent in-progress invoice
+  // (lines, khách/bác sĩ, số phiếu, ngày bán, HTTT, chẩn đoán, điểm SD,
+  // chiết khấu, thanh toán, 3 checkbox footer). The flat state fields below
+  // (state.lines, state.currentKhach, ...) are always just the *active* tab's
+  // working copy — switchTab()/addTab()/closeTab() snapshot them into the
+  // outgoing tab object and restore them from the incoming one.
+  state: {
+    tabs: [{ id: 1, label: 'Hóa đơn 1', lines: [], currentKhach: null, currentBacSi: null,
+      soPhieu: '', ngayBan: '', hinhThucTT: 'Tiền mặt', chanDoan: '', diemSd: '0', ckHd: '0',
+      thanhToan: '0', xuatHuy: false, giaBuon: false, taoDonMau: false,
+      loadedSoPhieu: null, viewMode: false }],
+    nextTabId: 2,
+    activeTabId: 1,
+    catalog: [],     // Product master list (loaded on init)
+    khList: [],      // Customer list
+    bacsiList: [],   // Doctor list
+    currentKhach: null,
+    currentBacSi: null,
+    currentSP: null,
+    currentLots: [],
+    // Dòng Grid đang được chọn (click chuột) — dùng để xác định sản phẩm cho
+    // "Thêm ĐVT" khi dòng đã được thêm vào Grid (currentSP lúc đó đã về null).
+    selectedLineIndex: null,
+    // True once the user has typed a price by hand in the input bar; resets
+    // whenever a product/UOM auto-fills the price. Lets Grid UOM edits know
+    // whether it's safe to auto-follow the new UOM's default price.
+    giaManualEdit: false,
+    lines: [],       // Invoice line items (current tab)
+    // Sprint 6.0 (Danh sách Phiếu Xuất) BR-PX-01..09: khi mở 1 hóa đơn đã lưu
+    // từ Danh sách Phiếu Xuất, tab đó mang theo soPhieu đã nạp (loadedSoPhieu)
+    // và cờ viewMode (true = khóa toàn bộ input, chỉ đọc). Tab tạo hóa đơn mới
+    // bình thường luôn có loadedSoPhieu=null/viewMode=false — không ảnh hưởng
+    // luồng tạo mới hiện có. Xem loadInvoiceForView()/applyModeLock_().
+    loadedSoPhieu: null,
+    viewMode: false,
+    summary: { tongTienHang: 0, chietKhau: 0, tienPhaiTra: 0, tienThanhToan: 0, conNo: 0 },
+  },
+
+  dom: {},
+  initialized: false,
+
+  // ── INIT ──────────────────────────────────────────────────────
+  init() {
+    if (this.initialized) return;
+    console.log('[1] init');
+    this.cacheDOM();
+    this.bindGlobalEvents();
+    this.renderTabs();
+    this.setDefaultDateTime();
+    
+    // Khởi tạo Số phiếu (Gắn qua backend)
+    google.script.run
+      .withSuccessHandler(res => {
+        if (res && res.success && this.dom.sophieu) {
+          this.dom.sophieu.value = res.data;
+        }
+      })
+      .api_generateSaleCode();
+
+    this.loadDataBg();
+
+    this.initialized = true;
+  },
+
+  loadDataBg() {
+    console.log('[2] loadDataBg called');
+    // ─── Tải song song: ProductService & InventoryService ──────────────────
+    // Mỗi service hoàn toàn độc lập. Nếu một service lỗi, service kia vẫn tiếp tục.
+    const pProd = typeof ProductService !== 'undefined'
+      ? ProductService.load()
+      : Promise.reject(new Error('ProductService chưa được khởi tạo'));
+
+    const pInv = typeof InventoryService !== 'undefined'
+      ? InventoryService.load()
+      : Promise.resolve([]);
+
+    console.log('[3] calling ProductService.load');
+    Promise.allSettled([pProd, pInv]).then(([prodResult, invResult]) => {
+      console.log('[4] prodResult', prodResult);
+      console.log('[5] invResult', invResult);
+      // ── Xử lý Tồn kho (fail-safe: lỗi → stockMap rỗng, hiển thị "—") ──
+      const stockMap = {};
+      if (invResult.status === 'fulfilled') {
+        (invResult.value || []).forEach(s => {
+          if (s.MaSP) stockMap[s.MaSP] = (stockMap[s.MaSP] || 0) + (Number(s.SLTon) || 0);
+        });
+      } else {
+        console.warn('[Bán Hàng] InventoryService lỗi (fail-safe: tồn kho hiển thị "—"):', invResult.reason);
+      }
+
+      // ── Xử lý Sản phẩm (bắt buộc thành công) ──────────────────────────
+      if (prodResult.status === 'rejected') {
+        console.error('[Bán Hàng] ProductService lỗi, không thể tải danh mục:', prodResult.reason);
+        return;
+      }
+
+      const products = prodResult.value || [];
+      console.log('[6] products', products.length);
+      this.state.catalog = products.map(p => {
+        const defaultUom = (p.uoms || []).find(u => u.macDinh) || (p.uoms || [])[0] || {};
+        const ton = stockMap.hasOwnProperty(p.maSP) ? stockMap[p.maSP] : null;
+        return {
+          id:       p.maSP,
+          name:     p.tenSP    || '',
+          baseUnit: p.dvtGoc   || 'Viên',
+          sdk:      p.sdk      || '',
+          hangSX:   p.hangSX   || '',
+          quyCach:  p.quyCach  || '',
+          hoatChat: p.hoatChat || '',
+          // Default sale price is product-master data, never UOM, lot, inventory, or purchase data.
+          giaBan:      Number(p.giaBanLe) || 0,
+          giaBanBuon:  Number(p.giaBanBuon) || 0,
+          tonKho:   ton,          // null = chưa có dữ liệu tồn kho
+          uoms:     p.uoms || []
+        };
+      });
+
+      console.log('[7] catalog', this.state.catalog.length);
+      console.log(`[Bán Hàng] Đã cache ${this.state.catalog.length} sản phẩm (tồn kho: ${invResult.status === 'fulfilled' ? 'OK' : 'fail-safe'}).`);
+
+      // Nếu user đã gõ trong khi đang tải → tự động hiện kết quả ngay
+      if (this.dom.spDd && this.dom.spDd.classList.contains('open') && this.dom.spInp && this.dom.spInp.value) {
+        this.filterSP(this.dom.spInp.value);
+      }
+    });
+  },
+
+  cacheDOM() {
+    this.dom = {
+      tabList:    document.getElementById('bh-tab-list'),
+      tbody:      document.getElementById('bh-tbody'),
+      spInp:      document.getElementById('bh-sp'),
+      spDd:       document.getElementById('bh-sp-dd'),
+      dvtSel:     document.getElementById('bh-dvt'),
+      loSel:      document.getElementById('bh-lo'),
+      slInp:      document.getElementById('bh-sl'),
+      giaInp:     document.getElementById('bh-gia'),
+      khInp:      document.getElementById('bh-kh'),
+      khDd:       document.getElementById('bh-kh-dd'),
+      diemKh:     document.getElementById('bh-diem-kh'),
+      sophieu:    document.getElementById('bh-sophieu'),
+      ngayban:    document.getElementById('bh-ngayban'),
+      httt:       document.getElementById('bh-httt'),
+      bacsiInp:   document.getElementById('bh-bacsi'),
+      bacsiDd:    document.getElementById('bh-bacsi-dd'),
+      tongTien:   document.getElementById('bh-tong-tien'),
+      phaiThu:    document.getElementById('bh-phai-thu'),
+      thanhToan:  document.getElementById('bh-thanh-toan'),
+      ckHd:       document.getElementById('bh-ck-hd'),
+      diemSd:     document.getElementById('bh-diem-sd'),
+      tienDiem:   document.getElementById('bh-tien-diem'),
+      chandoan:   document.getElementById('bh-chandoan'),
+      chkXuatHuy: document.getElementById('bh-chk-xuathuy'),
+      chkBuon:    document.getElementById('bh-chk-buon'),
+      chkDonMau:  document.getElementById('bh-chk-donmau'),
+    };
+  },
+
+  bindGlobalEvents() {
+    // ── KEYBOARD SHORTCUTS ──
+    document.addEventListener('keydown', e => {
+      const page = document.getElementById('page-banhang');
+      if (!page || !page.classList.contains('show')) return;
+
+      if (e.key === 'F3') { e.preventDefault(); this.dom.spInp && this.dom.spInp.focus(); }
+      if (e.key === 'F6') { e.preventDefault(); this.save(false); }
+      if (e.key === 'F7') { e.preventDefault(); this.save(true); }
+      if (e.key === 'Escape') { this.closeAllDd(); }
+    });
+
+    // Close dropdowns on outside click
+    document.addEventListener('click', e => {
+      const page = document.getElementById('page-banhang');
+      if (!page || !page.classList.contains('show')) return;
+      if (!e.target.closest('#bh-kh') && !e.target.closest('#bh-kh-dd')) this.closeDd('bh-kh-dd');
+      if (!e.target.closest('#bh-sp') && !e.target.closest('#bh-sp-dd')) this.closeDd('bh-sp-dd');
+      if (!e.target.closest('#bh-bacsi') && !e.target.closest('#bh-bacsi-dd')) this.closeDd('bh-bacsi-dd');
+    });
+  },
+
+  // ── TAB MANAGEMENT ────────────────────────────────────────────
+  renderTabs() {
+    if (!this.dom.tabList) return;
+    this.dom.tabList.innerHTML = '';
+    this.state.tabs.forEach(tab => {
+      const t = document.createElement('div');
+      t.className = 'bh-tab' + (tab.id === this.state.activeTabId ? ' active' : '');
+      t.dataset.tabId = tab.id;
+      t.innerHTML = `<span>${tab.label}</span><button class="bh-tab-close" onclick="BanhangModule.closeTab(${tab.id}, event)" title="Đóng">✕</button>`;
+      t.addEventListener('click', e => {
+        if (!e.target.classList.contains('bh-tab-close')) this.switchTab(tab.id);
+      });
+      this.dom.tabList.appendChild(t);
+    });
+    // Nút "+"
+    const addBtn = document.createElement('button');
+    addBtn.className = 'bh-tab-add';
+    addBtn.title = 'Mở hóa đơn mới';
+    addBtn.innerHTML = '+';
+    addBtn.onclick = () => this.addTab();
+    this.dom.tabList.appendChild(addBtn);
+  },
+
+  addTab() {
+    this.snapshotCurrentTab_();
+    const id = this.state.nextTabId++;
+    this.state.tabs.push({ id, label: 'Hóa đơn ' + id, lines: [], currentKhach: null, currentBacSi: null,
+      soPhieu: '', ngayBan: '', hinhThucTT: 'Tiền mặt', chanDoan: '', diemSd: '0', ckHd: '0',
+      thanhToan: '0', xuatHuy: false, giaBuon: false, taoDonMau: false,
+      loadedSoPhieu: null, viewMode: false });
+    this.state.activeTabId = id;
+    this.renderTabs();
+    this.restoreTab_(id);
+    this.setDefaultDateTime(); // brand-new invoice: fill "now", not a blank date
+
+    // Sinh số phiếu riêng cho tab mới (giống lần init() đầu tiên).
+    google.script.run
+      .withSuccessHandler(res => {
+        if (res && res.success && this.dom.sophieu && this.state.activeTabId === id) {
+          this.dom.sophieu.value = res.data;
+        }
+      })
+      .api_generateSaleCode();
+  },
+
+  closeTab(id, event) {
+    if (event) event.stopPropagation();
+    if (this.state.tabs.length <= 1) { toast('Không thể đóng hóa đơn cuối cùng', 'warn'); return; }
+    const idx = this.state.tabs.findIndex(t => t.id === id);
+    const wasActive = this.state.activeTabId === id;
+    this.state.tabs.splice(idx, 1);
+    if (wasActive) {
+      const newActive = this.state.tabs[Math.max(0, idx - 1)];
+      this.state.activeTabId = newActive.id;
+      this.renderTabs();
+      this.restoreTab_(newActive.id);
+    } else {
+      this.renderTabs();
+    }
+  },
+
+  switchTab(id) {
+    if (id === this.state.activeTabId) return;
+    this.snapshotCurrentTab_();
+    this.state.activeTabId = id;
+    this.renderTabs();
+    this.restoreTab_(id);
+  },
+
+  // Saves the currently visible ticket (DOM + flat state) into the tab object
+  // that is about to stop being active. Called right before switching away
+  // from it (switchTab/addTab) — never needs to run continuously in sync.
+  snapshotCurrentTab_() {
+    const tab = this.state.tabs.find(t => t.id === this.state.activeTabId);
+    if (!tab) return;
+    tab.lines = this.state.lines;
+    tab.currentKhach = this.state.currentKhach;
+    tab.currentBacSi = this.state.currentBacSi;
+    tab.soPhieu = this.dom.sophieu ? this.dom.sophieu.value : '';
+    tab.ngayBan = this.dom.ngayban ? this.dom.ngayban.value : '';
+    tab.hinhThucTT = this.dom.httt ? this.dom.httt.value : 'Tiền mặt';
+    tab.chanDoan = this.dom.chandoan ? this.dom.chandoan.value : '';
+    tab.diemSd = this.dom.diemSd ? this.dom.diemSd.value : '0';
+    tab.ckHd = this.dom.ckHd ? this.dom.ckHd.value : '0';
+    tab.thanhToan = this.dom.thanhToan ? this.dom.thanhToan.value : '0';
+    tab.xuatHuy = this.dom.chkXuatHuy ? this.dom.chkXuatHuy.checked : false;
+    tab.giaBuon = this.dom.chkBuon ? this.dom.chkBuon.checked : false;
+    tab.taoDonMau = this.dom.chkDonMau ? this.dom.chkDonMau.checked : false;
+    tab.loadedSoPhieu = this.state.loadedSoPhieu;
+    tab.viewMode = this.state.viewMode;
+  },
+
+  // Loads a tab object's saved ticket back into the flat state/DOM so it
+  // becomes "the active ticket" again. Input bar (product search, DVT, lot,
+  // qty, price) always starts fresh per tab via resetInputBar() at the end.
+  restoreTab_(tabId) {
+    const tab = this.state.tabs.find(t => t.id === tabId);
+    if (!tab) return;
+    this.state.lines = tab.lines || [];
+    this.state.currentKhach = tab.currentKhach || null;
+    this.state.currentBacSi = tab.currentBacSi || null;
+    this.state.selectedLineIndex = null;
+
+    if (this.dom.khInp) this.dom.khInp.value = this.state.currentKhach ? this.state.currentKhach.tenKH : '';
+    if (this.dom.diemKh) this.dom.diemKh.textContent = this.state.currentKhach ? (this.state.currentKhach.diemTL || 0) : 0;
+    if (this.dom.bacsiInp) this.dom.bacsiInp.value = this.state.currentBacSi ? this.state.currentBacSi.tenBS : '';
+    if (this.dom.sophieu) this.dom.sophieu.value = tab.soPhieu || '';
+    if (this.dom.ngayban) this.dom.ngayban.value = tab.ngayBan || '';
+    if (this.dom.httt) this.dom.httt.value = tab.hinhThucTT || 'Tiền mặt';
+    if (this.dom.chandoan) this.dom.chandoan.value = tab.chanDoan || '';
+    if (this.dom.diemSd) this.dom.diemSd.value = tab.diemSd != null ? tab.diemSd : '0';
+    if (this.dom.ckHd) this.dom.ckHd.value = tab.ckHd != null ? tab.ckHd : '0';
+    if (this.dom.thanhToan) this.dom.thanhToan.value = tab.thanhToan != null ? tab.thanhToan : '0';
+    if (this.dom.chkXuatHuy) this.dom.chkXuatHuy.checked = !!tab.xuatHuy;
+    if (this.dom.chkBuon) this.dom.chkBuon.checked = !!tab.giaBuon;
+    if (this.dom.chkDonMau) this.dom.chkDonMau.checked = !!tab.taoDonMau;
+    this.state.loadedSoPhieu = tab.loadedSoPhieu || null;
+    this.state.viewMode = !!tab.viewMode;
+
+    this.renderGrid();
+    this.recalc(); // recompute từ lines/ckHd/thanhToan vừa khôi phục, không ghi đè ckHd đã lưu
+    this.resetInputBar(); // mỗi tab luôn có thanh nhập liệu (F3/ĐVT/Lô/SL/Giá) trắng riêng
+    this.applyModeLock_(); // Sprint 6.0: khóa/mở khóa input đúng theo tab vừa khôi phục
+  },
+
+  // ── SPRINT 6.0: MỞ HÓA ĐƠN TỪ DANH SÁCH PHIẾU XUẤT (BR-PX-01..09) ──
+  // Gọi từ mod_dsphieuxuat.html: BanhangModule.loadInvoiceForView(soPhieu).
+  // Sale Workspace chỉ là UI Container hiển thị ĐÈ (overlay) lên trên module
+  // hiện hành — KHÔNG điều hướng trang (không gọi goPage), KHÔNG đổi curPage,
+  // KHÔNG active menu "Bán hàng". Người dùng vẫn ở module Danh sách Phiếu Xuất.
+  // Tái sử dụng đúng apiSaleGetDetail() đã xây cho màn danh sách — không có
+  // API/luồng đọc dữ liệu riêng nào khác.
+  loadInvoiceForView(soPhieu) {
+    this.showOverlay_();
+    showLoading('Đang tải hóa đơn...');
+    ApiClient.call('apiSaleGetDetail', soPhieu)
+      .then(res => {
+        hideLoading();
+        if (!res || !res.success) {
+          toast('Lỗi tải hóa đơn: ' + ((res && res.message) || 'không rõ nguyên nhân'), 'err');
+          this.hideOverlay_();
+          return;
+        }
+        this._openInvoiceInNewTab_(res.data);
+      })
+      .catch(err => {
+        hideLoading();
+        toast('Lỗi kết nối: ' + err.message, 'err');
+        this.hideOverlay_();
+      });
+  },
+
+  // Hiện/ẩn Sale Workspace ở Overlay Mode (position:fixed đè lên module hiện
+  // hành). Không dùng goPage() — trang bên dưới (Danh sách Phiếu Xuất) không
+  // bị ẩn/khởi tạo lại, giữ nguyên điều kiện tìm kiếm/vị trí cuộn (BR-PX-09).
+  showOverlay_() {
+    if (!this.initialized) this.init();
+    const page = document.getElementById('page-banhang');
+    if (page) page.classList.add('show', 'bh-overlay-mode');
+  },
+
+  hideOverlay_() {
+    const page = document.getElementById('page-banhang');
+    if (page) page.classList.remove('show', 'bh-overlay-mode');
+  },
+
+  // Chuyển dữ liệu hóa đơn trả về từ apiSaleGetDetail thành các field dạng
+  // tab — dùng chung bởi _openInvoiceInNewTab_() (mở tab mới) và
+  // _refreshCurrentTabAfterUpdate_() (cập nhật tại chỗ, BR-PX-14). heSo/lo/
+  // hsd/ck lấy nguyên theo dữ liệu đã lưu — không tính lại theo catalog hiện
+  // tại (BR-PX: màn này không được tự thay đổi số liệu hóa đơn).
+  _invoiceDataToTabFields_(d) {
+    const lines = (d.lines || []).map(l => ({
+      maSP: l.maSP, tenSP: l.tenSP, dvt: l.dvt, heSo: Number(l.heSo) || 1,
+      lo: l.soLo || '', hsd: l.hanDung || '',
+      sl: Number(l.soLuong) || 0, donGia: Number(l.giaBan) || 0,
+      _autoDonGia: null, ck: Number(l.ck) || 0, vat: 0,
+      thanhTien: Number(l.thanhTien) || 0, ghiChu: l.ghiChu || ''
+    }));
+    return {
+      lines,
+      currentKhach: d.maKhach ? { maKH: d.maKhach, tenKH: d.tenKhach, diemTL: d.diemTL || 0 } : null,
+      currentBacSi: d.maBacSi ? { maBS: d.maBacSi, tenBS: d.tenBacSi } : null,
+      soPhieu: d.soPhieu || '',
+      ngayBan: this._toDatetimeLocal_(d.ngayBan),
+      hinhThucTT: d.hinhThucTT || 'Tiền mặt',
+      chanDoan: d.ghiChu || '',
+      diemSd: '0',
+      ckHd: String(d.chietKhau || 0),
+      thanhToan: String(d.tienThanhToan || 0),
+      xuatHuy: d.loaiXuat === 'Xuất hủy',
+      giaBuon: false,
+      taoDonMau: false,
+      loadedSoPhieu: d.soPhieu,
+      viewMode: true
+    };
+  },
+
+  // Mở hóa đơn đã lưu trong 1 tab mới (không ghi đè tab người dùng đang thao
+  // tác dở), ở VIEW MODE (BR-PX-02..05).
+  _openInvoiceInNewTab_(d) {
+    this.snapshotCurrentTab_();
+    const id = this.state.nextTabId++;
+    const tab = Object.assign({ id, label: d.soPhieu || ('Hóa đơn ' + id) }, this._invoiceDataToTabFields_(d));
+    this.state.tabs.push(tab);
+    this.state.activeTabId = id;
+    this.renderTabs();
+    this.restoreTab_(id);
+  },
+
+  // BR-PX-14: sau khi Update thành công, nạp lại dữ liệu MỚI NHẤT (đã được
+  // backend tính lại — tách lô, tổng tiền...) vào ĐÚNG tab đang mở, quay về
+  // VIEW MODE — không đóng Workspace, không đổi tab, không đổi Navigation.
+  _refreshCurrentTabAfterUpdate_(d) {
+    const tab = this.state.tabs.find(t => t.id === this.state.activeTabId);
+    if (!tab) return;
+    Object.assign(tab, this._invoiceDataToTabFields_(d));
+    this.restoreTab_(tab.id);
+  },
+
+  _toDatetimeLocal_(s) {
+    if (!s) return '';
+    const m = String(s).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/);
+    if (!m) return '';
+    const pad = n => String(n).padStart(2, '0');
+    return `${m[3]}-${pad(m[2])}-${pad(m[1])}T${pad(m[4])}:${m[5]}`;
+  },
+
+  // Khóa/mở khóa toàn bộ input theo state.viewMode (BR-PX-03/05), và bật/tắt
+  // nút góc trái "Phiếu xuất"/"Sửa phiếu" + nút "Đóng" theo state.loadedSoPhieu
+  // (BR-PX-06). Gọi lại mỗi khi đổi/khôi phục tab, và ngay sau enterEditMode_().
+  applyModeLock_() {
+    const locked = !!this.state.viewMode;
+    const openedFromList = !!this.state.loadedSoPhieu;
+
+    [this.dom.spInp, this.dom.dvtSel, this.dom.loSel, this.dom.slInp, this.dom.giaInp]
+      .forEach(el => { if (el) el.disabled = locked; });
+
+    if (this.dom.khInp) this.dom.khInp.disabled = locked;
+    if (this.dom.bacsiInp) this.dom.bacsiInp.disabled = locked;
+    if (this.dom.httt) this.dom.httt.disabled = locked;
+    if (this.dom.ngayban) this.dom.ngayban.disabled = locked;
+    if (this.dom.chandoan) this.dom.chandoan.readOnly = locked;
+    if (this.dom.diemSd) this.dom.diemSd.readOnly = locked;
+    if (this.dom.ckHd) this.dom.ckHd.readOnly = locked;
+    if (this.dom.thanhToan) this.dom.thanhToan.readOnly = locked;
+    [this.dom.chkXuatHuy, this.dom.chkBuon, this.dom.chkDonMau].forEach(el => { if (el) el.disabled = locked; });
+
+    ['bh-btn-luu', 'bh-btn-luuin', 'bh-btn-add', 'bh-btn-donmau', 'bh-btn-themdvt', 'bh-btn-barcode', 'bh-btn-upload']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.disabled = locked; });
+
+    const btnAddKh = document.querySelector('.bh-plus-btn[onclick*="openAddKhach"]');
+    const btnAddBs = document.querySelector('.bh-plus-btn[onclick*="openAddBacSi"]');
+    if (btnAddKh) btnAddKh.disabled = locked;
+    if (btnAddBs) btnAddBs.disabled = locked;
+
+    // BR-PX-06/07: nút góc trái — TheLight dùng đúng vị trí này cho "Sửa phiếu",
+    // không phải nút footer riêng. Chỉ đổi nhãn/hành vi khi phiếu được mở từ
+    // Danh sách Phiếu Xuất; hóa đơn mới (openedFromList=false) giữ nguyên
+    // nhãn/tình trạng "Phiếu xuất" tĩnh như trước giờ.
+    const btnLoai = document.getElementById('bh-loai-btn');
+    if (btnLoai) {
+      if (openedFromList) {
+        btnLoai.textContent = 'Sửa phiếu';
+        btnLoai.disabled = !locked; // đã ở EDIT MODE thì không cần bấm lại
+        btnLoai.onclick = () => this.enterEditMode_();
+      } else {
+        btnLoai.textContent = 'Phiếu xuất';
+        btnLoai.disabled = false;
+        btnLoai.onclick = null;
+      }
+    }
+
+    const btnDongXem = document.getElementById('bh-btn-dongxem');
+    if (btnDongXem) btnDongXem.style.display = openedFromList ? '' : 'none';
+
+    this.renderGrid(); // dựng lại Grid để khóa/mở khóa input trên từng dòng
+  },
+
+  // BR-PX-06/07: mở khóa để chỉnh sửa, tái sử dụng nguyên vẹn logic sửa dòng
+  // đã có (BR-PX-08). Nút Lưu/Lưu&In cũng được mở khóa (applyModeLock_ dựa
+  // trên viewMode) — bấm Lưu ở đây sẽ đi qua _saveUpdate_() (BR-PX-10: Update
+  // Transaction), không tạo hóa đơn mới. Không đóng Workspace, không đổi tab,
+  // không đổi Navigation — chỉ mở khóa control tại chỗ.
+  enterEditMode_() {
+    this.state.viewMode = false;
+    this.applyModeLock_();
+    toast('Đã mở khóa chỉnh sửa hóa đơn.', 'ok');
+  },
+
+  // BR-PX-09: đóng Overlay, quay lại Danh sách Phiếu Xuất — KHÔNG điều hướng
+  // trang (không gọi goPage), vì Danh sách Phiếu Xuất chưa từng bị ẩn/khởi
+  // tạo lại phía sau, nên điều kiện tìm kiếm/vị trí đang xem giữ nguyên 100%.
+  closeInvoiceView_() {
+    if (this.state.tabs.length > 1) {
+      this.closeTab(this.state.activeTabId);
+    } else {
+      this.state.loadedSoPhieu = null;
+      this.state.viewMode = false;
+      this.state.lines = [];
+      this.state.currentKhach = null;
+      this.state.currentBacSi = null;
+      const tab = this.state.tabs.find(t => t.id === this.state.activeTabId);
+      if (tab) {
+        tab.loadedSoPhieu = null; tab.viewMode = false; tab.lines = [];
+        tab.currentKhach = null; tab.currentBacSi = null; tab.soPhieu = ''; tab.label = 'Hóa đơn ' + tab.id;
+      }
+      this.renderTabs();
+      this.renderGrid();
+      this.recalc(true);
+      this.applyModeLock_();
+    }
+    this.hideOverlay_();
+  },
+
+  // ── DEFAULT DATE ──────────────────────────────────────────────
+  setDefaultDateTime() {
+    if (!this.dom.ngayban) return;
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    this.dom.ngayban.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  },
+
+  // ── PRODUCT SEARCH (Sprint 5.3) ────────────────────────────────
+  filterSP(q) {
+    const dd = this.dom.spDd;
+    const inp = this.dom.spInp;
+    if (!dd || !inp) return;
+    if (!q || q.trim().length < 1) { this.closeDd('bh-sp-dd'); return; }
+
+    const kw = q.toLowerCase().trim();
+    console.log('[8] filterSP', this.state.catalog.length);
+
+    // Dùng position: fixed để tránh bị che bởi CSS của grid bên dưới
+    const rect = inp.getBoundingClientRect();
+    dd.style.position = 'fixed';
+    dd.style.top  = (rect.bottom + 2) + 'px';
+    dd.style.left = rect.left + 'px';
+    dd.style.minWidth = Math.max(560, rect.width) + 'px';
+    dd.style.maxHeight = '400px';
+    dd.style.overflowY = 'auto';
+    dd.style.zIndex = '999999';
+    dd.classList.add('open');
+
+    // Chưa cache xong → hiện trạng thái chờ, tự động cập nhật khi xong
+    if (!this.state.catalog || this.state.catalog.length === 0) {
+      dd.innerHTML = '<div class="bh-dd-item" style="color:var(--text2);padding:12px;">⏳ Đang tải danh mục sản phẩm...</div>';
+      return;
+    }
+
+    const found = this.state.catalog.filter(p =>
+      p.name.toLowerCase().includes(kw) ||
+      p.id.toLowerCase().includes(kw) ||
+      (p.sdk && p.sdk.toLowerCase().includes(kw)) ||
+      (p.hoatChat && p.hoatChat.toLowerCase().includes(kw))
+    ).slice(0, 20);
+    console.log('TRACE-6c: found.length =', found.length);
+
+    if (!found.length) {
+      dd.innerHTML = '<div class="bh-dd-empty">Không tìm thấy sản phẩm</div>';
+      return;
+    }
+
+    console.log('TRACE-7: render', found.length, 'rows');
+    // Patch: fmtNum không có trong scope → dùng inline formatter
+    const _fmt = n => (n == null || isNaN(n)) ? '0' : formatMoney(n);
+    dd.innerHTML = found.map(p => {
+      const tonDisplay = p.tonKho === null ? '<span style="color:var(--text2)">—</span>'
+        : `<span style="font-weight:700;color:${p.tonKho > 0 ? '#4caf50' : '#ef5350'};">${_fmt(p.tonKho)}</span>`;
+      return `
+      <div class="bh-sp-dd-row" onclick="BanhangModule.selectSP('${p.id}')">
+        <div class="bh-sp-dd-row-top">
+          <span class="bh-sp-dd-name">Tên:${p.name} - ${p.baseUnit} - Tồn: ${tonDisplay}</span>
+          <span class="bh-sp-dd-price">${_fmt(p.giaBan)}</span>
+        </div>
+        <div class="bh-sp-dd-row-info">SĐK: ${p.sdk || '-'} - HSX: ${p.hangSX || '-'}</div>
+        <div class="bh-sp-dd-row-info">Quy cách: ${p.quyCach || '-'} - Hoạt chất: ${p.hoatChat || '-'}</div>
+      </div>`;
+    }).join('');
+  },
+
+  selectSP(maSP) {
+    console.log('TRACE-8a: selectSP maSP =', maSP);
+    const sp = (this.state.catalog || []).find(p => p.id === maSP);
+    console.log('TRACE-8b: sp found =', sp);
+    if (!sp) return;
+    this.state.currentSP = sp;
+    if (this.dom.spInp) this.dom.spInp.value = sp.name;
+    this.closeDd('bh-sp-dd');
+
+    // Nạp danh sách ĐVT vào dropdown (phục vụ Sprint 5.4)
+    if (this.dom.dvtSel) {
+      const uoms = sp.uoms || [];
+      if (uoms.length) {
+        this.dom.dvtSel.innerHTML = uoms.map(u =>
+          `<option value="${u.tenDV}" data-heso="${u.heSo}" data-gia="${u.giaBanLe || 0}" data-giabuon="${u.giaBanBuon || 0}">${u.tenDV}</option>`
+        ).join('');
+        // Tự động chọn ĐVT mặc định
+        const defIdx = uoms.findIndex(u => u.macDinh);
+        if (defIdx >= 0) this.dom.dvtSel.selectedIndex = defIdx;
+        this.onDvtChange();
+      } else {
+        this.dom.dvtSel.innerHTML = `<option value="${sp.dvtGoc}" data-heso="1" data-gia="${sp.giaBan}" data-giabuon="${sp.giaBanBuon || 0}">${sp.dvtGoc}</option>`;
+        if (this.dom.giaInp) this.dom.giaInp.value = formatMoney(this.resolvePrice_(sp.giaBan, sp.giaBanBuon));
+      }
+    }
+
+    this.loadLotsForSelectedProduct();
+
+    // Focus sang ô ĐVT (Focus Flow chuẩn TheLight)
+    this.dom.dvtSel && this.dom.dvtSel.focus();
+  },
+
+  // Giá bán mặc định đọc theo ĐVT đang chọn (SP_DONVITINH.GiaBanLe/GiaBanBuon);
+  // nếu ĐVT chưa cấu hình giá riêng (0/rỗng) thì fallback về DM_SANPHAM.
+  onDvtChange() {
+    const sel = this.dom.dvtSel;
+    if (!sel || !this.dom.giaInp) return;
+    const opt = sel.options[sel.selectedIndex];
+    const giaLeTheoDvt = opt ? Number(opt.dataset.gia) || 0 : 0;
+    const giaBuonTheoDvt = opt ? Number(opt.dataset.giabuon) || 0 : 0;
+    const giaLeMacDinh = this.state.currentSP ? Number(this.state.currentSP.giaBan) || 0 : 0;
+    const giaBuonMacDinh = this.state.currentSP ? Number(this.state.currentSP.giaBanBuon) || 0 : 0;
+    const giaLe = giaLeTheoDvt > 0 ? giaLeTheoDvt : giaLeMacDinh;
+    const giaBuon = giaBuonTheoDvt > 0 ? giaBuonTheoDvt : giaBuonMacDinh;
+    this.dom.giaInp.value = formatMoney(this.resolvePrice_(giaLe, giaBuon));
+    this.state.giaManualEdit = false; // price was just auto-filled, not typed by hand
+  },
+
+  // Checkbox "Giá bán buôn" áp dụng cho toàn hóa đơn: khi tick, giá GiaBanBuon
+  // được ưu tiên (nếu sản phẩm có cấu hình) thay cho GiaBanLe — cho cả dòng đã
+  // có sẵn trong giỏ lẫn dòng thêm mới (PO quyết định 2026-08-04, sau khi test
+  // thực tế cho thấy chỉ áp dụng "từ lúc tick trở đi" không đúng kỳ vọng).
+  resolvePrice_(giaLe, giaBuon) {
+    const dungGiaBuon = this.dom.chkBuon && this.dom.chkBuon.checked;
+    return (dungGiaBuon && Number(giaBuon) > 0) ? Number(giaBuon) : Number(giaLe) || 0;
+  },
+
+  // Giá tự động (giống công thức onGridDvtChange) của 1 dòng đã có trong giỏ,
+  // dựa trên SP + ĐVT hiện tại của dòng đó — dùng khi bật/tắt Giá bán buôn.
+  lineAutoPrice_(line) {
+    const sp = (this.state.catalog || []).find(p => p.id === line.maSP);
+    if (!sp) return null;
+    const uom = (sp.uoms || []).find(u => u.tenDV === line.dvt);
+    const giaLeTheoDvt = uom ? Number(uom.giaBanLe) || 0 : 0;
+    const giaBuonTheoDvt = uom ? Number(uom.giaBanBuon) || 0 : 0;
+    const giaLe = giaLeTheoDvt > 0 ? giaLeTheoDvt : Number(sp.giaBan) || 0;
+    const giaBuon = giaBuonTheoDvt > 0 ? giaBuonTheoDvt : Number(sp.giaBanBuon) || 0;
+    return this.resolvePrice_(giaLe, giaBuon);
+  },
+
+  // Đổi giá các dòng đã có trong Grid khi bật/tắt Giá bán buôn. Chỉ đổi dòng
+  // đang dùng giá tự động (line.donGia === line._autoDonGia); dòng đã bị sửa
+  // giá tay được giữ nguyên, không bị ghi đè — cùng quy ước với onGridDvtChange().
+  applyGiaBuonToLines_() {
+    this.state.lines.forEach(line => {
+      if (line._autoDonGia === null || line._autoDonGia === undefined || line.donGia !== line._autoDonGia) return;
+      const giaMoi = this.lineAutoPrice_(line);
+      if (giaMoi === null) return;
+      line.donGia = giaMoi;
+      line._autoDonGia = giaMoi;
+      line.thanhTien = line.sl * line.donGia;
+    });
+    this.renderGrid();
+    this.recalc(true);
+  },
+
+  onGiaBuonToggle() {
+    // Cập nhật giá các dòng đã có sẵn trong giỏ (chỉ dòng dùng giá tự động).
+    this.applyGiaBuonToLines_();
+    // Làm mới giá đang xem trước trên thanh nhập liệu ngay khi tick/bỏ tick,
+    // trừ khi giá đã bị người dùng gõ tay (tôn trọng chỉnh sửa thủ công).
+    if (this.state.currentSP && !this.state.giaManualEdit) this.onDvtChange();
+  },
+
+  onGiaInput() {
+    this.state.giaManualEdit = true;
+  },
+
+  // Loads only lots that still have stock.  The server returns them in FEFO order.
+  async loadLotsForSelectedProduct() {
+    const sel = this.dom.loSel;
+    const sp = this.state.currentSP;
+    if (!sel || !sp) return;
+
+    sel.innerHTML = '<option value="">Đang tải lô…</option>';
+    sel.disabled = true;
+    try {
+      const lots = await InventoryService.getLots(sp.id, 'Kho chính');
+      // A later product selection may complete before this request.
+      if (!this.state.currentSP || this.state.currentSP.id !== sp.id) return;
+
+      this.state.currentLots = lots || [];
+      if (!lots.length) {
+        sel.innerHTML = '<option value="">Không có lô còn tồn</option>';
+        return;
+      }
+
+      sel.innerHTML = '<option value="">Chọn số lô/hạn…</option>' + lots.map((lot, index) => {
+        const lotLabel = lot.SoLo || '-';
+        const expiryLabel = lot.HanDung || '-';
+        const qty = formatMoney(lot.SLTon || 0);
+        return `<option value="${index}">${lotLabel} – ${expiryLabel} – Tồn: ${qty}</option>`;
+      }).join('');
+      sel.selectedIndex = 1; // Preferred lot only; the backend remains authoritative.
+    } catch (e) {
+      console.error('[Bán Hàng] Không tải được lô:', e);
+      sel.innerHTML = '<option value="">Không tải được số lô</option>';
+    } finally {
+      sel.disabled = false;
+    }
+  },
+
+  // ── CUSTOMER SEARCH (Sprint 5.2) ────────────────
+  filterKhach(q) {
+    // Empty keyword is valid: backend returns the full customer list for it,
+    // so focusing the empty field must still open the dropdown, not close it.
+    const kw = (q || '').toLowerCase().trim();
+
+    // Clear and show loading state
+    const dd = this.dom.khDd;
+    if (!dd) return;
+    dd.innerHTML = '<div class="bh-dd-item" style="color:var(--text2)">Đang tìm kiếm...</div>';
+    this.positionDdNearInput_(dd, this.dom.khInp);
+    dd.classList.add('open');
+
+    google.script.run
+      .withSuccessHandler(res => {
+        if (!res || !res.success) {
+          dd.innerHTML = '<div class="bh-dd-empty">Lỗi tìm kiếm</div>';
+          return;
+        }
+        const found = res.data || [];
+        this.state.khList = found; // Cache results for selection
+        
+        if (!found.length) {
+          dd.innerHTML = '<div class="bh-dd-empty">Không tìm thấy khách hàng</div>';
+        } else {
+          dd.innerHTML = found.map(k => `
+            <div class="bh-dd-item" onclick="BanhangModule.selectKhach('${k.maKH}')">
+              <span style="flex:1;font-weight:600">${k.tenKH}</span>
+              <span style="color:var(--text2);font-size:var(--fs-1)">${k.sdt || ''}</span>
+            </div>`).join('');
+        }
+      })
+      .api_searchCustomers(kw);
+  },
+
+  selectKhach(maKH) {
+    this.state.currentKhach = (this.state.khList || []).find(k => k.maKH === maKH);
+    if (!this.state.currentKhach) return;
+    if (this.dom.khInp) this.dom.khInp.value = this.state.currentKhach.tenKH;
+    if (this.dom.diemKh) this.dom.diemKh.textContent = this.state.currentKhach.diemTL || 0;
+    this.closeDd('bh-kh-dd');
+  },
+
+  // ── DOCTOR SEARCH (Sprint 5.2) ──────────────────
+  filterBacSi(q) {
+    // Empty keyword is valid: the backend returns the full doctor list for it,
+    // so focusing the empty field must still open the dropdown, not close it.
+    const kw = (q || '').toLowerCase().trim();
+
+    const dd = this.dom.bacsiDd;
+    if (!dd) return;
+    dd.innerHTML = '<div class="bh-dd-item" style="color:var(--text2)">Đang tìm kiếm...</div>';
+    this.positionDdNearInput_(dd, this.dom.bacsiInp);
+    dd.classList.add('open');
+
+    google.script.run
+      .withSuccessHandler(res => {
+        if (!res || !res.success) {
+          dd.innerHTML = '<div class="bh-dd-empty">Lỗi tìm kiếm</div>';
+          return;
+        }
+        const found = res.data || [];
+        this.state.bacsiList = found;
+        
+        if (!found.length) {
+          dd.innerHTML = '<div class="bh-dd-empty">Không tìm thấy bác sĩ</div>';
+        } else {
+          dd.innerHTML = found.map(b => `
+            <div class="bh-dd-item" onclick="BanhangModule.selectBacSi('${b.maBS}')">
+              <span style="flex:1;font-weight:600">${b.tenBS}</span>
+              <span style="color:var(--text2);font-size:var(--fs-1)">${b.chuyenKhoa || ''}</span>
+            </div>`).join('');
+        }
+      })
+      .api_searchDoctors(kw);
+  },
+
+  selectBacSi(maBS) {
+    this.state.currentBacSi = (this.state.bacsiList || []).find(b => b.maBS === maBS);
+    if (!this.state.currentBacSi) return;
+    if (this.dom.bacsiInp) this.dom.bacsiInp.value = this.state.currentBacSi.tenBS;
+    this.closeDd('bh-bacsi-dd');
+  },
+
+  // ── KEYBOARD FLOWS: Input Bar ─────────────────────────────────
+  onSlKeydown(e) {
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      this.dom.giaInp && this.dom.giaInp.focus();
+    }
+  },
+
+  onGiaKeydown(e) {
+    if (e.key === 'Enter') { e.preventDefault(); this.addLine(); }
+    if (e.key === 'Tab')   { e.preventDefault(); this.addLine(); }
+  },
+
+  // ── INVOICE LINES & REALTIME TOTALS ────────────────────────────
+  addLine() {
+    const sp = this.state.currentSP;
+    if (!sp) { toast('Chưa chọn sản phẩm!', 'warn'); return; }
+
+    const qty = Number(this.dom.slInp && this.dom.slInp.value) || 0;
+    const price = parseMoney(this.dom.giaInp && this.dom.giaInp.value);
+    if (qty <= 0) { toast('Số lượng phải lớn hơn 0!', 'warn'); return; }
+    if (price < 0) { toast('Giá bán không hợp lệ!', 'warn'); return; }
+
+    const selectedUom = this.dom.dvtSel && this.dom.dvtSel.options[this.dom.dvtSel.selectedIndex];
+    const selectedLotIndex = Number(this.dom.loSel && this.dom.loSel.value);
+    const selectedLot = Number.isInteger(selectedLotIndex) ? this.state.currentLots[selectedLotIndex] : null;
+    const line = {
+      maSP: sp.id,
+      tenSP: sp.name,
+      dvt: selectedUom ? selectedUom.value : sp.baseUnit,
+      heSo: selectedUom ? (Number(selectedUom.dataset.heso) || 1) : 1,
+      // Lot is only the starting point for allocation (SaleBusinessLogic.md §14);
+      // the backend still continues FEFO across other lots if this one isn't enough.
+      lo: selectedLot ? selectedLot.SoLo : '',
+      hsd: selectedLot ? selectedLot.HanDung : '',
+      sl: qty,
+      donGia: price,
+      // null once the price was ever typed by hand — blocks Grid UOM changes
+      // from silently overwriting a manually chosen price.
+      _autoDonGia: this.state.giaManualEdit ? null : price,
+      ck: 0,
+      vat: 0,
+      thanhTien: qty * price,
+      ghiChu: ''
+    };
+    this.state.lines.push(line);
+    // Dòng vừa thêm mặc nhiên trở thành dòng đang chọn trên Grid — để "Thêm
+    // ĐVT" hoạt động ngay cả sau khi resetInputBar() đã xóa currentSP.
+    this.state.selectedLineIndex = this.state.lines.length - 1;
+    this.renderGrid();
+    this.recalc(true);
+    this.resetInputBar();
+  },
+
+  updateLine(index, field, value) {
+    const line = this.state.lines[index];
+    if (!line) return;
+    line[field] = Math.max(0, field === 'donGia' ? parseMoney(value) : Number(value) || 0);
+    line.thanhTien = line.sl * line.donGia;
+    this.refreshLineMoneyCells_(index, line);
+    this.recalc(true);
+  },
+
+  // %CK theo dòng — giảm giá cho khách (giống ô chiết khấu toàn hóa đơn,
+  // nhưng áp dụng riêng cho từng dòng). Không phải hoa hồng/chiết khấu bác sĩ.
+  updateLineCk(index, value) {
+    const line = this.state.lines[index];
+    if (!line) return;
+    line.ck = Math.min(100, Math.max(0, Number(value) || 0));
+    this.refreshLineMoneyCells_(index, line);
+    this.recalc(true);
+  },
+
+  lineDiscount_(line) {
+    return (Number(line.thanhTien) || 0) * (Number(line.ck) || 0) / 100;
+  },
+
+  lineRemaining_(line) {
+    return Math.max(0, (Number(line.thanhTien) || 0) - this.lineDiscount_(line));
+  },
+
+  refreshLineMoneyCells_(index, line) {
+    const totalCell = document.getElementById(`bh-line-total-${index}`);
+    const ckCell = document.getElementById(`bh-line-ck-${index}`);
+    const remainingCell = document.getElementById(`bh-line-remaining-${index}`);
+    if (totalCell) totalCell.textContent = formatMoney(line.thanhTien);
+    if (ckCell) ckCell.textContent = formatMoney(this.lineDiscount_(line));
+    if (remainingCell) remainingCell.textContent = formatMoney(this.lineRemaining_(line));
+  },
+
+  removeLine(index) {
+    this.state.lines.splice(index, 1);
+    if (this.state.selectedLineIndex === index) {
+      this.state.selectedLineIndex = null;
+    } else if (this.state.selectedLineIndex != null && this.state.selectedLineIndex > index) {
+      this.state.selectedLineIndex--;
+    }
+    this.renderGrid();
+    this.recalc(true);
+  },
+
+  // Click chọn 1 dòng trên Grid — dùng làm "dòng đang chọn" cho các thao tác
+  // theo dòng (hiện tại: Thêm ĐVT). CHỈ toggle class 'selected' trực tiếp
+  // trên DOM, KHÔNG gọi renderGrid() — full re-render sẽ hủy/tạo lại toàn bộ
+  // <select>/<input> của Grid ngay giữa lúc người dùng đang click vào chúng,
+  // khiến ô mất focus/không mở được dropdown (bug "click vào chỉnh sửa không
+  // được" — regression khi thêm tính năng chọn dòng).
+  selectGridLine(index) {
+    this.state.selectedLineIndex = index;
+    if (!this.dom.tbody) return;
+    Array.from(this.dom.tbody.querySelectorAll('tr')).forEach((tr, i) => {
+      tr.classList.toggle('selected', i === index);
+    });
+  },
+
+  // ĐVT của dòng đã có sẵn trong catalog (đã tải khi load trang), không cần gọi lại server.
+  buildGridDvtOptions_(line) {
+    const sp = (this.state.catalog || []).find(p => p.id === line.maSP);
+    const uoms = (sp && sp.uoms) || [];
+    if (!uoms.length) return `<option value="${line.dvt}">${line.dvt}</option>`;
+    return uoms.map(u =>
+      `<option value="${u.tenDV}" data-heso="${u.heSo}" data-gia="${u.giaBanLe || 0}" data-giabuon="${u.giaBanBuon || 0}" ${u.tenDV === line.dvt ? 'selected' : ''}>${u.tenDV}</option>`
+    ).join('');
+  },
+
+  renderGrid() {
+    if (!this.dom.tbody) return;
+    if (!this.state.lines.length) {
+      this.dom.tbody.innerHTML = '<tr><td colspan="13" class="bh-grid-empty">Chưa có sản phẩm — tìm và thêm ở thanh phía trên (F3)</td></tr>';
+      return;
+    }
+    const money = value => formatMoney(value);
+    // BR-PX-03/05: ở VIEW MODE, mọi input trên từng dòng phải readonly/disabled.
+    const locked = !!this.state.viewMode;
+    const dis = locked ? 'disabled' : '';
+    const ro = locked ? 'readonly' : '';
+    this.dom.tbody.innerHTML = this.state.lines.map((line, index) => `
+      <tr class="${index === this.state.selectedLineIndex ? 'selected' : ''}" onclick="BanhangModule.selectGridLine(${index})">
+        <td style="text-align:center">${index + 1}</td>
+        <td>${line.maSP}</td>
+        <td>${line.tenSP}</td>
+        <td><select class="td-inp" ${dis} onchange="BanhangModule.onGridDvtChange(${index}, this)">${this.buildGridDvtOptions_(line)}</select></td>
+        <td>
+          <select class="td-inp" ${dis} onfocus="BanhangModule.onGridLotFocus(${index}, this)" onchange="BanhangModule.onGridLotChange(${index}, this)">
+            <option value="${line.lo || ''}" data-hsd="${line.hsd || ''}" selected>${line.lo || '-'}${line.hsd ? ' / ' + line.hsd : ''}</option>
+          </select>
+        </td>
+        <td><input class="td-inp" type="number" min="0" value="${line.sl}" ${ro} oninput="BanhangModule.updateLine(${index}, 'sl', this.value)"></td>
+        <td><input class="td-inp money-input" type="text" inputmode="numeric" value="${money(line.donGia)}" ${ro} oninput="BanhangModule.updateLine(${index}, 'donGia', this.value)"></td>
+        <td class="num" id="bh-line-total-${index}">${money(line.thanhTien)}</td>
+        <td><input class="td-inp" type="number" min="0" max="100" value="${line.ck}" ${ro} oninput="BanhangModule.updateLineCk(${index}, this.value)"></td>
+        <td class="num" id="bh-line-ck-${index}">${money(this.lineDiscount_(line))}</td>
+        <td class="num" id="bh-line-remaining-${index}">${money(this.lineRemaining_(line))}</td>
+        <td></td>
+        <td style="text-align:center">${locked ? '' : `<button class="bh-ib-icon" title="Xóa dòng" onclick="BanhangModule.removeLine(${index})">×</button>`}</td>
+      </tr>`).join('');
+  },
+
+  // Đổi ĐVT ngay trên Grid: cập nhật hệ số quy đổi và giá bán (nếu giá chưa
+  // từng bị người dùng sửa tay), không gọi Inventory Service ngay — phân bổ
+  // tồn thật vẫn chỉ xảy ra lúc Lưu hóa đơn.
+  onGridDvtChange(index, selectEl) {
+    const line = this.state.lines[index];
+    const opt = selectEl.options[selectEl.selectedIndex];
+    if (!line || !opt) return;
+
+    const sp = (this.state.catalog || []).find(p => p.id === line.maSP);
+    const giaLeTheoDvt = Number(opt.dataset.gia) || 0;
+    const giaBuonTheoDvt = Number(opt.dataset.giabuon) || 0;
+    const giaLeMacDinh = sp ? Number(sp.giaBan) || 0 : 0;
+    const giaBuonMacDinh = sp ? Number(sp.giaBanBuon) || 0 : 0;
+    const giaLe = giaLeTheoDvt > 0 ? giaLeTheoDvt : giaLeMacDinh;
+    const giaBuon = giaBuonTheoDvt > 0 ? giaBuonTheoDvt : giaBuonMacDinh;
+    const giaTuDong = this.resolvePrice_(giaLe, giaBuon);
+
+    line.dvt = opt.value;
+    line.heSo = Number(opt.dataset.heso) || 1;
+
+    if (line._autoDonGia !== null && line._autoDonGia !== undefined && line.donGia === line._autoDonGia) {
+      line.donGia = giaTuDong;
+      line._autoDonGia = giaTuDong;
+    }
+    line.thanhTien = line.sl * line.donGia;
+
+    const row = selectEl.closest('tr');
+    const priceInput = row && row.querySelector('.money-input');
+    if (priceInput) priceInput.value = formatMoney(line.donGia);
+    this.refreshLineMoneyCells_(index, line);
+    this.recalc(true);
+  },
+
+  // Tải danh sách lô còn tồn cho đúng dòng khi người dùng mở dropdown Lot
+  // trên Grid lần đầu (lazy-load, không tải lại mỗi lần focus).
+  async onGridLotFocus(index, selectEl) {
+    const line = this.state.lines[index];
+    if (!line || selectEl.dataset.loaded === '1') return;
+    selectEl.dataset.loaded = '1';
+    const currentValue = line.lo || '';
+    selectEl.disabled = true;
+    try {
+      const lots = await InventoryService.getLots(line.maSP, 'Kho chính');
+      if (this.state.lines[index] !== line) return; // dòng đã bị xóa/thay trong lúc chờ
+      const options = (lots || []).map(lot =>
+        `<option value="${lot.SoLo || ''}" data-hsd="${lot.HanDung || ''}">${lot.SoLo || '-'} – ${lot.HanDung || '-'} – Tồn: ${formatMoney(lot.SLTon || 0)}</option>`
+      ).join('');
+      selectEl.innerHTML = options || '<option value="">Không có lô còn tồn</option>';
+      const matchIdx = Array.from(selectEl.options).findIndex(o => o.value === currentValue);
+      selectEl.selectedIndex = matchIdx >= 0 ? matchIdx : 0;
+    } catch (e) {
+      console.error('[Bán Hàng] Không tải được lô cho Grid:', e);
+      selectEl.dataset.loaded = '0';
+    } finally {
+      selectEl.disabled = false;
+    }
+  },
+
+  // Đổi Lot ngay trên Grid: chỉ ghi nhận lô ưu tiên của dòng (line.lo/line.hsd).
+  // Đây vẫn chỉ là điểm bắt đầu phân bổ — Inventory Service tự tiếp tục FEFO
+  // sang lô khác nếu lô này không đủ, thực hiện lúc Lưu hóa đơn.
+  onGridLotChange(index, selectEl) {
+    const line = this.state.lines[index];
+    const opt = selectEl.options[selectEl.selectedIndex];
+    if (!line) return;
+    line.lo = opt ? opt.value : '';
+    line.hsd = opt ? (opt.dataset.hsd || '') : '';
+  },
+
+  // ── RECALC ────────────────────────────────────────────────────
+  // syncCkHd=true khi gọi từ một thay đổi dòng (thêm/xóa/sửa dòng, đổi %CK) —
+  // ghi đè ô "Chiết khấu" footer bằng tổng CK các dòng, giống TheLight. Khi
+  // gọi từ chính oninput của ô đó (hoặc ô Thanh toán), không truyền tham số
+  // này để không xóa mất giá trị người dùng vừa gõ tay.
+  recalc(syncCkHd) {
+    const tongTienHang = this.state.lines.reduce((sum, line) => sum + (Number(line.sl) || 0) * (Number(line.donGia) || 0), 0);
+    const chietKhauDong = this.state.lines.reduce((sum, line) => sum + this.lineDiscount_(line), 0);
+    if (syncCkHd && this.dom.ckHd) this.dom.ckHd.value = formatMoney(chietKhauDong);
+    const chietKhau = Math.max(0, parseMoney(this.dom.ckHd && this.dom.ckHd.value));
+    const tienPhaiTra = Math.max(0, tongTienHang - chietKhau);
+    const tienThanhToan = Math.max(0, parseMoney(this.dom.thanhToan && this.dom.thanhToan.value));
+    this.state.summary = {
+      tongTienHang,
+      chietKhau,
+      vat: 0,
+      tienPhaiTra,
+      tienThanhToan,
+      conNo: Math.max(0, tienPhaiTra - tienThanhToan)
+    };
+    const money = value => formatMoney(value);
+    if (this.dom.tongTien) this.dom.tongTien.value = money(tongTienHang);
+    if (this.dom.phaiThu) this.dom.phaiThu.value = money(tienPhaiTra);
+    if (this.dom.tienDiem) this.dom.tienDiem.value = '0';
+  },
+
+  // ── RESET INPUT BAR ───────────────────────────────────────────
+  resetInputBar() {
+    if (this.dom.spInp) this.dom.spInp.value = '';
+    if (this.dom.dvtSel) { this.dom.dvtSel.innerHTML = '<option value="">Đơn v...</option>'; }
+    if (this.dom.loSel)  { this.dom.loSel.innerHTML = '<option value="">Chọn số lô/hạn ...</option>'; }
+    if (this.dom.slInp)  this.dom.slInp.value = '1';
+    if (this.dom.giaInp) this.dom.giaInp.value = '';
+    this.state.giaManualEdit = false;
+    this.state.currentSP  = null;
+    this.state.currentLots = [];
+    this.dom.spInp && this.dom.spInp.focus();
+  },
+
+  // ── SAVE ─────────────────────────
+  // BR-PX-10: hóa đơn mở từ Danh sách Phiếu Xuất (state.loadedSoPhieu có giá
+  // trị) đi theo luồng Update Transaction (_saveUpdate_) — KHÔNG dùng lại
+  // apiSaleSave (luôn sinh SoPhieu mới, sẽ ghi trùng thành 1 hóa đơn khác).
+  // Tạo hóa đơn mới bình thường (loadedSoPhieu=null) không đổi hành vi.
+  async save(andPrint) {
+    // BR-PX-03: VIEW MODE là trạng thái chỉ đọc, không được phép Lưu hóa đơn.
+    // Nút bấm chuột đã bị disabled đúng theo applyModeLock_(), nhưng phím tắt
+    // F6/F7 gọi thẳng save() nên phải chặn lại ở đây (bug phát hiện khi Final
+    // Regression Sprint 6.0).
+    if (this.state.viewMode) {
+      toast('Đang ở chế độ chỉ xem — bấm "Sửa phiếu" trước khi lưu.', 'warn');
+      return;
+    }
+    if (!this.state.lines || this.state.lines.length === 0) {
+      toast('Hóa đơn chưa có sản phẩm nào', 'warn'); return;
+    }
+    if (this.state.loadedSoPhieu) {
+      return this._saveUpdate_(andPrint);
+    }
+    return this._saveCreate_(andPrint);
+  },
+
+  async _saveCreate_(andPrint) {
+    const payload = {
+      soPhieu: this.dom.sophieu ? this.dom.sophieu.value : '',
+      khachHang: this.state.currentKhach,
+      bacSi: this.state.currentBacSi,
+      lines: this.state.lines,
+      summary: this.state.summary,
+      ngayGiaoDich: new Date().toISOString(),
+      kho: 'Kho chính', // Hardcoded for now
+      hinhThucTT: (this.dom.httt && this.dom.httt.value) || 'Tiền mặt',
+      // Metadata cho PB_PHIEUBAN.LoaiXuat (lọc/báo cáo) — không ảnh hưởng
+      // Inventory Engine, giá trị khớp SALE_LOAI_XUAT bên backend_sale_service.gs.
+      loaiXuat: (this.dom.chkXuatHuy && this.dom.chkXuatHuy.checked) ? 'Xuất hủy' : 'Xuất bán'
+    };
+
+    console.log('[SaleTrace][UI] Save request', { soPhieu: payload.soPhieu, kho: payload.kho, lines: payload.lines.map(line => ({ maSP: line.maSP, dvt: line.dvt, heSo: line.heSo, sl: line.sl, lo: line.lo, hsd: line.hsd })) });
+        showLoading('Đang lưu hóa đơn...');
+    try {
+      const res = await ApiClient.call('apiSaleSave', payload);
+      if (res.success) {
+        toast((andPrint ? 'Đã lưu & in' : 'Đã lưu') + ' hóa đơn: ' + res.data.soPhieu, 'ok');
+        this.state.lines = [];
+        if (typeof this.renderGrid === 'function') this.renderGrid();
+        this.recalc(true);
+        this.resetInputBar();
+
+        // Số phiếu vừa hiển thị đã được dùng (server tự sinh số thật khi lưu,
+        // xem backend_sale_repository.gs). Xin số preview mới cho hóa đơn tiếp
+        // theo trên đúng tab này — tránh hiện lại số đã lưu.
+        const savedTabId = this.state.activeTabId;
+        google.script.run
+          .withSuccessHandler(res2 => {
+            if (res2 && res2.success && this.dom.sophieu && this.state.activeTabId === savedTabId) {
+              this.dom.sophieu.value = res2.data;
+            }
+          })
+          .api_generateSaleCode();
+      } else {
+        toast('Lỗi lưu hóa đơn: ' + res.message, 'err');
+      }
+    } catch (e) {
+      toast('Lỗi kết nối: ' + e.message, 'err');
+    } finally {
+      hideLoading();
+    }
+  },
+
+  // BR-PX-10 (Update Transaction): cập nhật hóa đơn đã lưu, giữ nguyên
+  // SoPhieu. Sau khi thành công, quay về VIEW MODE tại chỗ — không đóng
+  // Workspace, không đổi tab, không đổi Navigation (BR-PX-14).
+  async _saveUpdate_(andPrint) {
+    const payload = {
+      soPhieu: this.state.loadedSoPhieu,
+      khachHang: this.state.currentKhach,
+      bacSi: this.state.currentBacSi,
+      lines: this.state.lines,
+      summary: this.state.summary,
+      ngayGiaoDich: new Date().toISOString(),
+      kho: 'Kho chính',
+      hinhThucTT: (this.dom.httt && this.dom.httt.value) || 'Tiền mặt',
+      // BR-PX-11: checkbox "Xuất hủy" được phép đổi khi Update — chỉ là
+      // metadata phân loại, không ảnh hưởng Inventory.
+      loaiXuat: (this.dom.chkXuatHuy && this.dom.chkXuatHuy.checked) ? 'Xuất hủy' : 'Xuất bán'
+    };
+
+    console.log('[SaleTrace][UI] Update request', { soPhieu: payload.soPhieu, lines: payload.lines.map(line => ({ maSP: line.maSP, dvt: line.dvt, heSo: line.heSo, sl: line.sl, lo: line.lo, hsd: line.hsd })) });
+    showLoading('Đang cập nhật hóa đơn...');
+    try {
+      const res = await ApiClient.call('apiSaleUpdate', payload);
+      if (!res.success) {
+        toast('Lỗi cập nhật hóa đơn: ' + res.message, 'err');
+        return;
+      }
+      toast((andPrint ? 'Đã cập nhật & in' : 'Đã cập nhật') + ' hóa đơn: ' + res.data.soPhieu, 'ok');
+
+      try {
+        // apiSaleUpdate() đã trả kèm chi tiết mới nhất trong res.data.detail —
+        // chỉ gọi thêm apiSaleGetDetail khi thiếu (fallback hiếm khi xảy ra),
+        // tránh tốn thêm 1 round-trip mạng khiến thao tác Lưu chờ lâu hơn.
+        let detail = res.data.detail;
+        if (!detail) {
+          const detailRes = await ApiClient.call('apiSaleGetDetail', res.data.soPhieu);
+          if (!detailRes || !detailRes.success) throw new Error((detailRes && detailRes.message) || 'refetch failed');
+          detail = detailRes.data;
+        }
+        this._refreshCurrentTabAfterUpdate_(detail);
+      } catch (fetchErr) {
+        // BR-PX-14 vẫn phải quay về VIEW MODE dù refetch dữ liệu mới lỗi —
+        // chỉ là không có ngay số liệu mới nhất (tách lô/tổng tiền) để hiển thị.
+        const tab = this.state.tabs.find(t => t.id === this.state.activeTabId);
+        if (tab) tab.viewMode = true;
+        this.state.viewMode = true;
+        this.applyModeLock_();
+      }
+
+      // Làm mới ngầm Danh sách Phiếu Xuất phía sau overlay để số liệu đúng
+      // ngay khi người dùng đóng lại (BR-PX-09) — không phụ thuộc lỗi refetch ở trên.
+      if (typeof DsPhieuXuatModule !== 'undefined' && typeof DsPhieuXuatModule.loadData === 'function') {
+        DsPhieuXuatModule.loadData();
+      }
+    } catch (e) {
+      toast('Lỗi kết nối: ' + e.message, 'err');
+    } finally {
+      hideLoading();
+    }
+  },
+
+  // ── DIALOGS & ACTIONS (Sprint 5.2) ─────────────
+  openAddKhach() {
+    document.getElementById('bh-dlg-kh-ten').value = '';
+    document.getElementById('bh-dlg-kh-sdt').value = '';
+    document.getElementById('bh-dlg-kh-dc').value = '';
+    document.getElementById('bh-dlg-khach').classList.add('show');
+    setTimeout(() => document.getElementById('bh-dlg-kh-ten').focus(), 100);
+  },
+  closeAddKhach() {
+    document.getElementById('bh-dlg-khach').classList.remove('show');
+  },
+  saveAddKhach() {
+    const tenKH = document.getElementById('bh-dlg-kh-ten').value.trim();
+    if (!tenKH) { toast('Vui lòng nhập tên khách hàng', 'err'); return; }
+    const sdt = document.getElementById('bh-dlg-kh-sdt').value.trim();
+    const diaChi = document.getElementById('bh-dlg-kh-dc').value.trim();
+    
+    showLoading('Đang lưu...');
+    google.script.run
+      .withSuccessHandler(res => {
+        hideLoading();
+        if (res.success) {
+          toast('Thêm khách hàng thành công!');
+          this.closeAddKhach();
+          this.state.khList = [res.data];
+          this.selectKhach(res.data.maKH);
+        } else {
+          toast(res.message, 'err');
+        }
+      })
+      .api_createCustomer({ tenKH, sdt, diaChi });
+  },
+
+  openAddBacSi() {
+    document.getElementById('bh-dlg-bs-ten').value = '';
+    document.getElementById('bh-dlg-bs-sdt').value = '';
+    document.getElementById('bh-dlg-bs-ck').value = '';
+    document.getElementById('bh-dlg-bacsi').classList.add('show');
+    setTimeout(() => document.getElementById('bh-dlg-bs-ten').focus(), 100);
+  },
+  closeAddBacSi() {
+    document.getElementById('bh-dlg-bacsi').classList.remove('show');
+  },
+  saveAddBacSi() {
+    const tenBS = document.getElementById('bh-dlg-bs-ten').value.trim();
+    if (!tenBS) { toast('Vui lòng nhập tên bác sĩ', 'err'); return; }
+    const sdt = document.getElementById('bh-dlg-bs-sdt').value.trim();
+    const chuyenKhoa = document.getElementById('bh-dlg-bs-ck').value.trim();
+    
+    showLoading('Đang lưu...');
+    google.script.run
+      .withSuccessHandler(res => {
+        hideLoading();
+        if (res.success) {
+          toast('Thêm bác sĩ thành công!');
+          this.closeAddBacSi();
+          this.state.bacsiList = [res.data];
+          this.selectBacSi(res.data.maBS);
+        } else {
+          toast(res.message, 'err');
+        }
+      })
+      .api_createDoctor({ tenBS, sdt, chuyenKhoa });
+  },
+
+  // Dùng chung PrescriptionLookup (dialog_prescription_lookup.html) — dialog
+  // chỉ tìm/xem/áp dụng đơn mẫu, không tự thao tác lên Grid. Toàn bộ nghiệp
+  // vụ áp dụng prescription vào hóa đơn (đưa dòng vào Grid, refresh, tính
+  // lại tổng) thuộc Sale — xem loadPrescriptionToSaleGrid() (PO quyết định
+  // 2026-08-05: append từng dòng, giống hệt người dùng tự nhập qua addLine(),
+  // không gộp với dòng cùng mã SP đã có sẵn).
+  openDonMau() {
+    PrescriptionLookup.open({
+      onApply: ({ prescription }) => {
+        this.loadPrescriptionToSaleGrid(prescription);
+      }
+    });
+  },
+
+  // Đưa toàn bộ prescription.lines vào state.lines — giống hệt việc người
+  // dùng tự nhập từng dòng sản phẩm qua addLine(): không merge với dòng đã
+  // có cùng mã SP (module đã cho phép nhiều dòng cùng SP trong 1 hóa đơn).
+  // heSo tra theo ĐVT của dòng trong catalog hiện tại (để SLQuyDoi đúng khi
+  // lưu); giá lấy nguyên theo đơn mẫu, coi như đã chốt tay (_autoDonGia:
+  // null) để tránh bị ghi đè nếu sau đó đổi ĐVT ngay trên Grid.
+  loadPrescriptionToSaleGrid(prescription) {
+    (prescription.lines || []).forEach(l => {
+      const sp = (this.state.catalog || []).find(p => p.id === l.maSP);
+      const uom = sp ? (sp.uoms || []).find(u => u.tenDV === l.dvt) : null;
+      const heSo = uom ? (Number(uom.heSo) || 1) : 1;
+      const qty = Number(l.sl) || 0;
+      const donGia = Number(l.gia) || 0;
+      this.state.lines.push({
+        maSP: l.maSP,
+        tenSP: l.tenSP,
+        dvt: l.dvt,
+        heSo: heSo,
+        lo: '',
+        hsd: '',
+        sl: qty,
+        donGia: donGia,
+        _autoDonGia: null,
+        ck: 0,
+        vat: 0,
+        thanhTien: qty * donGia,
+        ghiChu: l.ghiChu || ''
+      });
+    });
+    this.state.selectedLineIndex = this.state.lines.length - 1;
+    this.renderGrid();
+    this.recalc(true);
+  },
+  openTimDon()    { toast('Tìm đơn thuốc điện tử — Sprint 5.8', 'warn'); },
+  inPhieuNhanh()  { toast('In phiếu — Sprint 5.10', 'warn'); },
+
+  // ── THÊM ĐVT TẠI DÒNG ĐANG BÁN ──────────────────────────────────
+  // Dùng chung ProductUomEditor (dialog_product_uom_editor.html) — dialog chỉ
+  // render UI/validate/trả dữ liệu qua callback, không biết gì về Sale. Toàn
+  // bộ nghiệp vụ (không ghi SP_DONVITINH, chỉ thêm vào bản sao ĐVT của sản
+  // phẩm đang cache trong phiên làm việc this.state.catalog) nằm ở đây.
+  //
+  // Sản phẩm áp dụng ưu tiên lấy từ dòng đang chọn trên Grid (selectedLineIndex)
+  // — vì currentSP (thanh nhập liệu) đã bị resetInputBar() xóa về null ngay
+  // sau khi dòng được thêm vào Grid. Chỉ fallback về currentSP khi chưa có
+  // dòng nào được thêm/chọn (đang thao tác trực tiếp trên thanh nhập liệu).
+  resolveThemDvtProduct_() {
+    const idx = this.state.selectedLineIndex;
+    if (idx != null && this.state.lines[idx]) {
+      const maSP = this.state.lines[idx].maSP;
+      const sp = (this.state.catalog || []).find(p => p.id === maSP);
+      if (sp) return sp;
+    }
+    return this.state.currentSP;
+  },
+
+  openThemDVT() {
+    const sp = this.resolveThemDvtProduct_();
+    if (!sp) { toast('Chọn sản phẩm trước!', 'warn'); return; }
+
+    sp.uoms = sp.uoms || [];
+    ProductUomEditor.open({
+      maSP: sp.id,
+      productName: sp.name,
+      baseUnit: sp.baseUnit,
+      existingUoms: sp.uoms,
+      onSave: (result) => {
+        // Rebase (đã LOCK, xác nhận trực tiếp trên TheLight 2026-08-05): ĐVT
+        // mới thành gốc mới, nhân lại hệ số của mọi ĐVT cũ theo tỷ lệ — chỉ
+        // đổi heSo/baseUnit trong phiên làm việc, KHÔNG đụng giá (GiaBanLe/
+        // GiaBanBuon/GiaNhap giữ nguyên số cũ) và KHÔNG ghi DM_SANPHAM.DVTGoc
+        // xuống Sheet (tính năng này vẫn chỉ tồn tại trong bộ nhớ phiên).
+        if (result.isRebase) {
+          sp.uoms.forEach(u => { u.heSo = (Number(u.heSo) || 0) * result.rebaseFactor; });
+          sp.baseUnit = result.newUom.tenDV;
+        }
+        sp.uoms.push({ tenDV: result.newUom.tenDV, heSo: result.newUom.heSo, giaNhap: 0, giaBanLe: 0, giaBanBuon: 0, barcode: '', macDinh: false, active: true });
+
+        // Nạp lại dropdown ĐVT của thanh nhập liệu (nếu đang thao tác đúng SP này).
+        if (this.dom.dvtSel && this.state.currentSP === sp) {
+          this.dom.dvtSel.innerHTML = sp.uoms.map(u =>
+            `<option value="${u.tenDV}" data-heso="${u.heSo}" data-gia="${u.giaBanLe || 0}" data-giabuon="${u.giaBanBuon || 0}">${u.tenDV}</option>`
+          ).join('');
+          this.dom.dvtSel.selectedIndex = sp.uoms.length - 1;
+          this.onDvtChange();
+        }
+        // Nạp lại dropdown ĐVT của dòng Grid đang chọn (nếu có) để dùng được ngay.
+        if (this.state.selectedLineIndex != null) this.renderGrid();
+
+        toast(`Đã thêm đơn vị tính '${result.newUom.tenDV}' cho ${sp.name}`, 'ok');
+      }
+    });
+  },
+
+  // ── DROPDOWN UTILS ────────────────────────────────────────────
+  closeDd(id) { const el = document.getElementById(id); if (el) el.classList.remove('open'); },
+  closeAllDd() { ['bh-sp-dd','bh-kh-dd','bh-bacsi-dd'].forEach(id => this.closeDd(id)); },
+
+  // Escapes .bh-header's overflow-x:auto clip (which also clips overflow-y
+  // per the CSS spec) by switching the dropdown to fixed positioning anchored
+  // to the input's current on-screen rect.
+  positionDdNearInput_(dd, inputEl) {
+    if (!dd || !inputEl) return;
+    const rect = inputEl.getBoundingClientRect();
+    dd.classList.add('bh-dd-fixed');
+    dd.style.top = (rect.bottom + 2) + 'px';
+    dd.style.left = rect.left + 'px';
+    dd.style.minWidth = rect.width + 'px';
+  },
+};
+</script>

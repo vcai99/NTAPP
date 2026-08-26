@@ -1,0 +1,50 @@
+<!-- Central Custom Confirmation Modal -->
+<div id="core-confirm-modal" class="ov" style="z-index: 99999; display: none;">
+  <div style="background: #16213e; border: 1px solid #0d3377; border-radius: 8px; width: 400px; max-width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,.6); overflow: hidden; display: flex; flex-direction: column;">
+    <!-- Title / Head -->
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid #0d3377; background: #0d2144;">
+      <span id="core-confirm-title" style="font-size: 13px; font-weight: 700; color: #ff5252; text-transform: uppercase; letter-spacing: .5px;">⚠️ Xác nhận</span>
+      <button id="core-confirm-close" style="background: none; border: none; color: #ff5252; font-size: 20px; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
+    </div>
+    <!-- Body -->
+    <div id="core-confirm-msg" style="padding: 20px 18px; font-size: 13px; color: #e0e0e0; line-height: 1.5; background: #16213e;">
+      Bạn có chắc chắn muốn thực hiện?
+    </div>
+    <!-- Footer / Actions -->
+    <div style="padding: 12px 18px; border-top: 1px solid #0d3377; display: flex; justify-content: flex-end; gap: 10px; background: #0d2144;">
+      <button id="core-confirm-yes" class="btn b-red" style="padding: 6px 16px; font-size: 12px; font-weight: 600; cursor: pointer;">Đồng ý</button>
+      <button id="core-confirm-no" class="btn b-gray" style="padding: 6px 16px; font-size: 12px; font-weight: 600; cursor: pointer; background: #263850; border: 1px solid #1e4080; color: #ccc;">Hủy bỏ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+window.showConfirm = function(message, title = 'Xác nhận') {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('core-confirm-modal');
+    const titleEl = document.getElementById('core-confirm-title');
+    const msgEl = document.getElementById('core-confirm-msg');
+    const btnYes = document.getElementById('core-confirm-yes');
+    const btnNo = document.getElementById('core-confirm-no');
+    const btnClose = document.getElementById('core-confirm-close');
+    
+    titleEl.textContent = '⚠️ ' + title;
+    msgEl.textContent = message;
+    modal.style.display = 'flex';
+    modal.classList.add('open');
+    
+    const cleanUp = (result) => {
+      modal.style.display = 'none';
+      modal.classList.remove('open');
+      btnYes.onclick = null;
+      btnNo.onclick = null;
+      btnClose.onclick = null;
+      resolve(result);
+    };
+    
+    btnYes.onclick = () => cleanUp(true);
+    btnNo.onclick = () => cleanUp(false);
+    btnClose.onclick = () => cleanUp(false);
+  });
+};
+</script>

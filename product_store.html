@@ -1,0 +1,207 @@
+<script>
+// =================================================================
+//  PRODUCT STORE (product_store.html)
+//  Sprint 17 — Phase A: Product Master Preload & Shared Client Runtime Cache
+//
+//  CLIENT-SIDE RUNTIME CACHE / READ MODEL của Product Master — KHÔNG PHẢI
+//  database mới, KHÔNG PHẢI Source of Truth. Source of Truth vẫn là
+//  DM_SANPHAM (backend/backend_product_repository.gs). Store chỉ gọi
+//  ProductService.load()/find() (tầng FE Service có sẵn) — không gọi thẳng
+//  ApiClient/ProductRepository, giữ đúng chuỗi layer hiện có.
+//
+//  Xem docs/17. Master Data Runtime & Product/MasterDataRuntime_BusinessLogic.md
+//  (Source of Truth Sprint 17) + STEP 1 AUDIT (lịch sử chat) cho đầy đủ lý do
+//  thiết kế.
+//
+//  PHASE A CHỈ tạo Store + bootstrap. KHÔNG migrate module nghiệp vụ nào —
+//  ProductStore.upsert()/remove()/normalizeFromFind() ĐÃ implement đúng theo
+//  2 PO Decision đã LOCK nhưng CHƯA được gọi bởi bất kỳ module nào trong
+//  lượt này (sẽ wire ở Phase C khi migrate Product Editor/Danh mục SP).
+// =================================================================
+const ProductStore = {
+  // IDLE → LOADING → READY, hoặc LOADING → ERROR (mục VIII Sprint 17 prompt).
+  state: 'IDLE',
+
+  _data: [],
+  _byId: new Map(),
+  _byBarcode: new Map(),
+  // Promise đang chạy của lần load() hiện tại — 2 lệnh gọi load() cùng lúc
+  // PHẢI dùng chung Promise này, không tạo 2 request apiProductLoad().
+  _loadPromise: null,
+  _stale: false,
+
+  // ======================
+  // Bootstrap
+  // ======================
+  // Gọi 1 lần ở app.html::window.onload. Không bao giờ throw ra ngoài —
+  // App phải mở được kể cả khi Product Master load thất bại (mục IX/DEC-004).
+  init() {
+    return this.load().catch(err => {
+      console.warn('[ProductStore] Bootstrap lỗi — Store ở trạng thái ERROR, các module vẫn dùng ProductService.load() như hiện tại:', err);
+    });
+  },
+
+  // Load Product Master 1 lần. Gọi lại khi đã READY trả ngay dữ liệu cũ
+  // (không gọi lại API); gọi lại khi đang LOADING trả về ĐÚNG Promise đang
+  // chạy (race-condition guard — mục VIII/Test 9).
+  load() {
+    if (this.state === 'READY') return Promise.resolve(this._data);
+    if (this._loadPromise) return this._loadPromise;
+
+    this.state = 'LOADING';
+    console.log('[ProductStore] state → LOADING');
+
+    this._loadPromise = ProductService.load()
+      .then(products => {
+        this._buildIndex_(products || []);
+        this.state = 'READY';
+        this._stale = false;
+        this._loadPromise = null;
+        console.log('[ProductStore] state → READY (' + this._data.length + ' sản phẩm)');
+        return this._data;
+      })
+      .catch(err => {
+        this.state = 'ERROR';
+        this._loadPromise = null;
+        console.error('[ProductStore] state → ERROR:', err);
+        throw err;
+      });
+
+    return this._loadPromise;
+  },
+
+  isReady() {
+    return this.state === 'READY';
+  },
+
+  // ======================
+  // Read (in-memory, không gọi API)
+  // ======================
+  getAll() {
+    return this._data.slice();
+  },
+
+  getById(maSP) {
+    if (!maSP) return null;
+    return this._byId.get(String(maSP)) || null;
+  },
+
+  // Index theo DM_SANPHAM.MaVach1/MaVach2 (2 field mã vạch cấp SẢN PHẨM đang
+  // tồn tại thật trong DTO — xem ProductRepositoryBackend.getAll()). KHÔNG
+  // index thêm mã vạch cấp ĐVT (uoms[].barcode): đã audit toàn bộ project,
+  // field này chỉ được GHI khi thêm ĐVT mới (mod_banhang.html/mod_nhaphang.html
+  // dòng push uom mới), KHÔNG có bất kỳ nơi nào ĐỌC nó để tra cứu/scan — nút
+  // "Quét mã vạch" ở mod_banhang.html hiện chưa wire handler thật. Không tự
+  // thêm behavior mới khi chưa có evidence sử dụng (đúng nguyên tắc Sprint 17
+  // mục X "INDEX").
+  getByBarcode(maVach) {
+    if (!maVach) return null;
+    return this._byBarcode.get(String(maVach)) || null;
+  },
+
+  // In-memory search — field tối thiểu đã audit: tenSP/maSP/maVach1/maVach2/sdk
+  // (mục XI Sprint 17 prompt). KHÔNG gọi ApiClient/google.script.run/
+  // ProductService.load() ở đây.
+  search(keyword) {
+    const q = String(keyword || '').trim().toLowerCase();
+    if (!q) return this._data.slice();
+    return this._data.filter(p => {
+      const hay = [p.tenSP, p.maSP, p.maVach1, p.maVach2, p.sdk].join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+  },
+
+  // ======================
+  // CRUD Synchronization (mục XII — implement theo 2 PO Decision đã LOCK,
+  // CHƯA được module nào gọi trong Phase A)
+  // ======================
+  // Nhận vào 1 canonical product ĐÃ Ở SHAPE PHẲNG giống getAll() (bao gồm
+  // `.uoms`) — KHÔNG tự suy diễn field thiếu. Theo DECISION 2: caller (Phase
+  // C trở đi) phải tự gọi ProductService.find(maSP) rồi normalizeFromFind()
+  // (xem dưới) trước khi upsert(), vì response CREATE/UPDATE hiện tại KHÔNG
+  // kèm `uoms` (đã xác nhận ở STEP 1 AUDIT mục 3b).
+  upsert(product) {
+    if (!product || !product.maSP) return;
+    const maSP = String(product.maSP);
+    const idx = this._data.findIndex(p => String(p.maSP) === maSP);
+    const old = idx !== -1 ? this._data[idx] : null;
+
+    if (old) {
+      if (old.maVach1 && this._byBarcode.get(String(old.maVach1)) === old) this._byBarcode.delete(String(old.maVach1));
+      if (old.maVach2 && this._byBarcode.get(String(old.maVach2)) === old) this._byBarcode.delete(String(old.maVach2));
+      this._data[idx] = product;
+    } else {
+      this._data.push(product);
+    }
+
+    this._byId.set(maSP, product);
+    if (product.maVach1) this._byBarcode.set(String(product.maVach1), product);
+    if (product.maVach2) this._byBarcode.set(String(product.maVach2), product);
+  },
+
+  remove(maSP) {
+    if (!maSP) return;
+    const key = String(maSP);
+    const idx = this._data.findIndex(p => String(p.maSP) === key);
+    if (idx === -1) return;
+    const old = this._data[idx];
+    this._data.splice(idx, 1);
+    this._byId.delete(key);
+    if (old.maVach1 && this._byBarcode.get(String(old.maVach1)) === old) this._byBarcode.delete(String(old.maVach1));
+    if (old.maVach2 && this._byBarcode.get(String(old.maVach2)) === old) this._byBarcode.delete(String(old.maVach2));
+  },
+
+  // DECISION 1 (LOCKED): adapter thuần — chuyển response của
+  // ProductService.find(maSP) (shape `{product, uoms}`, KHÁC shape phẳng của
+  // getAll()) thành canonical object phẳng `{...product, uoms}` để dùng
+  // chung 1 shape trong Store. Không sửa backend. CHƯA được gọi bởi module
+  // nào trong Phase A — chuẩn bị sẵn cho Phase C (migrate Product Editor).
+  normalizeFromFind(findResult) {
+    if (!findResult || !findResult.product) return null;
+    return Object.assign({}, findResult.product, { uoms: findResult.uoms || [] });
+  },
+
+  // ======================
+  // Refresh / Invalidate (mục XIII/XIV)
+  // ======================
+  // Đánh dấu dữ liệu có thể đã cũ — KHÔNG xoá `_data`, KHÔNG tự động load
+  // lại. Module nào cần dữ liệu mới nhất tự gọi refresh() sau đó.
+  invalidate() {
+    this._stale = true;
+  },
+
+  // Load lại toàn bộ, thay thế atomically. Nếu thất bại: GIỮ NGUYÊN `_data`
+  // cũ — chỉ chuyển state sang ERROR nếu Store CHƯA từng có dữ liệu (lần đầu
+  // luôn fail); nếu đã có dữ liệu cũ hợp lệ, giữ nguyên READY (dữ liệu cũ vẫn
+  // dùng được) và chỉ báo lỗi qua Promise reject cho caller tự toast/retry.
+  refresh() {
+    return ProductService.load()
+      .then(products => {
+        this._buildIndex_(products || []);
+        this.state = 'READY';
+        this._stale = false;
+        console.log('[ProductStore] refresh() OK — state → READY (' + this._data.length + ' sản phẩm)');
+        return this._data;
+      })
+      .catch(err => {
+        console.error('[ProductStore] refresh() lỗi — giữ nguyên dữ liệu cũ:', err);
+        if (!this._data.length) this.state = 'ERROR';
+        throw err;
+      });
+  },
+
+  // ======================
+  // Private
+  // ======================
+  _buildIndex_(products) {
+    this._data = products;
+    this._byId = new Map();
+    this._byBarcode = new Map();
+    products.forEach(p => {
+      if (p.maSP) this._byId.set(String(p.maSP), p);
+      if (p.maVach1) this._byBarcode.set(String(p.maVach1), p);
+      if (p.maVach2) this._byBarcode.set(String(p.maVach2), p);
+    });
+  }
+};
+</script>

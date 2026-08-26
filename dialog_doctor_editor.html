@@ -1,0 +1,353 @@
+<style>
+/* =================================================================
+   CSS SCOPED FOR DOCTOR EDITOR DIALOG (.doc-dlg-)
+   Đồng bộ Design System với dialog_ncc_editor.html
+   ================================================================= */
+
+#nh-ov-doctor {
+  transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+.doc-dlg-wrap {
+  width: 520px;
+  max-width: 94%;
+  background: #16213e;
+  border-radius: 8px;
+  border: 1px solid #0d3377;
+  padding: 0;
+  box-shadow: 0 10px 30px rgba(0,0,0,.6);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.doc-dlg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid #0d3377;
+  background: #0d2144;
+  flex-shrink: 0;
+}
+.doc-dlg-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #90caf9;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.doc-dlg-close {
+  background: none;
+  border: none;
+  color: #ff5252;
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+  transition: color .15s;
+  padding: 0;
+}
+.doc-dlg-close:hover { color: #ff1744; }
+
+.doc-dlg-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #16213e;
+}
+.doc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.doc-lbl {
+  font-size: 11px;
+  font-weight: 500;
+  color: #90caf9;
+}
+.doc-inp {
+  height: 30px;
+  background: #0d2144;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #e0e0e0;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color .15s;
+}
+.doc-inp::placeholder { color: #546e7a; }
+.doc-inp:focus { border-color: #42a5f5; }
+
+textarea.doc-inp {
+  height: 56px;
+  padding: 6px 8px;
+  resize: vertical;
+  font-family: Arial, sans-serif;
+}
+
+.doc-dlg-foot {
+  padding: 12px 18px;
+  border-top: 1px solid #0d3377;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  background: #0d2144;
+  flex-shrink: 0;
+}
+.doc-btn-save {
+  padding: 6px 16px;
+  background: #1565C0;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .15s;
+}
+.doc-btn-save:hover { background: #0d47a1; }
+.doc-btn-save:disabled { background: #263850; color: #78909c; cursor: not-allowed; }
+
+.doc-btn-cancel {
+  padding: 6px 14px;
+  background: #263850;
+  color: #ccc;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .15s;
+}
+.doc-btn-cancel:hover { background: #1e3060; }
+</style>
+
+<!-- ══ DIALOG: Thêm / Sửa Bác sĩ ══ -->
+<div class="ov" id="nh-ov-doctor" onclick="DoctorEditor._ovClick(event)">
+  <div class="doc-dlg-wrap">
+    <!-- Header -->
+    <div class="doc-dlg-head">
+      <span class="doc-dlg-title" id="doctor-dlg-title-text">➕ Thêm mới bác sĩ</span>
+      <button class="doc-dlg-close" onclick="DoctorEditor.close()">&times;</button>
+    </div>
+
+    <!-- Body: 4 field theo đúng thứ tự TheLight (DM_bac_si_ui_Thelight.pdf)
+         + SĐT (PO Decision bổ sung, xem Doctor_BusinessLogic.md mục 19.6 —
+         không có trong PDF gốc, nhưng cột đã tồn tại thật trong Sheet). -->
+    <div class="doc-dlg-body">
+      <div class="doc-field">
+        <label class="doc-lbl">Tên bác sĩ</label>
+        <input id="doctor-editor-ten" class="doc-inp" placeholder="Tên bác sĩ">
+      </div>
+      <div class="doc-field">
+        <label class="doc-lbl">Số điện thoại</label>
+        <input id="doctor-editor-sdt" class="doc-inp" placeholder="Số điện thoại">
+      </div>
+      <div class="doc-field">
+        <label class="doc-lbl">Tên và địa chỉ cơ sở KCB</label>
+        <textarea id="doctor-editor-cosokcb" class="doc-inp" placeholder="Tên và địa chỉ cơ sở KCB"></textarea>
+      </div>
+      <div class="doc-field">
+        <label class="doc-lbl">Tên khoa</label>
+        <input id="doctor-editor-khoa" class="doc-inp" placeholder="Tên khoa">
+      </div>
+      <div class="doc-field">
+        <label class="doc-lbl">Ghi chú</label>
+        <textarea id="doctor-editor-ghichu" class="doc-inp" placeholder="Ghi chú"></textarea>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="doc-dlg-foot">
+      <button class="doc-btn-save" id="doctor-editor-btn-save" onclick="DoctorEditor.save()">&#10003; Lưu lại</button>
+      <button class="doc-btn-cancel" onclick="DoctorEditor.close()">&times; Thoát</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  DOCTOR EDITOR DIALOG  (DoctorEditor)
+//  File: dialog_doctor_editor.html
+//  Sprint 9.0 — Danh mục Bác sĩ
+//  PO Decision: NoiCongTac(DB) = "Tên và địa chỉ cơ sở KCB"(UI),
+//  ChuyenKhoa(DB) = "Tên khoa"(UI) — chỉ đổi label, KHÔNG đổi field/DB.
+// ════════════════════════════════════════════════════════════════
+const DoctorEditor = {
+
+  state: {
+    mode:    'create',   // 'create' | 'edit'
+    maBS:    null,
+    onSaved: null        // callback({ maBS, tenBS }) sau khi lưu
+  },
+
+  open(config = {}) {
+    this.state.mode    = config.mode    || 'create';
+    this.state.maBS    = config.maBS    || null;
+    this.state.onSaved = config.onSaved || null;
+
+    const titleEl = document.getElementById('doctor-dlg-title-text');
+    if (titleEl) {
+      titleEl.textContent = this.state.mode === 'edit'
+        ? '✏️ Sửa thông tin bác sĩ'
+        : '➕ Thêm mới bác sĩ';
+    }
+
+    this._resetForm();
+    this._bindKeys();
+
+    if (this.state.mode === 'edit' && this.state.maBS) {
+      this._loadForEdit(this.state.maBS);
+    }
+
+    const ov = document.getElementById('nh-ov-doctor');
+    if (ov) ov.classList.add('open');
+
+    setTimeout(() => {
+      const inp = document.getElementById('doctor-editor-ten');
+      if (inp) inp.focus();
+    }, 160);
+  },
+
+  close() {
+    const ov = document.getElementById('nh-ov-doctor');
+    if (ov) ov.classList.remove('open');
+    this._unbindKeys();
+  },
+
+  save() {
+    const tenEl = document.getElementById('doctor-editor-ten');
+    const ten = tenEl ? tenEl.value.trim() : '';
+    if (!ten) {
+      toast('Tên bác sĩ không được để trống!', 'warn');
+      if (tenEl) {
+        tenEl.focus();
+        tenEl.style.borderColor = '#ef5350';
+        setTimeout(() => { tenEl.style.borderColor = ''; }, 2000);
+      }
+      return;
+    }
+
+    const btn = document.getElementById('doctor-editor-btn-save');
+    if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Đang lưu...'; }
+
+    const g = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+    const payload = {
+      tenBS:      ten,
+      sdt:        g('doctor-editor-sdt'),
+      noiCongTac: g('doctor-editor-cosokcb'),
+      chuyenKhoa: g('doctor-editor-khoa'),
+      ghiChu:     g('doctor-editor-ghichu')
+    };
+
+    const isEdit = (this.state.mode === 'edit' && this.state.maBS);
+    const apiName = isEdit ? 'apiDoctorUpdate' : 'apiDoctorCreate';
+    const apiPayload = isEdit ? { ...payload, maBS: this.state.maBS } : payload;
+
+    ApiClient.call(apiName, apiPayload)
+      .then(res => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '&#10003; Lưu lại'; }
+
+        if (!res || !res.success) {
+          const msg = (res && res.message) ? res.message : 'Lỗi lưu bác sĩ';
+          toast(msg, 'warn');
+          return;
+        }
+
+        const savedDoctor = {
+          maBS:  res.data.maBS || this.state.maBS,
+          tenBS: res.data.tenBS || ten
+        };
+
+        toast(isEdit
+          ? `Đã cập nhật: ${savedDoctor.tenBS}`
+          : `Đã thêm mới: ${savedDoctor.tenBS}`,
+          'ok'
+        );
+
+        this.close();
+
+        if (typeof this.state.onSaved === 'function') {
+          this.state.onSaved(savedDoctor);
+        }
+      })
+      .catch(err => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '&#10003; Lưu lại'; }
+        toast('Lỗi hệ thống: ' + (err.message || err), 'err');
+      });
+  },
+
+  _resetForm() {
+    const ids = ['doctor-editor-ten', 'doctor-editor-sdt', 'doctor-editor-cosokcb', 'doctor-editor-khoa', 'doctor-editor-ghichu'];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.value = ''; el.style.borderColor = ''; }
+    });
+
+    const btn = document.getElementById('doctor-editor-btn-save');
+    if (btn) { btn.disabled = false; btn.innerHTML = '&#10003; Lưu lại'; }
+  },
+
+  _loadForEdit(maBS) {
+    ApiClient.call('apiDoctorLoad')
+      .then(res => {
+        let list = [];
+        if (res && res.success && Array.isArray(res.data)) {
+          list = res.data;
+        }
+
+        const doctor = list.find(d => String(d.maBS) === String(maBS));
+        if (!doctor) {
+          toast('Không tìm thấy bác sĩ: ' + maBS, 'warn');
+          return;
+        }
+
+        const set = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.value = val || '';
+        };
+        set('doctor-editor-ten',     doctor.tenBS);
+        set('doctor-editor-sdt',     doctor.sdt);
+        set('doctor-editor-cosokcb', doctor.noiCongTac);
+        set('doctor-editor-khoa',    doctor.chuyenKhoa);
+        set('doctor-editor-ghichu',  doctor.ghiChu);
+      })
+      .catch(err => {
+        console.error('DoctorEditor._loadForEdit error:', err);
+        toast('Lỗi tải dữ liệu bác sĩ: ' + (err.message || err), 'err');
+      });
+  },
+
+  _onKeydown(e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      DoctorEditor.save();
+    }
+    if (e.key === 'Escape') {
+      DoctorEditor.close();
+    }
+  },
+
+  _bindKeys() {
+    const ov = document.getElementById('nh-ov-doctor');
+    if (ov) ov.addEventListener('keydown', this._onKeydown);
+  },
+
+  _unbindKeys() {
+    const ov = document.getElementById('nh-ov-doctor');
+    if (ov) ov.removeEventListener('keydown', this._onKeydown);
+  },
+
+  _ovClick(e) {
+    if (e.target.id === 'nh-ov-doctor') this.close();
+  }
+};
+</script>

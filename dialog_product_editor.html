@@ -1,0 +1,1083 @@
+<style>
+/* =================================================================
+   CSS SCOPED FOR PRODUCT EDITOR DIALOG (.dm-)
+   ================================================================= */
+.dm-ov {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(4, 10, 20, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease-in-out;
+}
+.dm-ov.open {
+  opacity: 1;
+  visibility: visible;
+}
+.dm-ov-content {
+  background: #16213e;
+  border: 1px solid #0d3377;
+  border-radius: 8px;
+  width: 90vw;
+  max-width: 1400px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  overflow: hidden;
+}
+.dm-ov-header {
+  padding: 12px 18px;
+  background: #0d2144;
+  border-bottom: 1px solid #0d3377;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+.dm-ov-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #90caf9;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.dm-ov-close {
+  background: none;
+  border: none;
+  color: #ff5252;
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.dm-ov-close:hover {
+  color: #ff1744;
+}
+
+/* Modal Tabs Navigation */
+.dm-modal-tabs {
+  display: flex;
+  background: #0d2144;
+  border-bottom: 1px solid #0d3377;
+  flex-shrink: 0;
+}
+.dm-m-tab {
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #78909c;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.dm-m-tab:hover {
+  color: #90caf9;
+}
+.dm-m-tab.active {
+  color: #42a5f5;
+  border-bottom-color: #42a5f5;
+  background: rgba(66, 165, 245, 0.05);
+}
+
+/* Modal Tab Content Panes */
+.dm-ov-body {
+  padding: 18px;
+  overflow-y: auto;
+  flex: 1;
+}
+.dm-tab-pane {
+  display: none;
+}
+.dm-tab-pane.show {
+  display: block;
+}
+
+/* Form Styles */
+.dm-form-row {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.dm-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dm-form-group label {
+  font-size: 11px;
+  color: #90caf9;
+  font-weight: 500;
+}
+.dm-input, .dm-select, .dm-textarea {
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  background: #0d2144;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 12px;
+  transition: border-color 0.15s;
+}
+.dm-input:focus, .dm-select:focus, .dm-textarea:focus {
+  outline: none;
+  border-color: #42a5f5;
+}
+.dm-input::placeholder {
+  color: #546e7a;
+}
+.dm-textarea {
+  height: 60px;
+  padding: 6px 8px;
+  resize: none;
+  font-family: inherit;
+}
+.dm-col-1 { grid-column: span 1; }
+.dm-col-2 { grid-column: span 2; }
+.dm-col-3 { grid-column: span 3; }
+.dm-col-4 { grid-column: span 4; }
+.dm-col-5 { grid-column: span 5; }
+.dm-col-6 { grid-column: span 6; }
+.dm-col-8 { grid-column: span 8; }
+.dm-col-9 { grid-column: span 9; }
+.dm-col-10 { grid-column: span 10; }
+.dm-col-12 { grid-column: span 12; }
+
+/* Dynamic UOM Grid Table styling */
+.dm-grid-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.dm-uom-table-wrap {
+  border: 1px solid #0d3377;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #0d2144;
+}
+.dm-uom-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.dm-uom-table th {
+  background: #0d3377;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #90caf9;
+  border-bottom: 1px solid #1565c0;
+  text-align: left;
+}
+.dm-uom-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #1a2a4a;
+  vertical-align: middle;
+}
+.dm-uom-table tr:last-child td {
+  border-bottom: none;
+}
+.dm-uom-table .dm-input, .dm-uom-table .dm-select {
+  height: 26px;
+  padding: 0 6px;
+}
+.dm-uom-table input[type="checkbox"] {
+  accent-color: #43a047;
+  cursor: pointer;
+}
+
+/* Section divider inside Tab 1 */
+.dm-section-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 12px;
+  padding-top: 14px;
+  border-top: 1px solid #1e3a6e;
+}
+.dm-section-divider-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #90caf9;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.dm-section-hint {
+  font-size: 11px;
+  color: #78909c;
+  font-style: italic;
+  margin-top: 6px;
+}
+
+/* Modal Footer */
+.dm-ov-footer {
+  padding: 12px 18px;
+  background: #0d2144;
+  border-top: 1px solid #0d3377;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.dm-btn-ft {
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.dm-btn-ft.cancel {
+  background: #263850;
+  color: #ccc;
+  border: 1px solid #1e4080;
+}
+.dm-btn-ft.cancel:hover {
+  background: #1e3060;
+}
+.dm-btn-ft.save {
+  background: #1565C0;
+  color: #fff;
+}
+.dm-btn-ft.save:hover {
+  background: #0d47a1;
+}
+.dm-btn-ft.save-copy {
+  background: #43a047;
+  color: #fff;
+}
+.dm-btn-ft.save-copy:hover {
+  background: #2e7d32;
+}
+</style>
+
+<!-- DIALOG HTML CONTAINER -->
+<div class="dm-ov" id="dm-ov-product">
+  <div class="dm-ov-content">
+    <!-- Header -->
+    <div class="dm-ov-header">
+      <span class="dm-ov-title" id="dm-ov-title">Thêm sản phẩm mới</span>
+      <button class="dm-ov-close" id="dm-btn-close-x">&times;</button>
+    </div>
+    
+    <!-- Tabs Navigation -->
+    <div class="dm-modal-tabs">
+      <button class="dm-m-tab active" id="dm-tab-btn-info" data-tab="info">1. Thông tin chung</button>
+      <button class="dm-m-tab" id="dm-tab-btn-ext" data-tab="ext">2. Logistics &amp; Ghi chú</button>
+    </div>
+    
+    <!-- Tab Panes -->
+    <div class="dm-ov-body">
+      <!-- Tab 1: General Info + UOM Section -->
+      <div class="dm-tab-pane show" id="dm-tab-pane-info">
+        <!-- ── Thông tin chung ── -->
+        <div class="dm-form-row">
+          <div class="dm-form-group dm-col-4">
+            <label>Mã sản phẩm</label>
+            <input type="text" id="dm-inp-maSP" class="dm-input" placeholder="SPXXXX (Tự sinh nếu để trống)">
+          </div>
+          <div class="dm-form-group dm-col-8">
+            <label>Tên sản phẩm (*)</label>
+            <input type="text" id="dm-inp-tenSP" class="dm-input" placeholder="Nhập tên sản phẩm đầy đủ">
+          </div>
+        </div>
+        <div class="dm-form-row">
+          <div class="dm-form-group dm-col-4">
+            <label>Tên viết tắt / Tên khác</label>
+            <input type="text" id="dm-inp-tenVietTat" class="dm-input" placeholder="Tên thương mại / tên phụ">
+          </div>
+          <div class="dm-form-group dm-col-4">
+            <label>Số đăng ký / GPNK</label>
+            <input type="text" id="dm-inp-sdk" class="dm-input" placeholder="VD-25123-16">
+          </div>
+          <div class="dm-form-group dm-col-4">
+            <label>Quy cách đóng gói</label>
+            <input type="text" id="dm-inp-quyCach" class="dm-input" placeholder="Hộp 10 vỉ x 10 viên">
+          </div>
+        </div>
+        <div class="dm-form-row">
+          <div class="dm-form-group dm-col-4">
+            <label>Hoạt chất</label>
+            <input type="text" id="dm-inp-hoatChat" class="dm-input" placeholder="Paracetamol">
+          </div>
+          <div class="dm-form-group dm-col-4">
+            <label>Hàm lượng</label>
+            <input type="text" id="dm-inp-hamLuong" class="dm-input" placeholder="500mg">
+          </div>
+          <div class="dm-form-group dm-col-4">
+            <label>Phân loại</label>
+            <select id="dm-sel-phanLoai" class="dm-select">
+              <option>Thuốc thông thường</option>
+              <option>Thuốc bán theo đơn</option>
+              <option>Mỹ phẩm</option>
+              <option>Thực phẩm chức năng</option>
+              <option>Vật tư y tế</option>
+            </select>
+          </div>
+        </div>
+        <div class="dm-form-row">
+          <div class="dm-form-group dm-col-4">
+            <label>Hãng sản xuất</label>
+            <input type="text" id="dm-inp-hangSX" class="dm-input" placeholder="Dược Hậu Giang">
+          </div>
+          <div class="dm-form-group dm-col-4">
+            <label>Nước sản xuất</label>
+            <input type="text" id="dm-inp-nuocSX" class="dm-input" placeholder="Việt Nam">
+          </div>
+          <div class="dm-form-group dm-col-4">
+            <label>Nhóm sản phẩm</label>
+            <!-- Sprint 1 (Danh mục Nhóm Sản phẩm) — PO Decision mục 8:
+                 option của dropdown này nay lấy động từ Master Data
+                 DM_NHOMSANPHAM (xem renderNhomSPSelect_ bên dưới) thay vì
+                 4 option hard-code trước đây. Value lưu vẫn là TÊN nhóm
+                 (chuỗi), KHÔNG đổi sang lưu Mã nhóm — tránh phải migrate
+                 dữ liệu Product cũ khi chưa có mapping an toàn (PO Decision
+                 mục 8, "KHÔNG được tự ý migrate dữ liệu cũ"). -->
+            <select id="dm-sel-nhomSP" class="dm-select">
+              <option value="">-- Chọn nhóm sản phẩm --</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- ── Section: Đơn vị tính & Bảng giá ── -->
+        <div class="dm-section-divider">
+          <span class="dm-section-divider-title">Đơn vị tính &amp; Bảng giá</span>
+          <button class="btn b-green" id="dm-btn-add-uom">+ Thêm đơn vị</button>
+        </div>
+        <div class="dm-uom-table-wrap">
+          <table class="dm-uom-table">
+            <thead>
+              <tr>
+                <th style="width:130px">Đơn vị tính</th>
+                <th style="width:90px">Hệ số quy đổi</th>
+                <th>Giá nhập</th>
+                <th>Giá bán lẻ</th>
+                <th>Giá bán sỉ</th>
+                <th>Barcode</th>
+                <th style="width:65px;text-align:center">Mặc định</th>
+                <th style="width:65px;text-align:center">Kích hoạt</th>
+                <th style="width:70px;text-align:center">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="dm-uom-grid-body">
+              <!-- Rendered dynamically from script -->
+            </tbody>
+          </table>
+        </div>
+        <div class="dm-section-hint">* Đơn vị tính gốc bắt buộc phải có hệ số = 1. Giá nhập/giá bán của các chứng từ sẽ ưu tiên lấy theo dòng mặc định.</div>
+      </div>
+
+      <!-- Tab 2: Logistics & Notes -->
+      <div class="dm-tab-pane" id="dm-tab-pane-ext">
+        <div class="dm-form-row">
+          <div class="dm-form-group dm-col-4">
+            <label>Vị trí kệ kho</label>
+            <input type="text" id="dm-inp-viTri" class="dm-input" placeholder="Tủ thuốc A - Kệ 1">
+          </div>
+          <div class="dm-form-group dm-col-4">
+            <label>Nhà cung cấp mặc định</label>
+            <input type="text" id="dm-inp-ncc" class="dm-input" placeholder="Công ty Dược Hậu Giang">
+          </div>
+          <div class="dm-form-group dm-col-4">
+            <label>Tồn kho tối thiểu</label>
+            <input type="number" id="dm-inp-tonToiThieu" class="dm-input" min="0" value="0">
+          </div>
+        </div>
+        <div class="dm-form-row">
+          <div class="dm-form-group dm-col-12">
+            <label>URL Hình ảnh sản phẩm</label>
+            <input type="text" id="dm-inp-hinhAnh" class="dm-input" placeholder="https://domain.com/image.jpg">
+          </div>
+        </div>
+        <div class="dm-form-row">
+          <div class="dm-form-group dm-col-12">
+            <label>Hướng dẫn sử dụng</label>
+            <textarea id="dm-txt-huongDan" class="dm-textarea" placeholder="Cách dùng, liều dùng..."></textarea>
+          </div>
+        </div>
+        <div class="dm-form-row">
+          <div class="dm-form-group dm-col-12">
+            <label>Ghi chú thêm</label>
+            <textarea id="dm-txt-ghiChu" class="dm-textarea" placeholder="Thông tin ghi chú nội bộ..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Footer Controls -->
+    <div class="dm-ov-footer">
+      <button class="dm-btn-ft cancel" id="dm-btn-cancel">Hủy bỏ</button>
+      <button class="dm-btn-ft save-copy" id="dm-btn-save-copy">Lưu &amp; Sao chép</button>
+      <button class="dm-btn-ft save-copy" id="dm-btn-save-new">Lưu &amp; Thêm mới</button>
+      <button class="dm-btn-ft save" id="dm-btn-save-close">Lưu &amp; Đóng</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  SHARED BUSINESS DIALOG: PRODUCT EDITOR (ProductEditor)
+// ════════════════════════════════════════════════════════════════
+const ProductEditor = {
+  config: {
+    columns: [
+      { key: 'tenDV', label: 'Đơn vị tính' },
+      { key: 'heSo', label: 'Hệ số quy đổi' },
+      { key: 'giaNhap', label: 'Giá nhập' },
+      { key: 'giaBanLe', label: 'Giá bán lẻ' },
+      { key: 'giaBanBuon', label: 'Giá bán sỉ' },
+      { key: 'barcode', label: 'Barcode' },
+      { key: 'macDinh', label: 'Mặc định' },
+      { key: 'active', label: 'Kích hoạt' }
+    ]
+  },
+
+  mock: {
+    uoms: [
+      { id: '1', tenDV: 'Viên', heSo: 1, giaNhap: 120, giaBanLe: 200, giaBanBuon: 180, barcode: '8931102938123', macDinh: true, active: true },
+      { id: '2', tenDV: 'Vỉ', heSo: 10, giaNhap: 1200, giaBanLe: 1800, giaBanBuon: 1650, barcode: '8931102938124', macDinh: false, active: true }
+    ]
+  },
+
+  state: {
+    mode: 'create',
+    productId: null,
+    activeTab: 'info',
+    isDirty: false,
+    uoms: [],
+    _isRendering: false
+  },
+
+  dom: {},
+  initialized: false,
+
+  // ======================
+  // Lifecycle
+  // ======================
+  open(config = {}) {
+    this.state.mode = config.mode || 'create';
+    this.state.productId = config.productId || null;
+    this.state.onSave = config.onSave || config.onSaved || null;
+    this.state.initName = config.initName || '';
+
+    if (!this.initialized) {
+      this.cacheDOM();
+      this.bindEvents();
+      this.initialized = true;
+    }
+
+    // BUG FIX: dialog trước đây mở ra (classList.add('open')) NGAY LẬP TỨC
+    // trong khi form vẫn còn nguyên giá trị của lần Sửa TRƯỚC ĐÓ (chưa bị
+    // reset()) — user thấy "chớp" đúng dữ liệu sản phẩm cũ trước khi
+    // reset()/load() (chạy sau khi Promise.all bên dưới resolve) kịp xoá
+    // trắng rồi đổ đúng dữ liệu mới vào. `showLoading()` không che được
+    // hiện tượng này vì overlay dialog (`.dm-ov`, z-index 2000) nằm TRÊN
+    // overlay loading (`.ov`, z-index 300, core_loading.html) — spinner bị
+    // che khuất phía sau, không phải lỗi z-index cần sửa riêng (rủi ro đụng
+    // CSS toàn cục), chỉ cần đảm bảo form LUÔN sạch trước khi hiện ra.
+    // reset() ở đây không phụ thuộc cacheDOM()/masterDvts/masterNhomSP nên
+    // gọi sớm an toàn — reset() vẫn được gọi lại lần nữa bên dưới sau khi
+    // Master Data tải xong để dựng lại đúng option Nhóm sản phẩm. Gọi thêm
+    // render() để xoá luôn bảng "Đơn vị tính & Bảng giá" (renderUomGrid()
+    // dựng lại từ state.uoms — reset() chỉ xoá state, không tự vẽ lại DOM),
+    // tránh bảng ĐVT của sản phẩm Sửa LẦN TRƯỚC còn hiển thị sót.
+    this.reset();
+    this.render();
+
+    if (this.dom.dialog) {
+      this.dom.dialog.classList.add('open');
+    }
+
+    showLoading();
+
+    // PERF FIX (2026-08-17): trước đây apiProductFind (mode Sửa) CHỈ bắt
+    // đầu chạy SAU KHI Promise.all([DvtService.load(), apiNhomSPLoad]) đã
+    // xong (this.load() được gọi TRONG .then()) — 3 lệnh gọi Apps Script
+    // độc lập nhau về dữ liệu nhưng lại chờ TUẦN TỰ, cộng dồn thời gian
+    // thay vì chạy song song (quan sát thực tế: bấm Sửa mất >7 giây mới
+    // hiện dữ liệu). Gộp cả 3 vào 1 Promise.all() — chạy song song, tổng
+    // thời gian chờ = MAX(3 lệnh) thay vì TỔNG(3 lệnh). `load()` (dùng
+    // tuần tự, phía dưới) giữ NGUYÊN không đổi — vẫn được 1 nhánh fallback
+    // khác gọi lại (Lưu & Thêm mới khi dialog không có onSave callback),
+    // không đụng để tránh rủi ro ngoài phạm vi fix này.
+    const isEdit = this.state.mode === 'edit' && !!this.state.productId;
+    const productPromise = isEdit
+      ? ProductService.find(this.state.productId).catch(err => { this._findErr_ = err; return null; })
+      : Promise.resolve(null);
+
+    Promise.all([
+      DvtService.load(),
+      ApiClient.call('apiNhomSPLoad').catch(() => ({ success: false, data: [] })),
+      productPromise
+    ])
+      .then(([masterDvts, nspRes, productRes]) => {
+        hideLoading();
+        this.state.masterDvts = (masterDvts || []).filter(u => u.active);
+        this.state.masterNhomSP = (nspRes && nspRes.success && Array.isArray(nspRes.data)) ? nspRes.data : [];
+        this.reset();
+        this.applyProductResult_(productRes);
+      })
+      .catch(err => {
+        hideLoading();
+        toast('Lỗi tải danh mục ĐVT: ' + err.message, 'err');
+        this.state.masterDvts = [];
+        this.state.masterNhomSP = [];
+        this.reset();
+        this.applyProductResult_(null);
+      });
+  },
+
+  // PERF FIX (2026-08-17) — tách phần "áp dữ liệu sản phẩm vào form + render"
+  // ra khỏi load() cũ, dùng khi productPromise đã tải SONG SONG ở open() (xem
+  // trên) thay vì tuần tự. Giữ nguyên đúng logic map dữ liệu như load() cũ.
+  applyProductResult_(res) {
+    if (this.state.mode === 'edit' && this.state.productId) {
+      if (this._findErr_) {
+        toast('Lỗi tải thông tin sản phẩm: ' + this._findErr_.message, 'err');
+        this._findErr_ = null;
+      } else if (res) {
+        this.setData(res.product);
+        this.state.uoms = res.uoms.map((u, i) => ({
+          id: String(i + 1),
+          tenDV: u.tenDV,
+          heSo: u.heSo,
+          giaNhap: u.giaNhap,
+          giaBanLe: u.giaBanLe,
+          giaBanBuon: u.giaBanBuon,
+          barcode: u.barcode,
+          macDinh: u.macDinh,
+          active: u.active
+        }));
+      } else {
+        toast('Không tìm thấy sản phẩm!', 'warn');
+      }
+    } else {
+      this.state.uoms = [
+        { id: '1', tenDV: 'Viên', heSo: 1, giaNhap: 0, giaBanLe: 0, giaBanBuon: 0, barcode: '', macDinh: true, active: true }
+      ];
+    }
+    this.render();
+  },
+
+  reset() {
+    this.state.activeTab = 'info';
+    this.state.uoms = [];
+    this.clearDirty();
+
+    // Reset Form Inputs
+    const fields = [
+      'dm-inp-maSP', 'dm-inp-tenSP', 'dm-inp-tenVietTat', 'dm-inp-sdk', 
+      'dm-inp-quyCach', 'dm-inp-hoatChat', 'dm-inp-hamLuong', 'dm-inp-hangSX', 
+      'dm-inp-nuocSX', 'dm-inp-viTri', 'dm-inp-ncc', 'dm-inp-tonToiThieu', 
+      'dm-inp-hinhAnh', 'dm-txt-huongDan', 'dm-txt-ghiChu'
+    ];
+    fields.forEach(id => {
+      const input = document.getElementById(id);
+      if (input) input.value = '';
+    });
+    const tenInp = document.getElementById('dm-inp-tenSP');
+    if (tenInp) tenInp.value = this.state.initName || '';
+
+    const selects = ['dm-sel-phanLoai'];
+    selects.forEach(id => {
+      const select = document.getElementById(id);
+      if (select) select.selectedIndex = 0;
+    });
+    this.renderNhomSPSelect_('');
+  },
+
+  // Sprint 1 (Danh mục Nhóm Sản phẩm) — PO Decision mục 8: dựng lại option
+  // của "Nhóm sản phẩm" từ Master Data (DM_NHOMSANPHAM, this.state.masterNhomSP)
+  // thay vì 4 option hard-code cũ. Value vẫn là TÊN nhóm (chuỗi) để tương
+  // thích với dữ liệu Product đã lưu trước đây — KHÔNG đổi sang lưu Mã
+  // nhóm (tránh phải migrate khi chưa có mapping an toàn).
+  // currentValue: giá trị nhomSP đang lưu trên sản phẩm (khi Sửa). Nếu giá
+  // trị này không khớp tên nhóm nào trong Master Data hiện tại (dữ liệu cũ
+  // trước khi có Master Data, hoặc nhóm gốc đã bị đổi tên/xóa), vẫn phải
+  // giữ nguyên hiển thị đúng giá trị đã lưu — KHÔNG được làm mất/biến dạng
+  // dữ liệu Product hiện tại (PO Decision mục 8).
+  renderNhomSPSelect_(currentValue) {
+    const sel = document.getElementById('dm-sel-nhomSP');
+    if (!sel) return;
+
+    const masterList = this.state.masterNhomSP || [];
+    const names = masterList.map(g => g.tenNhom).filter(Boolean);
+
+    let optionsHtml = '<option value="">-- Chọn nhóm sản phẩm --</option>' +
+      names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+
+    if (currentValue && !names.some(n => n.toLowerCase() === String(currentValue).toLowerCase())) {
+      optionsHtml += `<option value="${esc(currentValue)}">${esc(currentValue)}</option>`;
+    }
+
+    sel.innerHTML = optionsHtml;
+    sel.value = currentValue || '';
+  },
+
+  load() {
+    if (this.state.mode === 'edit' && this.state.productId) {
+      showLoading();
+      ProductService.find(this.state.productId)
+        .then(res => {
+          hideLoading();
+          if (res) {
+            this.setData(res.product);
+            this.state.uoms = res.uoms.map((u, i) => ({
+              id: String(i + 1),
+              tenDV: u.tenDV,
+              heSo: u.heSo,
+              giaNhap: u.giaNhap,
+              giaBanLe: u.giaBanLe,
+              giaBanBuon: u.giaBanBuon,
+              barcode: u.barcode,
+              macDinh: u.macDinh,
+              active: u.active
+            }));
+          } else {
+            toast('Không tìm thấy sản phẩm!', 'warn');
+          }
+          this.render();
+        })
+        .catch(err => {
+          hideLoading();
+          toast('Lỗi tải thông tin sản phẩm: ' + err.message, 'err');
+          this.render();
+        });
+    } else {
+      hideLoading();
+      this.state.uoms = [
+        { id: '1', tenDV: 'Viên', heSo: 1, giaNhap: 0, giaBanLe: 0, giaBanBuon: 0, barcode: '', macDinh: true, active: true }
+      ];
+      this.render();
+    }
+  },
+
+  // ======================
+  // Render
+  // ======================
+  render() {
+    this.renderForm();
+    this.renderTab();
+    this.renderUomGrid();
+    this.renderFooter();
+  },
+
+  renderForm() {
+    const titleEl = document.getElementById('dm-ov-title');
+    if (titleEl) {
+      titleEl.textContent = this.state.mode === 'create' ? 'Thêm sản phẩm mới' : 'Chỉnh sửa sản phẩm';
+    }
+
+    const maInp = document.getElementById('dm-inp-maSP');
+    if (maInp) {
+      maInp.readOnly = this.state.mode === 'edit';
+    }
+  },
+
+  renderTab() {
+    ['info', 'ext'].forEach(tab => {
+      const pane = document.getElementById('dm-tab-pane-' + tab);
+      const btn = document.getElementById('dm-tab-btn-' + tab);
+      if (pane) pane.classList.toggle('show', tab === this.state.activeTab);
+      if (btn) btn.classList.toggle('active', tab === this.state.activeTab);
+    });
+  },
+
+  renderUomGrid() {
+    if (!this.dom.tblUomBody) return;
+
+    const masterDvts = this.state.masterDvts || [];
+
+    this.state._isRendering = true;
+    this.dom.tblUomBody.innerHTML = this.state.uoms.map(r => {
+      const opts = ['<option value="">-- Chọn ĐVT --</option>'].concat(
+        masterDvts.map(u => `<option value="${esc(u.tenDVT)}" ${String(u.tenDVT).toLowerCase() === String(r.tenDV || '').toLowerCase() ? 'selected' : ''}>${esc(u.tenDVT)}</option>`)
+      ).join('');
+
+      return `<tr>
+        <td>
+          <select class="dm-select dm-uom-field" data-id="${r.id}" data-field="tenDV" style="height:26px;padding:0 6px;">
+            ${opts}
+          </select>
+        </td>
+        <td>
+          <input type="number" class="dm-input dm-uom-field" data-id="${r.id}" data-field="heSo" value="${r.heSo}" ${r.heSo === 1 ? 'readonly' : ''}>
+        </td>
+        <td>
+          <input type="text" inputmode="numeric" class="dm-input dm-uom-field money-input" data-id="${r.id}" data-field="giaNhap" value="${formatMoney(r.giaNhap)}">
+        </td>
+        <td>
+          <input type="text" inputmode="numeric" class="dm-input dm-uom-field money-input" data-id="${r.id}" data-field="giaBanLe" value="${formatMoney(r.giaBanLe)}">
+        </td>
+        <td>
+          <input type="text" inputmode="numeric" class="dm-input dm-uom-field money-input" data-id="${r.id}" data-field="giaBanBuon" value="${formatMoney(r.giaBanBuon)}">
+        </td>
+        <td>
+          <input type="text" class="dm-input dm-uom-field" data-id="${r.id}" data-field="barcode" value="${esc(r.barcode)}">
+        </td>
+        <td style="text-align:center">
+          <input type="checkbox" class="dm-uom-chk" data-id="${r.id}" data-field="macDinh" ${r.macDinh ? 'checked' : ''}>
+        </td>
+        <td style="text-align:center">
+          <input type="checkbox" class="dm-uom-chk" data-id="${r.id}" data-field="active" ${r.active ? 'checked' : ''}>
+        </td>
+        <td style="text-align:center">
+          <button class="btn-mini b-red dm-uom-del" data-id="${r.id}" ${r.heSo === 1 ? 'disabled' : ''}>Xóa</button>
+        </td>
+      </tr>`;
+    }).join('');
+    // Dùng setTimeout để đợi browser xử lý xong DOM rồi mới tắt flag
+    setTimeout(() => { this.state._isRendering = false; }, 0);
+  },
+
+  renderFooter() {
+    // Sprint 2G chỉ cập nhật trạng thái UI chân trang nếu cần thiết
+  },
+
+  close() {
+    if (this.checkDirty()) {
+      if (!confirm('Bạn có thay đổi chưa lưu. Bạn có chắc chắn muốn hủy bỏ?')) {
+        return;
+      }
+    }
+    const el = document.getElementById('dm-ov-product');
+    if (el) {
+      el.classList.remove('open');
+    }
+    this.destroy();
+  },
+
+  // ======================
+  // Data Contract & Interface
+  // ======================
+  setData(data) {
+    document.getElementById('dm-inp-maSP').value = data.maSP || '';
+    document.getElementById('dm-inp-tenSP').value = data.tenSP || '';
+    document.getElementById('dm-inp-tenVietTat').value = data.tenVietTat || '';
+    document.getElementById('dm-inp-sdk').value = data.sdk || '';
+    document.getElementById('dm-inp-quyCach').value = data.quyCach || '';
+    document.getElementById('dm-inp-hoatChat').value = data.hoatChat || '';
+    document.getElementById('dm-inp-hamLuong').value = data.hamLuong || '';
+    document.getElementById('dm-inp-hangSX').value = data.hangSX || '';
+    document.getElementById('dm-inp-nuocSX').value = data.nuocSX || '';
+    document.getElementById('dm-inp-viTri').value = data.viTri || '';
+    document.getElementById('dm-inp-ncc').value = data.ncc || '';
+    document.getElementById('dm-inp-tonToiThieu').value = data.tonToiThieu || 0;
+    document.getElementById('dm-txt-huongDan').value = data.huongDanSuDung || '';
+    document.getElementById('dm-txt-ghiChu').value = data.ghiChu || '';
+    document.getElementById('dm-inp-hinhAnh').value = data.hinhAnh || '';
+    
+    this.renderNhomSPSelect_(data.nhomSP || '');
+    if (data.phanLoai) document.getElementById('dm-sel-phanLoai').value = data.phanLoai;
+
+    this.state.uoms = [
+      { id: '1', tenDV: data.dvtGoc || 'Viên', heSo: 1, giaNhap: data.giaNhapMacDinh || 0, giaBanLe: data.giaBanLe || 0, giaBanBuon: data.giaBanBuon || 0, barcode: '', macDinh: true, active: true }
+    ];
+  },
+
+  getData() {
+    const baseUomRow = this.state.uoms.find(u => u.heSo === 1) || {};
+    return {
+      maSP: document.getElementById('dm-inp-maSP').value.trim(),
+      tenSP: document.getElementById('dm-inp-tenSP').value.trim(),
+      tenVietTat: document.getElementById('dm-inp-tenVietTat').value.trim(),
+      sdk: document.getElementById('dm-inp-sdk').value.trim(),
+      quyCach: document.getElementById('dm-inp-quyCach').value.trim(),
+      hoatChat: document.getElementById('dm-inp-hoatChat').value.trim(),
+      hamLuong: document.getElementById('dm-inp-hamLuong').value.trim(),
+      hangSX: document.getElementById('dm-inp-hangSX').value.trim(),
+      nuocSX: document.getElementById('dm-inp-nuocSX').value.trim(),
+      viTri: document.getElementById('dm-inp-viTri').value.trim(),
+      ncc: document.getElementById('dm-inp-ncc').value.trim(),
+      tonToiThieu: parseFloat(document.getElementById('dm-inp-tonToiThieu').value) || 0,
+      hinhAnh: document.getElementById('dm-inp-hinhAnh').value.trim(),
+      huongDanSuDung: document.getElementById('dm-txt-huongDan').value.trim(),
+      ghiChu: document.getElementById('dm-txt-ghiChu').value.trim(),
+      nhomSP: document.getElementById('dm-sel-nhomSP').value,
+      phanLoai: document.getElementById('dm-sel-phanLoai').value,
+      dvtGoc: baseUomRow.tenDV || ''
+    };
+  },
+
+  getPayload() {
+    return {
+      product: this.getData(),
+      uoms: this.state.uoms.map(u => ({
+        tenDV: (u.tenDV || '').trim(),
+        heSo: parseFloat(u.heSo) || 1,
+        giaNhap: parseFloat(u.giaNhap) || 0,
+        giaBanLe: parseFloat(u.giaBanLe) || 0,
+        giaBanBuon: parseFloat(u.giaBanBuon) || 0,
+        barcode: (u.barcode || '').trim(),
+        macDinh: !!u.macDinh,
+        active: !!u.active
+      }))
+    };
+  },
+
+  // ======================
+  // Client Validation Logic
+  // ======================
+  validate() {
+    const payload = this.getPayload();
+    const p = payload.product;
+    const uoms = payload.uoms;
+
+    // 1. Tên sản phẩm bắt buộc
+    if (!p.tenSP) {
+      toast('Tên sản phẩm không được để trống', 'warn');
+      return false;
+    }
+
+    // 2. Phải có ít nhất 1 UOM
+    if (!uoms.length) {
+      toast('Sản phẩm phải có ít nhất một đơn vị tính', 'warn');
+      return false;
+    }
+
+    // 3. Có đúng 1 Base UOM (HeSo = 1)
+    const baseUoms = uoms.filter(u => u.heSo === 1);
+    if (baseUoms.length === 0) {
+      toast('Phải có một đơn vị tính gốc với hệ số quy đổi = 1', 'warn');
+      return false;
+    }
+    if (baseUoms.length > 1) {
+      toast('Chỉ được phép có duy nhất một đơn vị tính gốc (Hệ số = 1)', 'warn');
+      return false;
+    }
+
+    // 4. Các UOM khác phải có HeSo > 1
+    const invalidFactors = uoms.filter(u => u.heSo <= 0 || (u.heSo < 1 && u.heSo !== 1));
+    if (invalidFactors.length > 0) {
+      toast('Hệ số quy đổi của đơn vị phụ phải lớn hơn 1', 'warn');
+      return false;
+    }
+
+    // 5. Tên UOM không được để trống
+    const emptyUoms = uoms.filter(u => !u.tenDV);
+    if (emptyUoms.length > 0) {
+      toast('Tên đơn vị tính không được để trống', 'warn');
+      return false;
+    }
+
+    // 6. Không được trùng tên UOM
+    const uomNames = uoms.map(u => u.tenDV.toLowerCase());
+    const duplicateNames = uomNames.filter((name, idx) => uomNames.indexOf(name) !== idx);
+    if (duplicateNames.length > 0) {
+      toast('Tên đơn vị tính bị trùng lặp: ' + duplicateNames[0], 'warn');
+      return false;
+    }
+
+    // 7. Barcode trong cùng sản phẩm không được trùng
+    const barcodes = uoms.map(u => u.barcode.toLowerCase()).filter(Boolean);
+    const duplicateBarcodes = barcodes.filter((code, idx) => barcodes.indexOf(code) !== idx);
+    if (duplicateBarcodes.length > 0) {
+      toast('Mã vạch (Barcode) bị trùng lặp: ' + duplicateBarcodes[0], 'warn');
+      return false;
+    }
+
+    return true;
+  },
+
+  // ======================
+  // Dirty State API
+  // ======================
+  markDirty() { 
+    this.state.isDirty = true; 
+    console.log("ProductEditor state is marked DIRTY");
+  },
+  clearDirty() { this.state.isDirty = false; },
+  checkDirty() { return this.state.isDirty; },
+  setLoading(isLoading) {
+    const btns = [this.dom.btnSaveCopy, this.dom.btnSaveNew, this.dom.btnSaveClose, this.dom.btnCancel];
+    btns.forEach(btn => {
+      if (btn) btn.disabled = isLoading;
+    });
+    const inputs = document.querySelectorAll('#dm-ov-product .dm-input, #dm-ov-product .dm-select, #dm-ov-product .dm-textarea, #dm-ov-product .dm-uom-chk, #dm-ov-product .dm-uom-del, #dm-ov-product #dm-btn-add-uom');
+    inputs.forEach(inp => {
+      inp.disabled = isLoading;
+    });
+  },
+
+  switchTab(tabId) {
+    this.state.activeTab = tabId;
+    this.renderTab();
+  },
+
+  // ======================
+  // DOM Cache & Events
+  // ======================
+  cacheDOM() {
+    this.dom = {
+      dialog: document.getElementById('dm-ov-product'),
+      btnCloseX: document.getElementById('dm-btn-close-x'),
+      btnCancel: document.getElementById('dm-btn-cancel'),
+      btnAddUom: document.getElementById('dm-btn-add-uom'),
+      tblUomBody: document.getElementById('dm-uom-grid-body'),
+      btnSaveCopy: document.getElementById('dm-btn-save-copy'),
+      btnSaveNew: document.getElementById('dm-btn-save-new'),
+      btnSaveClose: document.getElementById('dm-btn-save-close')
+    };
+  },
+
+  bindEvents() {
+    // Đăng ký nút Close (X)
+    if (this.dom.btnCloseX) {
+      this.dom.btnCloseX.onclick = () => this.close();
+    }
+
+    // Đăng ký các nút Tab qua Event Delegation
+    const tabContainer = document.querySelector('#dm-ov-product .dm-modal-tabs');
+    if (tabContainer) {
+      tabContainer.onclick = (e) => {
+        const tabBtn = e.target.closest('.dm-m-tab');
+        if (tabBtn) {
+          const tab = tabBtn.getAttribute('data-tab');
+          this.switchTab(tab);
+        }
+      };
+    }
+
+    // Đăng ký toàn bộ inputs Form chính để markDirty qua Event Delegation
+    const contentPanel = document.querySelector('#dm-ov-product .dm-ov-body');
+    if (contentPanel) {
+      contentPanel.onchange = (e) => {
+        if (this.state._isRendering) return; // bỏ qua change do render nội bộ
+        if (e.target.matches('.dm-input, .dm-select, .dm-textarea')) {
+          this.markDirty();
+        }
+      };
+    }
+
+    // Đăng ký UOM Grid actions & live updates qua Event Delegation
+    if (this.dom.tblUomBody) {
+      this.dom.tblUomBody.onclick = (e) => {
+        const delBtn = e.target.closest('.dm-uom-del');
+        if (delBtn) {
+          const id = delBtn.getAttribute('data-id');
+          const uom = this.state.uoms.find(u => u.id === id);
+          if (uom && uom.heSo === 1) {
+            toast('Không thể xóa đơn vị tính gốc', 'warn');
+            return;
+          }
+          this.state.uoms = this.state.uoms.filter(u => u.id !== id);
+          this.markDirty();
+          this.renderUomGrid();
+        }
+      };
+      
+      this.dom.tblUomBody.onchange = (e) => {
+        if (this.state._isRendering) return; // bỏ qua change do render nội bộ
+        const input = e.target;
+        if (input.matches('.dm-uom-field, .dm-uom-chk')) {
+          const id = input.getAttribute('data-id');
+          const field = input.getAttribute('data-field');
+          const uom = this.state.uoms.find(u => u.id === id);
+          if (uom) {
+            if (input.type === 'checkbox') {
+              if (field === 'macDinh') {
+                this.state.uoms.forEach(u => u.macDinh = false);
+                uom.macDinh = input.checked;
+              } else {
+                uom[field] = input.checked;
+              }
+            } else if (field === 'giaNhap' || field === 'giaBanLe' || field === 'giaBanBuon') {
+              uom[field] = parseMoney(input.value);
+            } else if (input.type === 'number') {
+              uom[field] = parseFloat(input.value) || 0;
+            } else {
+              uom[field] = input.value.trim();
+            }
+            this.markDirty();
+            this.renderUomGrid();
+          }
+        }
+      };
+    }
+
+    // Đăng ký nút thêm ĐVT quy đổi mới
+    if (this.dom.btnAddUom) {
+      this.dom.btnAddUom.onclick = () => {
+        const newId = String(Date.now());
+        this.state.uoms.push({
+          id: newId,
+          tenDV: '',
+          heSo: 2,
+          giaNhap: 0,
+          giaBanLe: 0,
+          giaBanBuon: 0,
+          barcode: '',
+          macDinh: false,
+          active: true
+        });
+        this.markDirty();
+        this.renderUomGrid();
+      };
+    }
+
+    // Đăng ký nút Footer Hủy bỏ
+    if (this.dom.btnCancel) {
+      this.dom.btnCancel.onclick = () => this.close();
+    }
+
+    // Đăng ký các nút Lưu (Kiểm duyệt Frontend Validation và dựng Payload)
+    const saveActions = [
+      { dom: this.dom.btnSaveCopy, action: 'save-copy' },
+      { dom: this.dom.btnSaveNew, action: 'save-new' },
+      { dom: this.dom.btnSaveClose, action: 'save-close' }
+    ];
+    saveActions.forEach(item => {
+      if (item.dom) {
+        item.dom.onclick = () => {
+          if (this.validate()) {
+            const payload = this.getPayload();
+            console.log("VALIDATED PAYLOAD FOR " + item.action.toUpperCase() + ":", payload);
+            
+            if (typeof this.state.onSave === 'function') {
+              this.state.onSave(payload, item.action);
+            } else {
+              toast('Lưu thông tin thành công (Dữ liệu xem tại F12 Console)', 'ok');
+              this.clearDirty();
+              if (item.action === 'save-close') {
+                this.close();
+              } else if (item.action === 'save-new') {
+                this.reset();
+                this.load();
+              } else if (item.action === 'save-copy') {
+                document.getElementById('dm-inp-maSP').value = '';
+                this.state.mode = 'create';
+                this.renderForm();
+                this.markDirty();
+              }
+            }
+          }
+        };
+      }
+    });
+  },
+
+  destroy() {
+    this.clearDirty();
+  }
+};
+
+// Helper functions inside local module scope
+function esc(s) {
+  return String(s ?? '').replace(/[&<>\"]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[m]));
+}
+function fmtMoney(n) {
+  return (parseFloat(n) || 0).toLocaleString('vi-VN') + ' ₫';
+}
+</script>

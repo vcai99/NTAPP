@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  :root { --surface: #1e1e1e; --surface2: #2d2d2d; --border: #444; --text: #fff; --text2: #aaa; }
+  body { background: #111; color: white; font-family: sans-serif; padding: 20px; }
+  .bh-ib-field { display: flex; flex-direction: column; width: 200px; }
+  .bh-ib-lbl { font-size: 10px; color: var(--text2); }
+  .bh-pw { position: relative; }
+  .bh-ib-inp { height: 30px; width: 100%; box-sizing: border-box; }
+  .bh-dd {
+    position: absolute; top: calc(100% + 2px); left: 0; min-width: 260px;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 4px;
+    display: none; max-height: 250px; overflow-y: auto; z-index: 1000;
+  }
+  .bh-dd.open { display: block; }
+  .bh-dd-empty { padding: 10px; text-align: center; color: var(--text2); }
+</style>
+</head>
+<body>
+  <div class="bh-ib-field">
+    <span class="bh-ib-lbl">Tìm SP</span>
+    <div class="bh-pw">
+      <input id="bh-sp" class="bh-ib-inp" oninput="test(this.value)">
+      <div class="bh-dd" id="bh-sp-dd"></div>
+    </div>
+  </div>
+  <script>
+    function test(q) {
+      const dd = document.getElementById('bh-sp-dd');
+      dd.style.display = 'block';
+      dd.style.backgroundColor = 'red';
+      dd.innerHTML = '<div class=\"bh-dd-empty\">Không tìm th?y s?n ph?m</div>';
+      dd.classList.add('open');
+    }
+  </script>
+</body>
+</html>

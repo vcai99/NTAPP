@@ -1,0 +1,321 @@
+<style>
+/* =================================================================
+   CSS SCOPED FOR DVT EDITOR DIALOG (.dvt-dlg-)
+   Đồng bộ Design System tối sang trọng của APP_v1.3
+   ================================================================= */
+
+#dvt-editor-ov {
+  transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+.dvt-dlg-wrap {
+  width: 500px;
+  max-width: 94%;
+  background: #16213e;
+  border-radius: 8px;
+  border: 1px solid #0d3377;
+  padding: 0;
+  box-shadow: 0 10px 30px rgba(0,0,0,.6);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.dvt-dlg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid #0d3377;
+  background: #0d2144;
+  flex-shrink: 0;
+}
+.dvt-dlg-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #90caf9;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.dvt-dlg-close {
+  background: none;
+  border: none;
+  color: #ff5252;
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+  transition: color .15s;
+  padding: 0;
+}
+.dvt-dlg-close:hover { color: #ff1744; }
+
+.dvt-dlg-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #16213e;
+}
+.dvt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dvt-lbl {
+  font-size: 11px;
+  font-weight: 500;
+  color: #90caf9;
+}
+.dvt-inp {
+  height: 30px;
+  background: #0d2144;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #e0e0e0;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color .15s;
+}
+.dvt-inp::placeholder { color: #546e7a; }
+.dvt-inp:focus { border-color: #42a5f5; }
+.dvt-inp[readonly] { color: #546e7a; cursor: default; }
+
+.dvt-check-row {
+  display: flex;
+  align-items: center;
+  padding-top: 4px;
+}
+.dvt-check-lbl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e0e0e0;
+  cursor: pointer;
+  user-select: none;
+}
+.dvt-check-lbl input[type=checkbox] {
+  accent-color: #42a5f5;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.dvt-dlg-foot {
+  padding: 12px 18px;
+  border-top: 1px solid #0d3377;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  background: #0d2144;
+  flex-shrink: 0;
+}
+.dvt-btn-save {
+  padding: 6px 16px;
+  background: #1565C0;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .15s;
+}
+.dvt-btn-save:hover { background: #0d47a1; }
+.dvt-btn-save:disabled { background: #263850; color: #78909c; cursor: not-allowed; }
+
+.dvt-btn-cancel {
+  padding: 6px 14px;
+  background: #263850;
+  color: #ccc;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .15s;
+}
+.dvt-btn-cancel:hover { background: #1e3060; }
+</style>
+
+<!-- ══ DIALOG: Thêm / Sửa Đơn Vị Tính ══ -->
+<div class="ov" id="dvt-editor-ov" onclick="DvtEditor._ovClick(event)">
+  <div class="dvt-dlg-wrap">
+    <!-- Header -->
+    <div class="dvt-dlg-head">
+      <span class="dvt-dlg-title" id="dvt-dlg-title-text">➕ Thêm mới đơn vị tính</span>
+      <button class="dvt-dlg-close" onclick="DvtEditor.close()">&times;</button>
+    </div>
+
+    <!-- Body -->
+    <div class="dvt-dlg-body">
+      <div class="dvt-field">
+        <label class="dvt-lbl">Tên đơn vị tính *</label>
+        <input id="dvt-editor-ten" class="dvt-inp" placeholder="Ví dụ: Viên, Hộp, Vỉ...">
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="dvt-dlg-foot">
+      <button class="dvt-btn-save" id="dvt-editor-btn-save" onclick="DvtEditor.save()">✔ Lưu lại</button>
+      <button class="dvt-btn-cancel" onclick="DvtEditor.close()">Thoát</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  DVT EDITOR DIALOG (DvtEditor)
+//  File: dialog_dvt_editor.html
+// ════════════════════════════════════════════════════════════════
+const DvtEditor = {
+
+  state: {
+    mode:    'create',   // 'create' | 'edit'
+    dvtId:   null,
+    onSaved: null        // callback({ maDVT, tenDVT }) sau khi lưu
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  //  PUBLIC API
+  // ─────────────────────────────────────────────────────────────
+
+  open(config = {}) {
+    this.state.mode    = config.mode    || 'create';
+    this.state.dvtId   = config.dvtId   || null;
+    this.state.onSaved = config.onSaved || null;
+
+    const titleEl = document.getElementById('dvt-dlg-title-text');
+    if (titleEl) {
+      titleEl.textContent = this.state.mode === 'edit'
+        ? '✏️ Chỉnh sửa đơn vị tính'
+        : '➕ Thêm mới đơn vị tính';
+    }
+
+    this._resetForm();
+    this._bindKeys();
+
+    if (this.state.mode === 'edit' && this.state.dvtId) {
+      this._loadForEdit(this.state.dvtId);
+    }
+
+    const ov = document.getElementById('dvt-editor-ov');
+    if (ov) ov.classList.add('open');
+
+    setTimeout(() => {
+      const inp = document.getElementById('dvt-editor-ten');
+      if (inp) inp.focus();
+    }, 160);
+  },
+
+  close() {
+    const ov = document.getElementById('dvt-editor-ov');
+    if (ov) ov.classList.remove('open');
+    this._unbindKeys();
+  },
+
+  save() {
+    const tenEl = document.getElementById('dvt-editor-ten');
+    const ten = tenEl ? tenEl.value.trim() : '';
+    if (!ten) {
+      toast('Tên đơn vị tính không được để trống!', 'warn');
+      if (tenEl) {
+        tenEl.focus();
+        tenEl.style.borderColor = '#ef5350';
+        setTimeout(() => { tenEl.style.borderColor = ''; }, 2000);
+      }
+      return;
+    }
+
+    const btn = document.getElementById('dvt-editor-btn-save');
+    if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Đang lưu...'; }
+
+    const payload = {
+      tenDVT: ten,
+      ghiChu: '',
+      active: true
+    };
+
+    const isEdit = (this.state.mode === 'edit' && this.state.dvtId);
+    const apiCall = isEdit
+      ? DvtService.update({ ...payload, maDVT: this.state.dvtId })
+      : DvtService.save(payload);
+
+    apiCall
+      .then(resData => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '✔ Lưu lại'; }
+
+        toast(isEdit
+          ? `Đã cập nhật: ${ten}`
+          : `Đã thêm mới: ${ten}`,
+          'ok'
+        );
+
+        this.close();
+
+        if (typeof this.state.onSaved === 'function') {
+          this.state.onSaved(resData);
+        }
+      })
+      .catch(err => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '✔ Lưu lại'; }
+        toast(err.message || 'Lỗi lưu dữ liệu', 'err');
+      });
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  //  PRIVATE HELPERS
+  // ─────────────────────────────────────────────────────────────
+
+  _resetForm() {
+    const el = document.getElementById('dvt-editor-ten');
+    if (el) { el.value = ''; el.style.borderColor = ''; }
+
+    const btn = document.getElementById('dvt-editor-btn-save');
+    if (btn) { btn.disabled = false; btn.innerHTML = '✔ Lưu lại'; }
+  },
+
+  _loadForEdit(dvtId) {
+    DvtService.find(dvtId)
+      .then(dvt => {
+        const el = document.getElementById('dvt-editor-ten');
+        if (el) el.value = dvt.tenDVT || '';
+      })
+      .catch(err => {
+        toast('Lỗi tải dữ liệu ĐVT: ' + err.message, 'err');
+      });
+  },
+
+  _onKeydown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      DvtEditor.save();
+    }
+    if (e.key === 'Escape') {
+      DvtEditor.close();
+    }
+  },
+
+  _bindKeys() {
+    const ov = document.getElementById('dvt-editor-ov');
+    if (ov) ov.addEventListener('keydown', this._onKeydown);
+  },
+
+  _unbindKeys() {
+    const ov = document.getElementById('dvt-editor-ov');
+    if (ov) ov.removeEventListener('keydown', this._onKeydown);
+  },
+
+  _ovClick(e) {
+    if (e.target.id === 'dvt-editor-ov') this.close();
+  }
+};
+</script>

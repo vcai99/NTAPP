@@ -1,0 +1,644 @@
+<!-- ════════════════════════════════════════════════════════════════
+      BÁO CÁO NHẬP HÀNG (mod_baocaonhaphang.html)
+      Sprint 15.3 — theo evidence docs/15. Bao_cao/3. Baocao_Nhap_hang/
+      Bao_cao_Nhap_Xuat_hang_Thelight.pdf trang 1: Báo cáo → Báo cáo nhập
+      hàng → chọn thời gian + filter → Tìm kiếm → grid chi tiết phiếu nhập.
+
+      READ-ONLY — không tạo/sửa/xóa PN_PHIEUNHAP/PN_CHITIET, không đụng
+      TK_KHO/Công nợ NCC/Inventory Posting.
+
+      UI REBUILD (2026-08-25, PO LOCKED): Grid nay render Parent (phiếu) +
+      Child (dòng sản phẩm), giữ Core Style APP_v1.3 (sidebar/filter dùng
+      token màu chung), riêng vùng bảng report dùng nền sáng/mật độ cao
+      giống cấu trúc TheLight thật — REPLICATE layout/grouping/column order,
+      KHÔNG copy CSS nguyên bản. Xem 15.3_BaoCaoNhapHang_Bug.md mục 10.
+
+      BLOCKED (docs/15.3_BaoCaoNhapHang_Bug.md mục 3 — DEC-001): checkbox
+      "Chi tiết" hiển thị nhưng disabled — PDF không đủ evidence hành vi
+      OFF (grouping theo phiếu/công thức tổng), không tự suy diễn.
+     ════════════════════════════════════════════════════════════════ -->
+
+<style>
+#page-baocao_nhap { display: none; height: calc(100vh - 52px); min-height: 0; overflow: hidden; }
+#page-baocao_nhap.show { display: flex; }
+
+.bcnh-sidebar {
+  width: 230px; min-width: 230px; background: var(--bg2); border-right: 1px solid var(--border);
+  padding: 10px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; flex-shrink: 0;
+}
+.bcnh-sb-lbl { font-size: var(--fs-1); color: var(--text2); font-weight: 700; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 3px; }
+.bcnh-sb-inp, .bcnh-sb-sel {
+  width: 100%; height: var(--h-4); padding: 0 8px; background: var(--input-bg);
+  border: 1px solid var(--input-border); border-radius: 4px; color: var(--text); font-size: var(--fs-3);
+}
+.bcnh-sb-inp:focus, .bcnh-sb-sel:focus { outline: none; border-color: #1976D2; }
+.bcnh-sb-row2 { display: flex; gap: 6px; }
+.bcnh-sb-row2 .bcnh-sb-sel, .bcnh-sb-row2 .bcnh-sb-inp { flex: 1; min-width: 0; }
+.bcnh-time-box { display: none; flex-direction: column; gap: 6px; }
+.bcnh-time-box.show { display: flex; }
+.bcnh-sb-check { display: flex; align-items: center; gap: 6px; font-size: var(--fs-2); color: var(--text2); cursor: pointer; }
+
+.bcnh-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+.bcnh-topbar { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+
+/* Vùng bảng report — nền sáng/mật độ cao (REPLICATE layout TheLight, viết
+   riêng bằng token màu literal vì Core Style chung của APP_v1.3 là dark
+   theme, không có token "light report" sẵn — không copy CSS TheLight). */
+.bcnh-tbl-wrap { flex: 1; overflow: auto; border: 1px solid #d5dde5; margin: 8px 10px; border-radius: 6px; background: #ffffff; }
+.bcnh-tbl { width: 100%; border-collapse: collapse; min-width: 1300px; }
+.bcnh-tbl th { background: #eef3f8; color: #3c4a5a; padding: 6px 10px; text-align: left; font-size: 12px; font-weight: 700; white-space: nowrap; border-bottom: 1px solid #d5dde5; border-right: 1px solid #e6ecf1; position: sticky; top: 0; z-index: 1; }
+.bcnh-tbl th:last-child { border-right: none; }
+.bcnh-tbl td { padding: 4px 10px; font-size: 12.5px; color: #26313d; border-right: 1px solid #eef1f4; border-bottom: 1px solid #eef1f4; vertical-align: middle; white-space: nowrap; }
+.bcnh-tbl td:last-child { border-right: none; }
+.bcnh-row-parent td { background: #e4f0fd; font-weight: 700; color: #163a5f; }
+.bcnh-row-child td { background: #ffffff; }
+/* core_styles.html có rule dùng chung `tr:hover td { background:#0d2347 }`
+   (độ ưu tiên CSS cao hơn 2 rule nền sáng phía trên) — phải khai báo rõ
+   :hover riêng cho từng loại dòng để không bị nền tối navy đè lên, chữ
+   không đọc được (bug đã gặp thực tế). */
+.bcnh-row-child:hover td { background: #f5f9fc; }
+.bcnh-row-parent:hover td { background: #d3e7fb; }
+.bcnh-sum-tr td { background: #bfdcfb; color: #0d3b66; font-weight: 700; }
+.bcnh-sum-tr:hover td { background: #bfdcfb; }
+.bcnh-blank { color: #b9c2cb; }
+
+.bcnh-pager { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; flex-shrink: 0; }
+.bcnh-pg-info { font-size: var(--fs-1); color: var(--text2); }
+.bcnh-pg-btns { display: flex; gap: 4px; }
+.bcnh-pg-btn { min-width: 28px; height: 28px; padding: 0 6px; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 4px; color: var(--text); cursor: pointer; font-size: var(--fs-1); }
+.bcnh-pg-btn:hover:not(:disabled) { border-color: #1976D2; }
+.bcnh-pg-btn.on { background: #1976D2; border-color: #1976D2; color: #fff; }
+.bcnh-pg-btn:disabled { opacity: .4; cursor: not-allowed; }
+</style>
+
+<div class="page layout" id="page-baocao_nhap">
+  <div class="bcnh-sidebar">
+    <div>
+      <div class="bcnh-sb-lbl">Thời gian</div>
+      <select id="bcnh-f-timetype" class="bcnh-sb-sel">
+        <option value="ngay">Ngày</option>
+        <option value="tungay">Từ ngày</option>
+        <option value="thang" selected>Tháng</option>
+        <option value="quy">Quý</option>
+        <option value="nam">Năm</option>
+      </select>
+    </div>
+    <div class="bcnh-time-box" id="bcnh-time-ngay">
+      <input id="bcnh-f-ngay" class="bcnh-sb-inp" type="date">
+    </div>
+    <div class="bcnh-time-box" id="bcnh-time-tungay">
+      <div class="bcnh-sb-row2">
+        <input id="bcnh-f-tu" class="bcnh-sb-inp" type="date" title="Từ ngày">
+        <input id="bcnh-f-den" class="bcnh-sb-inp" type="date" title="Đến ngày">
+      </div>
+    </div>
+    <div class="bcnh-time-box show" id="bcnh-time-thang">
+      <div class="bcnh-sb-row2">
+        <select id="bcnh-f-thang" class="bcnh-sb-sel"></select>
+        <select id="bcnh-f-thang-nam" class="bcnh-sb-sel"></select>
+      </div>
+    </div>
+    <div class="bcnh-time-box" id="bcnh-time-quy">
+      <div class="bcnh-sb-row2">
+        <select id="bcnh-f-quy" class="bcnh-sb-sel">
+          <option value="1">Quý 1</option>
+          <option value="2">Quý 2</option>
+          <option value="3">Quý 3</option>
+          <option value="4">Quý 4</option>
+        </select>
+        <select id="bcnh-f-quy-nam" class="bcnh-sb-sel"></select>
+      </div>
+    </div>
+    <div class="bcnh-time-box" id="bcnh-time-nam">
+      <select id="bcnh-f-nam" class="bcnh-sb-sel"></select>
+    </div>
+
+    <div>
+      <div class="bcnh-sb-lbl">Số phiếu</div>
+      <input id="bcnh-f-sophieu" class="bcnh-sb-inp" placeholder="Số phiếu">
+    </div>
+    <div>
+      <div class="bcnh-sb-lbl">Số HĐ</div>
+      <input id="bcnh-f-sohd" class="bcnh-sb-inp" placeholder="Số hóa đơn">
+    </div>
+    <div>
+      <div class="bcnh-sb-lbl">Sản phẩm</div>
+      <input id="bcnh-f-product" class="bcnh-sb-inp" placeholder="Tên sản phẩm, mã vạch (F3)">
+    </div>
+    <div>
+      <div class="bcnh-sb-lbl">Nhà cung cấp</div>
+      <select id="bcnh-f-ncc" class="bcnh-sb-sel"><option value="">Tất cả nhà cung cấp</option></select>
+    </div>
+    <div>
+      <div class="bcnh-sb-lbl">Nhóm sản phẩm</div>
+      <select id="bcnh-f-nhom" class="bcnh-sb-sel"><option value="">Tất cả</option></select>
+    </div>
+    <div>
+      <div class="bcnh-sb-lbl">Vị trí sản phẩm</div>
+      <select id="bcnh-f-vitri" class="bcnh-sb-sel"><option value="">Tất cả</option></select>
+    </div>
+    <div>
+      <div class="bcnh-sb-lbl">Quầy</div>
+      <select id="bcnh-f-kho" class="bcnh-sb-sel"><option value="">Tất cả</option></select>
+    </div>
+    <div>
+      <div class="bcnh-sb-lbl">Nhân viên</div>
+      <select id="bcnh-f-nv" class="bcnh-sb-sel"><option value="">Tất cả nhân viên</option></select>
+    </div>
+    <div>
+      <div class="bcnh-sb-lbl">Hình thức thanh toán</div>
+      <select id="bcnh-f-httt" class="bcnh-sb-sel">
+        <option value="">Tất cả</option>
+        <option value="Tiền mặt">Tiền mặt</option>
+        <option value="Chuyển khoản">Chuyển khoản</option>
+        <option value="Công nợ">Công nợ</option>
+      </select>
+    </div>
+    <label class="bcnh-sb-check" id="bcnh-lbl-chitiet" title="BẬT = xem theo từng phiếu (Số phiếu/NCC/Ngày...). TẮT = gộp tổng hợp theo sản phẩm trong kỳ (đúng evidence ảnh TheLight thật, DEC-001 RESOLVED 2026-08-25).">
+      <input type="checkbox" id="bcnh-f-chitiet" checked> Chi tiết
+    </label>
+    <button class="btn btn-green" id="bcnh-btn-search" style="width:100%">Tìm kiếm</button>
+  </div>
+
+  <div class="bcnh-main">
+    <div class="bcnh-topbar">
+      <div style="font-size:var(--fs-3);font-weight:700;color:var(--text2)">Báo cáo chi tiết nhập hàng</div>
+    </div>
+
+    <div class="bcnh-tbl-wrap">
+      <table class="bcnh-tbl" id="bcnh-main-tbl">
+        <thead id="bcnh-tbl-head"></thead>
+        <tbody id="bcnh-tbl-body"></tbody>
+      </table>
+    </div>
+
+    <div class="bcnh-pager">
+      <div class="bcnh-pg-info" id="bcnh-pg-info">Tổng số bản ghi: 0 - Tổng số trang: 0</div>
+      <div class="bcnh-pg-btns" id="bcnh-pg-btns"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  CONTROLLER LAYER: BaoCaoNhapHangModule (mod_baocaonhaphang.html)
+//  Sprint 15.3 — Báo cáo nhập hàng
+// ════════════════════════════════════════════════════════════════
+const BaoCaoNhapHangModule = {
+  dom: {},
+  // Pagination theo SỐ PHIẾU (nhóm), không theo dòng phẳng — 1 phiếu không
+  // bao giờ bị cắt giữa 2 trang (yêu cầu PO, xem 15.3_BaoCaoNhapHang_Bug.md
+  // mục 10).
+  PAGE_SIZE: 20,
+  // `groups` (Chi tiết ON, theo phiếu) và `aggRows` (Chi tiết OFF, theo sản
+  // phẩm) đều derive TỪ CÙNG 1 `filtered` (không gọi lại API khi đổi
+  // checkbox — chỉ nhóm lại trong bộ nhớ, đúng bài học Performance).
+  state: { filtered: [], groups: [], aggRows: [], tong: { vatTien: 0, thanhTien: 0 }, currentPage: 1 },
+  initialized: false,
+
+  init() {
+    if (this.initialized) return;
+    this.cacheDOM();
+    this.populateTimeSelectors_();
+    this.bindEvents();
+    this.applyTimeTypeVisibility_();
+    this.renderHead_();
+    this.initialized = true;
+  },
+
+  cacheDOM() {
+    this.dom = {
+      fTimeType: document.getElementById('bcnh-f-timetype'),
+      boxNgay: document.getElementById('bcnh-time-ngay'),
+      boxTuNgay: document.getElementById('bcnh-time-tungay'),
+      boxThang: document.getElementById('bcnh-time-thang'),
+      boxQuy: document.getElementById('bcnh-time-quy'),
+      boxNam: document.getElementById('bcnh-time-nam'),
+      fNgay: document.getElementById('bcnh-f-ngay'),
+      fTu: document.getElementById('bcnh-f-tu'),
+      fDen: document.getElementById('bcnh-f-den'),
+      fThang: document.getElementById('bcnh-f-thang'),
+      fThangNam: document.getElementById('bcnh-f-thang-nam'),
+      fQuy: document.getElementById('bcnh-f-quy'),
+      fQuyNam: document.getElementById('bcnh-f-quy-nam'),
+      fNam: document.getElementById('bcnh-f-nam'),
+      fSoPhieu: document.getElementById('bcnh-f-sophieu'),
+      fSoHD: document.getElementById('bcnh-f-sohd'),
+      fProduct: document.getElementById('bcnh-f-product'),
+      fNcc: document.getElementById('bcnh-f-ncc'),
+      fNhom: document.getElementById('bcnh-f-nhom'),
+      fViTri: document.getElementById('bcnh-f-vitri'),
+      fKho: document.getElementById('bcnh-f-kho'),
+      fNv: document.getElementById('bcnh-f-nv'),
+      fHttt: document.getElementById('bcnh-f-httt'),
+      fChiTiet: document.getElementById('bcnh-f-chitiet'),
+      btnSearch: document.getElementById('bcnh-btn-search'),
+      tblHead: document.getElementById('bcnh-tbl-head'),
+      tblBody: document.getElementById('bcnh-tbl-body'),
+      pgInfo: document.getElementById('bcnh-pg-info'),
+      pgBtns: document.getElementById('bcnh-pg-btns')
+    };
+  },
+
+  // Cùng bộ chọn Tháng/Quý/Năm với mod_baocaolailo.html/mod_thuchi.html —
+  // REUSE nguyên UI convention đã có trong project, không phát minh lại.
+  populateTimeSelectors_() {
+    const today = new Date();
+    const y = today.getFullYear(), m = today.getMonth() + 1, q = Math.floor(today.getMonth() / 3) + 1;
+
+    let monthOpts = '';
+    for (let i = 1; i <= 12; i++) monthOpts += `<option value="${i}"${i === m ? ' selected' : ''}>Tháng ${i}</option>`;
+    this.dom.fThang.innerHTML = monthOpts;
+
+    let yearOpts = '';
+    for (let i = y - 5; i <= y + 1; i++) yearOpts += `<option value="${i}"${i === y ? ' selected' : ''}>${i}</option>`;
+    this.dom.fThangNam.innerHTML = yearOpts;
+    this.dom.fQuyNam.innerHTML = yearOpts;
+    this.dom.fNam.innerHTML = yearOpts;
+    this.dom.fQuy.value = String(q);
+    this.dom.fNgay.value = today.toISOString().slice(0, 10);
+  },
+
+  bindEvents() {
+    this.dom.fTimeType.onchange = () => this.applyTimeTypeVisibility_();
+    this.dom.btnSearch.onclick = () => this.search_();
+    // Đổi Chi tiết KHÔNG gọi lại API — chỉ nhóm lại `state.filtered` đã tải
+    // sẵn theo chế độ khác (đúng bài học Performance, không round-trip
+    // Apps Script chỉ để đổi cách trình bày).
+    this.dom.fChiTiet.onchange = () => {
+      this.renderHead_();
+      this.state.currentPage = 1;
+      this.renderTable_();
+    };
+  },
+
+  applyTimeTypeVisibility_() {
+    const t = this.dom.fTimeType.value;
+    this.dom.boxNgay.classList.toggle('show', t === 'ngay');
+    this.dom.boxTuNgay.classList.toggle('show', t === 'tungay');
+    this.dom.boxThang.classList.toggle('show', t === 'thang');
+    this.dom.boxQuy.classList.toggle('show', t === 'quy');
+    this.dom.boxNam.classList.toggle('show', t === 'nam');
+  },
+
+  getTimeRange_() {
+    const pad = n => String(n).padStart(2, '0');
+    const t = this.dom.fTimeType.value;
+    if (t === 'ngay') {
+      const v = this.dom.fNgay.value;
+      return v ? { from: v, to: v } : { from: null, to: null };
+    }
+    if (t === 'tungay') {
+      return { from: this.dom.fTu.value || null, to: this.dom.fDen.value || null };
+    }
+    if (t === 'thang') {
+      const y = Number(this.dom.fThangNam.value), mo = Number(this.dom.fThang.value);
+      if (!y || !mo) return { from: null, to: null };
+      const lastDay = new Date(y, mo, 0).getDate();
+      return { from: `${y}-${pad(mo)}-01`, to: `${y}-${pad(mo)}-${pad(lastDay)}` };
+    }
+    if (t === 'quy') {
+      const y = Number(this.dom.fQuyNam.value), qq = Number(this.dom.fQuy.value);
+      if (!y || !qq) return { from: null, to: null };
+      const startM = (qq - 1) * 3 + 1, endM = startM + 2;
+      const lastDay = new Date(y, endM, 0).getDate();
+      return { from: `${y}-${pad(startM)}-01`, to: `${y}-${pad(endM)}-${pad(lastDay)}` };
+    }
+    if (t === 'nam') {
+      const y = Number(this.dom.fNam.value);
+      if (!y) return { from: null, to: null };
+      return { from: `${y}-01-01`, to: `${y}-12-31` };
+    }
+    return { from: null, to: null };
+  },
+
+  // Nạp 1 lần khi mở trang: Nhân viên/Quầy (apiBaoCaoNhapHangMeta, đọc
+  // PN_PHIEUNHAP 1 lần) + Nhà cung cấp (REUSE apiNccLoad — endpoint nhanh,
+  // KHÔNG dùng apiNccLoadWithDebt vì report này không cần công nợ, đúng
+  // REG-003) + Nhóm SP/Vị trí SP (REUSE apiProductLoad, derive distinct set
+  // client-side — cùng pattern mod_baocaolailo.html/mod_tonkho.html).
+  loadData() {
+    // Hiện "Đang tải..." NGAY khi mở trang — trước đó bảng trống hoàn toàn
+    // trong lúc chờ Promise.all (đặc biệt apiProductLoad tải ~1200 sản
+    // phẩm, có thể mất nhiều giây — cùng nguyên nhân đã ghi nhận ở
+    // PROJECT_HANDOFF.md mục 0 "Product Editor load >7s"), khiến người
+    // dùng tưởng trang bị treo/không phản hồi.
+    this.dom.tblBody.innerHTML = `<tr><td colspan="${this.colspan_()}" style="text-align:center;padding:32px;color:var(--text2);font-style:italic"><span class="spin"></span> Đang tải bộ lọc...</td></tr>`;
+    Promise.all([
+      ApiClient.call('apiBaoCaoNhapHangMeta'),
+      ApiClient.call('apiNccLoad'),
+      ApiClient.call('apiProductLoad')
+    ]).then(([metaRes, nccRes, prodRes]) => {
+      const meta = (metaRes && metaRes.success) ? metaRes.data : { nhanVien: [], kho: [] };
+      this.dom.fNv.innerHTML = '<option value="">Tất cả nhân viên</option>' +
+        meta.nhanVien.map(v => `<option value="${this.escAttr_(v)}">${this.escHtml_(v)}</option>`).join('');
+      this.dom.fKho.innerHTML = '<option value="">Tất cả</option>' +
+        meta.kho.map(v => `<option value="${this.escAttr_(v)}">${this.escHtml_(v)}</option>`).join('');
+
+      const nccs = (nccRes && nccRes.success) ? (nccRes.data || []) : [];
+      this.dom.fNcc.innerHTML = '<option value="">Tất cả nhà cung cấp</option>' +
+        nccs.map(n => `<option value="${this.escAttr_(n.maNCC)}">${this.escHtml_(n.tenNCC)}</option>`).join('');
+
+      const products = (prodRes && prodRes.success) ? (prodRes.data || []) : [];
+      const nhomSet = new Set(), viTriSet = new Set();
+      products.forEach(p => {
+        if (p.nhomSP) nhomSet.add(p.nhomSP);
+        if (p.viTri) viTriSet.add(p.viTri);
+      });
+      this.dom.fNhom.innerHTML = '<option value="">Tất cả</option>' +
+        Array.from(nhomSet).sort().map(v => `<option value="${this.escAttr_(v)}">${this.escHtml_(v)}</option>`).join('');
+      this.dom.fViTri.innerHTML = '<option value="">Tất cả</option>' +
+        Array.from(viTriSet).sort().map(v => `<option value="${this.escAttr_(v)}">${this.escHtml_(v)}</option>`).join('');
+
+      this.search_();
+    });
+  },
+
+  search_() {
+    const range = this.getTimeRange_();
+    const payload = {
+      startIso: range.from, endIso: range.to,
+      soPhieuQuery: this.dom.fSoPhieu.value.trim(),
+      soHoaDonQuery: this.dom.fSoHD.value.trim(),
+      productQuery: this.dom.fProduct.value.trim(),
+      maNCC: this.dom.fNcc.value,
+      nhomSP: this.dom.fNhom.value,
+      viTri: this.dom.fViTri.value,
+      khoNhap: this.dom.fKho.value,
+      nguoiTao: this.dom.fNv.value,
+      hinhThucTT: this.dom.fHttt.value
+    };
+    this.dom.tblBody.innerHTML = `<tr><td colspan="${this.colspan_()}" style="text-align:center;padding:32px;color:var(--text2);font-style:italic"><span class="spin"></span> Đang tải...</td></tr>`;
+    ApiClient.call('apiBaoCaoNhapHang', payload)
+      .then(res => {
+        if (!res || !res.success) {
+          this.dom.tblBody.innerHTML = `<tr><td colspan="${this.colspan_()}" style="text-align:center;padding:32px;color:var(--red);font-weight:bold">Lỗi tải dữ liệu: ${(res && res.message) || 'Không xác định'}</td></tr>`;
+          this.renderPager_(0);
+          return;
+        }
+        this.state.filtered = res.data.rows || [];
+        this.state.tong = res.data.tong || { vatTien: 0, thanhTien: 0 };
+        this.state.groups = this.groupBySoPhieu_(this.state.filtered);
+        this.state.aggRows = this.buildProductAggregate_(this.state.filtered);
+        this.state.currentPage = 1;
+        this.renderTable_();
+      })
+      .catch(err => {
+        this.dom.tblBody.innerHTML = `<tr><td colspan="${this.colspan_()}" style="text-align:center;padding:32px;color:var(--red);font-weight:bold">Lỗi hệ thống: ${err.message}</td></tr>`;
+        this.renderPager_(0);
+      });
+  },
+
+  colspan_() {
+    return this.dom.fChiTiet.checked ? 15 : 8;
+  },
+
+  // Chi tiết TẮT (2026-08-25, DEC-001 RESOLVED — evidence ảnh TheLight
+  // thật): gộp theo SẢN PHẨM qua TOÀN BỘ phiếu trong kỳ đã lọc — KHÔNG
+  // group theo Số phiếu. Group theo `maSP + dvt` (KHÔNG chỉ maSP) — cùng
+  // 1 sản phẩm mua ở 2 đơn vị giao dịch khác nhau trong kỳ sẽ ra 2 dòng
+  // riêng, tránh cộng lẫn số lượng khác đơn vị (đúng bài học LAI-BLOCK-005
+  // của Báo cáo Lãi/Lỗ Sprint 15.7 — report này KHÔNG có field SLQuyDoi để
+  // quy đổi an toàn về đơn vị cơ sở, nên chọn phương án an toàn nhất).
+  buildProductAggregate_(rows) {
+    const map = new Map();
+    rows.forEach(r => {
+      const key = r.maSP + '|' + r.dvt;
+      if (!map.has(key)) {
+        map.set(key, { maSP: r.maSP, tenSP: r.tenSP, dvt: r.dvt, soLuong: 0, gross: 0, vatTien: 0, ckTien: 0, thanhTien: 0 });
+      }
+      const g = map.get(key);
+      g.soLuong += r.soLuong;
+      g.gross += r.soLuong * r.giaTien;
+      g.vatTien += r.vatTien;
+      g.ckTien += r.ckTien;
+      g.thanhTien += r.thanhTien;
+    });
+    return Array.from(map.values())
+      .map(g => ({ ...g, giaTien: g.soLuong > 0 ? g.gross / g.soLuong : 0 }))
+      .sort((a, b) => a.tenSP.localeCompare(b.tenSP));
+  },
+
+  // Gộp danh sách phẳng (đã sort theo ngày+số phiếu ở backend) thành từng
+  // nhóm PHIẾU — mỗi phiếu = 1 parent + N child, đúng cấu trúc evidence
+  // TheLight (không group theo MaSP — §13 của prompt).
+  groupBySoPhieu_(rows) {
+    const groups = [];
+    let current = null;
+    rows.forEach(r => {
+      if (!current || current.soPhieu !== r.soPhieu) {
+        current = {
+          soPhieu: r.soPhieu, soHoaDon: r.soHoaDon, ngay: r.ngay, tenNCC: r.tenNCC,
+          nguoiTao: r.nguoiTao, hinhThucTT: r.hinhThucTT,
+          vatTien: 0, thanhTien: 0, children: []
+        };
+        groups.push(current);
+      }
+      current.vatTien += r.vatTien;
+      current.thanhTien += r.thanhTien;
+      current.children.push(r);
+    });
+    return groups;
+  },
+
+  // Dựng lại <thead> theo đúng chế độ — 2 bộ cột KHÁC NHAU hoàn toàn (đúng
+  // 2 ảnh evidence), không phải ẩn/hiện cột trên cùng 1 header.
+  renderHead_() {
+    if (this.dom.fChiTiet.checked) {
+      this.dom.tblHead.innerHTML = `
+        <tr>
+          <th style="width:110px">Số phiếu</th>
+          <th style="width:110px">Số HĐ</th>
+          <th style="width:90px">Ngày</th>
+          <th style="width:180px">Nhà cung cấp</th>
+          <th style="min-width:160px">Tên SP</th>
+          <th style="width:60px">ĐVT</th>
+          <th style="width:90px">Số lô</th>
+          <th style="width:90px">Hạn dùng</th>
+          <th style="width:80px;text-align:right">Số lượng</th>
+          <th style="width:100px;text-align:right" title="PN_CHITIET.GiaNhap — giá nhập/đơn vị đã lưu trên chứng từ">Giá tiền</th>
+          <th style="width:100px;text-align:right" title="Quy đổi từ % VAT gốc: (SL×Giá tiền − Chiết khấu tiền) × VAT% / 100 — chỉ hiển thị, không đổi field gốc">VAT</th>
+          <th style="width:100px;text-align:right" title="Quy đổi từ % Chiết khấu gốc: SL×Giá tiền × CK% / 100 — chỉ hiển thị, không đổi field gốc">Chiết khấu</th>
+          <th style="width:110px;text-align:right" title="PN_CHITIET.ThanhTien — đã tính sẵn từ lúc lưu phiếu">Tổng tiền</th>
+          <th style="width:90px">Người thực hiện</th>
+          <th style="width:90px">HTTT</th>
+        </tr>`;
+    } else {
+      this.dom.tblHead.innerHTML = `
+        <tr>
+          <th style="width:44px;text-align:center">STT</th>
+          <th style="min-width:200px">Tên SP</th>
+          <th style="width:70px">ĐVT</th>
+          <th style="width:90px;text-align:right">Số lượng</th>
+          <th style="width:110px;text-align:right" title="Giá bình quân gia quyền: Σ(SL×Giá tiền)/ΣSL qua toàn bộ phiếu trong kỳ">Giá tiền</th>
+          <th style="width:100px;text-align:right">VAT</th>
+          <th style="width:100px;text-align:right">Chiết khấu</th>
+          <th style="width:110px;text-align:right">Tổng tiền</th>
+        </tr>`;
+    }
+  },
+
+  renderTable_() {
+    if (this.dom.fChiTiet.checked) this.renderDetailTable_();
+    else this.renderAggregateTable_();
+  },
+
+  // Chi tiết BẬT — Parent (phiếu) + Child (dòng sản phẩm).
+  renderDetailTable_() {
+    if (!this.state.groups.length) {
+      this.dom.tblBody.innerHTML = `<tr><td colspan="15" style="text-align:center;padding:32px;color:var(--text2);font-style:italic">Không có dữ liệu</td></tr>`;
+      this.renderPager_(0);
+      return;
+    }
+    const start = (this.state.currentPage - 1) * this.PAGE_SIZE;
+    const pageGroups = this.state.groups.slice(start, start + this.PAGE_SIZE);
+
+    // Dòng TỔNG CỘNG đứng ĐẦU bảng, khớp evidence — chỉ VAT(tiền) + Tổng
+    // tiền (2 field tiền tệ, cộng dồn hợp lệ), không Σ Số lượng.
+    const sumRow = `
+      <tr class="bcnh-sum-tr">
+        <td colspan="10" style="text-align:center">TỔNG CỘNG</td>
+        <td style="text-align:right">${this.fmt_(this.state.tong.vatTien)}</td>
+        <td></td>
+        <td style="text-align:right">${this.fmt_(this.state.tong.thanhTien)}</td>
+        <td></td>
+        <td></td>
+      </tr>`;
+
+    const body = pageGroups.map(g => {
+      const parentRow = `
+        <tr class="bcnh-row-parent">
+          <td>${g.soPhieu}</td>
+          <td>${g.soHoaDon || '—'}</td>
+          <td>${this.fmtDate_(g.ngay)}</td>
+          <td>${g.tenNCC || '—'}</td>
+          <td class="bcnh-blank">—</td>
+          <td class="bcnh-blank">—</td>
+          <td class="bcnh-blank">—</td>
+          <td class="bcnh-blank">—</td>
+          <td class="bcnh-blank">—</td>
+          <td class="bcnh-blank">—</td>
+          <td style="text-align:right">${this.fmt_(g.vatTien)}</td>
+          <td class="bcnh-blank">—</td>
+          <td style="text-align:right">${this.fmt_(g.thanhTien)}</td>
+          <td>${g.nguoiTao || '—'}</td>
+          <td>${g.hinhThucTT || '—'}</td>
+        </tr>`;
+      const childRows = g.children.map(r => `
+        <tr class="bcnh-row-child">
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td>${r.tenSP || '—'}</td>
+          <td>${r.dvt || '—'}</td>
+          <td>${r.soLo || '—'}</td>
+          <td>${this.fmtDate_(r.hanDung)}</td>
+          <td style="text-align:right">${this.fmt_(r.soLuong)}</td>
+          <td style="text-align:right">${this.fmt_(r.giaTien)}</td>
+          <td style="text-align:right">${this.fmt_(r.vatTien)}</td>
+          <td style="text-align:right">${this.fmt_(r.ckTien)}</td>
+          <td style="text-align:right">${this.fmt_(r.thanhTien)}</td>
+          <td></td>
+          <td></td>
+        </tr>`).join('');
+      return parentRow + childRows;
+    }).join('');
+
+    this.dom.tblBody.innerHTML = sumRow + body;
+    this.renderPager_(this.state.groups.length);
+  },
+
+  // Chi tiết TẮT — 1 dòng/sản phẩm, gộp qua toàn bộ phiếu trong kỳ. STT có
+  // (khác chế độ Chi tiết), khớp đúng ảnh evidence TheLight.
+  renderAggregateTable_() {
+    if (!this.state.aggRows.length) {
+      this.dom.tblBody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text2);font-style:italic">Không có dữ liệu</td></tr>`;
+      this.renderPager_(0);
+      return;
+    }
+    const start = (this.state.currentPage - 1) * this.PAGE_SIZE;
+    const pageRows = this.state.aggRows.slice(start, start + this.PAGE_SIZE);
+
+    // TỔNG CỘNG: Σ Số lượng + Σ VAT + Σ Tổng tiền — Giá tiền/Chiết khấu để
+    // trống (không có semantic cộng dồn hợp lệ qua nhiều sản phẩm khác
+    // nhau), đúng evidence ảnh TheLight thật (Chi tiết TẮT).
+    const tongSoLuong = this.state.aggRows.reduce((s, r) => s + r.soLuong, 0);
+    const sumRow = `
+      <tr class="bcnh-sum-tr">
+        <td colspan="2" style="text-align:center">TỔNG CỘNG</td>
+        <td></td>
+        <td style="text-align:right">${this.fmt_(tongSoLuong)}</td>
+        <td></td>
+        <td style="text-align:right">${this.fmt_(this.state.tong.vatTien)}</td>
+        <td></td>
+        <td style="text-align:right">${this.fmt_(this.state.tong.thanhTien)}</td>
+      </tr>`;
+
+    const body = pageRows.map((r, idx) => `
+      <tr class="bcnh-row-child">
+        <td style="text-align:center">${start + idx + 1}</td>
+        <td>${r.tenSP || '—'}</td>
+        <td>${r.dvt || '—'}</td>
+        <td style="text-align:right">${this.fmt_(r.soLuong)}</td>
+        <td style="text-align:right">${this.fmtDecimal_(r.giaTien)}</td>
+        <td style="text-align:right">${this.fmt_(r.vatTien)}</td>
+        <td style="text-align:right">${this.fmt_(r.ckTien)}</td>
+        <td style="text-align:right">${this.fmt_(r.thanhTien)}</td>
+      </tr>`).join('');
+
+    this.dom.tblBody.innerHTML = sumRow + body;
+    this.renderPager_(this.state.aggRows.length);
+  },
+
+  renderPager_(total) {
+    const pages = Math.ceil(total / this.PAGE_SIZE);
+    const unit = this.dom.fChiTiet.checked ? 'phiếu' : 'sản phẩm';
+    if (!total) {
+      this.dom.pgInfo.textContent = `Tổng số ${unit}: 0 - Tổng số trang: 0`;
+      this.dom.pgBtns.innerHTML = '';
+      return;
+    }
+    this.dom.pgInfo.textContent = `Tổng số ${unit}: ${total} - Tổng số trang: ${pages}`;
+    let html = `<button class="bcnh-pg-btn" onclick="BaoCaoNhapHangModule.gotoPage(${this.state.currentPage - 1})" ${this.state.currentPage === 1 ? 'disabled' : ''}>‹</button>`;
+    const from = Math.max(1, this.state.currentPage - 2);
+    const to = Math.min(pages, from + 4);
+    for (let i = from; i <= to; i++) {
+      html += `<button class="bcnh-pg-btn${i === this.state.currentPage ? ' on' : ''}" onclick="BaoCaoNhapHangModule.gotoPage(${i})">${i}</button>`;
+    }
+    html += `<button class="bcnh-pg-btn" onclick="BaoCaoNhapHangModule.gotoPage(${this.state.currentPage + 1})" ${this.state.currentPage === pages ? 'disabled' : ''}>›</button>`;
+    this.dom.pgBtns.innerHTML = html;
+  },
+
+  gotoPage(p) {
+    const total = this.dom.fChiTiet.checked ? this.state.groups.length : this.state.aggRows.length;
+    const maxPage = Math.ceil(total / this.PAGE_SIZE);
+    if (p < 1 || p > maxPage) return;
+    this.state.currentPage = p;
+    this.renderTable_();
+  },
+
+  escHtml_(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; },
+  escAttr_(s) { return String(s).replace(/"/g, '&quot;'); },
+
+  fmt_(v) {
+    const n = Math.round(Number(v) || 0);
+    return n.toLocaleString('vi-VN');
+  },
+
+  // Giá tiền bình quân gia quyền ở chế độ gộp sản phẩm có thể ra số thập
+  // phân (VD "1.433,33", khớp evidence ảnh TheLight thật) — KHÔNG làm tròn
+  // nguyên như fmt_() (dùng cho Số lượng/VAT/Chiết khấu/Tổng tiền, đều là
+  // số tiền/số lượng cộng dồn, không cần thập phân).
+  fmtDecimal_(v) {
+    const n = parseFloat(v) || 0;
+    if (n === 0) return '0';
+    return n.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+  },
+
+  fmtDate_(iso) {
+    const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : (iso || '—');
+  }
+};
+</script>

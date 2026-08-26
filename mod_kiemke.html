@@ -1,0 +1,1212 @@
+<!-- ════════════════════════════════════════════════════════════════
+      KIỂM KÊ TỒN KHO MODULE (mod_kiemke.html)
+      Sprint 11 — Danh mục Kiểm kê Tồn kho
+      Theo docs/11. Kiem_ke_ton_kho/03_KiemKeTonKho_BusinessLogic.md
+      Clone workflow TheLight (Ke_ke_ton_kho_Thelight.pdf, 3 trang):
+      Tạo phiếu → Kiểm kê tồn kho → Thêm mới → Đặt tên/Ngày → Lưu lại →
+      Tìm SP/mã vạch → Chọn → Nhập SL thực tế (SP hoặc lô) → Lưu tạm →
+      Áp dụng kiểm kê.
+
+      KHÔNG bao giờ ghi thẳng TK_KHO — mọi điều chỉnh đi qua
+      apiKiemKeApply() ở backend (gọi đúng Inventory Engine hiện có).
+      Màn Tồn kho (mod_tonkho.html, Sprint 10) vẫn READ ONLY — điều
+      chỉnh chỉ qua module này (KK-DEC-001).
+
+      Các nút chưa đủ evidence hành vi từ PDF (Thêm lô/Chọn nhiều sản
+      phẩm/icon ≡/icon ⬇ ở màn chi tiết, icon ở màn danh sách) đều
+      render disabled + tooltip Pending — không tự suy đoán chức năng.
+     ════════════════════════════════════════════════════════════════ -->
+
+<style>
+#page-kiemke {
+  display: none;
+  height: calc(100vh - 52px);
+  min-height: 0;
+  overflow: hidden;
+  flex-direction: column;
+}
+#page-kiemke.show { display: flex; }
+
+/* ── LIST VIEW ─────────────────────────────────────────────── */
+.kk-list-topbar {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.kk-list-body { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+.kk-list-sidebar {
+  width: 180px;
+  min-width: 180px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+.kk-sb-lbl {
+  font-size: var(--fs-1); color: var(--text2); font-weight: 700;
+  text-transform: uppercase; letter-spacing: .4px; margin-bottom: 3px;
+}
+.kk-sb-inp {
+  width: 100%; height: var(--h-4); padding: 0 8px;
+  background: var(--input-bg); border: 1px solid var(--input-border);
+  border-radius: 4px; color: var(--text); font-size: var(--fs-3);
+}
+.kk-sb-inp:focus { outline: none; border-color: #1976D2; }
+.kk-list-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+.kk-tbl-wrap { flex: 1; overflow: auto; border: 1px solid var(--border); margin: 8px 10px; border-radius: 6px; background: var(--bg2); }
+.kk-tbl { width: 100%; border-collapse: collapse; min-width: 1000px; }
+.kk-tbl th {
+  background: #0a2040; color: var(--text2); padding: 8px 10px; text-align: left;
+  font-size: var(--fs-1); font-weight: 700; white-space: nowrap;
+  border-bottom: 1px solid var(--border); border-right: 1px solid #0d1f3c;
+}
+.kk-tbl th:last-child { border-right: none; }
+.kk-tbl td {
+  padding: 7px 10px; font-size: var(--fs-2); color: var(--text);
+  border-right: 1px solid #0d1f3c; border-bottom: 1px solid #0d1f3c; vertical-align: middle;
+}
+.kk-tbl td:last-child { border-right: none; }
+.kk-tbl tbody tr:hover { background: #0d2347; }
+.kk-dash { color: var(--text2); opacity: .6; }
+.kk-badge { padding: 2px 8px; border-radius: 10px; font-size: var(--fs-1); font-weight: 700; }
+.kk-badge.draft { background: #3E2000; color: #FFB74D; }
+.kk-badge.done { background: #1B3A1F; color: #69F0AE; }
+.kk-pager { background: var(--bg2); border-top: 1px solid var(--border); padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.kk-pg-info { font-size: var(--fs-2); color: var(--text2); }
+.kk-pg-btns { display: flex; gap: 4px; }
+.kk-pg-btn { width: var(--h-2); height: var(--h-2); border: 1px solid var(--border); background: var(--bg); color: var(--text2); border-radius: 4px; cursor: pointer; font-size: var(--fs-2); display: flex; align-items: center; justify-content: center; }
+.kk-pg-btn:hover { background: var(--border); color: #fff; }
+.kk-pg-btn.on { background: var(--blue); color: #fff; border-color: var(--blue); font-weight: 700; }
+.kk-pg-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+/* ── DETAIL VIEW ───────────────────────────────────────────── */
+#kk-detail-view { display: none; flex-direction: column; height: 100%; min-height: 0; }
+#kk-detail-view.show { display: flex; }
+.kk-d-tabs {
+  background: #0d2144; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 12px; flex-shrink: 0;
+}
+.kk-d-tab-left { display: flex; }
+.kk-d-tab {
+  padding: 10px 16px; font-size: var(--fs-2); font-weight: 700; color: var(--text2);
+  cursor: pointer; border-bottom: 2px solid transparent;
+}
+.kk-d-tab.on { color: #90CAF9; border-bottom-color: #1976D2; }
+.kk-d-back { color: var(--text2); font-size: var(--fs-2); cursor: pointer; padding: 8px 0; }
+.kk-d-back:hover { color: #fff; }
+.kk-d-toolbar {
+  background: var(--bg2); border-bottom: 1px solid var(--border); padding: 8px 10px;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex-shrink: 0;
+}
+.kk-d-search-wrap { position: relative; width: 280px; }
+.kk-d-search {
+  width: 100%; height: var(--h-4); padding: 0 8px; background: var(--input-bg);
+  border: 1px solid var(--input-border); border-radius: 4px; color: var(--text); font-size: var(--fs-3);
+}
+.kk-d-search:focus { outline: none; border-color: #1976D2; }
+.kk-d-dd {
+  position: absolute; top: calc(100% + 2px); left: 0; right: 0; background: #0d2347;
+  border: 1px solid var(--border); border-radius: 5px; z-index: 999; max-height: 260px;
+  overflow-y: auto; display: none; box-shadow: 0 6px 20px rgba(0,0,0,.5);
+}
+.kk-d-dd.open { display: block; }
+.kk-d-dd-item { padding: 8px 10px; cursor: pointer; border-bottom: 1px solid #0d1f3c; }
+.kk-d-dd-item:hover { background: #112244; }
+.kk-d-dd-name { font-weight: 700; color: var(--text); font-size: var(--fs-2); }
+.kk-d-dd-meta { font-size: var(--fs-1); color: var(--text2); }
+.kk-d-dd-empty { padding: 12px; text-align: center; color: var(--text2); font-style: italic; font-size: var(--fs-2); }
+
+.kk-d-grid-wrap { flex: 1; overflow: auto; margin: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg2); }
+.kk-d-tbl { width: 100%; border-collapse: collapse; min-width: 1300px; table-layout: fixed; }
+.kk-d-tbl th {
+  background: #0a2040; color: var(--text2); padding: 8px 8px; text-align: left;
+  font-size: var(--fs-1); font-weight: 700; white-space: nowrap;
+  border-bottom: 1px solid var(--border); border-right: 1px solid #0d1f3c;
+}
+.kk-d-tbl th:last-child { border-right: none; }
+.kk-d-tbl td {
+  padding: 6px 8px; font-size: var(--fs-2); color: var(--text);
+  border-right: 1px solid #0d1f3c; border-bottom: 1px solid #0d1f3c; vertical-align: middle;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.kk-d-tbl td:last-child { border-right: none; }
+.kk-row-product { background: #0d2347; font-weight: 700; }
+.kk-row-lot td { color: var(--text2); }
+.kk-row-lot .kk-lot-indent { padding-left: 20px; }
+.kk-sl-inp {
+  width: 70px; height: 26px; padding: 0 6px; text-align: right;
+  background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 4px;
+  color: var(--text); font-size: var(--fs-2); font-weight: 700;
+}
+.kk-sl-inp:focus { outline: none; border-color: #1976D2; }
+.kk-cl-pos { color: #66bb6a; font-weight: 700; }
+.kk-cl-neg { color: #ef5350; font-weight: 700; }
+.kk-cl-zero { color: var(--text2); }
+
+.kk-d-footer { background: var(--bg2); border-top: 1px solid var(--border); padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+</style>
+
+<div class="page" id="page-kiemke">
+
+  <!-- ══════════ LIST VIEW ══════════ -->
+  <div id="kk-list-view" style="display:flex;flex-direction:column;height:100%;min-height:0">
+    <div class="kk-list-topbar">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-green" id="kk-btn-search">Tìm kiếm</button>
+        <button class="btn btn-green" id="kk-btn-add">＋ Thêm mới</button>
+        <button class="btn btn-gray btn-sm" disabled title="Chưa xác định chức năng — Evidence Required (icon không có caption trong PDF)" style="padding:0 8px"><span style="font-size:var(--fs-icon)">⬇</span></button>
+      </div>
+      <div style="font-size:var(--fs-3);font-weight:700;color:var(--text2)">Kiểm kê tồn kho</div>
+    </div>
+    <div class="kk-list-body">
+      <div class="kk-list-sidebar">
+        <div>
+          <div class="kk-sb-lbl">Ngày</div>
+          <input type="date" id="kk-f-ngay" class="kk-sb-inp">
+        </div>
+        <div>
+          <div class="kk-sb-lbl">Tìm đợt kiểm kê</div>
+          <input id="kk-f-dot" class="kk-sb-inp" placeholder="Tìm đợt kiểm kê">
+        </div>
+      </div>
+      <div class="kk-list-main">
+        <div class="kk-tbl-wrap">
+          <table class="kk-tbl" id="kk-main-tbl">
+            <thead>
+              <tr>
+                <th style="width:44px;text-align:center">STT</th>
+                <th style="width:110px">Ngày kiểm kê</th>
+                <th>Đợt kiểm kê</th>
+                <th style="width:120px;text-align:right">TT - Nhập trước KK</th>
+                <th style="width:120px;text-align:right">TT - bán trước KK</th>
+                <th style="width:110px;text-align:right">CL - Tiền nhập</th>
+                <th style="width:110px;text-align:right">CL - Tiền bán</th>
+                <th style="width:120px;text-align:right">TT - Nhập sau KK</th>
+                <th style="width:90px;text-align:center">Trạng thái</th>
+                <th style="width:90px;text-align:center">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="kk-tbl-body"></tbody>
+          </table>
+        </div>
+        <div class="kk-pager">
+          <div class="kk-pg-info" id="kk-pg-info">—</div>
+          <div class="kk-pg-btns" id="kk-pg-btns"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ DETAIL VIEW (Kiểm kê tạm thời) ══════════ -->
+  <div id="kk-detail-view">
+    <div class="kk-d-tabs">
+      <div class="kk-d-tab-left">
+        <div class="kk-d-tab on" id="kk-d-tab1">Kiểm kê tạm thời</div>
+        <div class="kk-d-tab" id="kk-d-tab2">Sản phẩm đã kiểm kê</div>
+      </div>
+      <div class="kk-d-back" id="kk-d-back">← Quay lại danh sách</div>
+    </div>
+
+    <div class="kk-d-toolbar" id="kk-d-toolbar-tab1">
+      <div class="kk-d-search-wrap">
+        <input id="kk-d-search" class="kk-d-search" placeholder="Tên sản phẩm, mã vạch (F3)">
+        <div class="kk-d-dd" id="kk-d-dd"></div>
+      </div>
+      <button class="btn btn-gray btn-sm" id="kk-d-btn-lammoi">Làm mới</button>
+      <button class="btn btn-gray btn-sm" disabled title="Chưa xác định chức năng — Evidence Required">Thêm lô</button>
+      <button class="btn btn-gray btn-sm" disabled title="Chưa xác định chức năng — Evidence Required">Chọn nhiều sản phẩm</button>
+      <button class="btn btn-gray btn-sm" id="kk-d-btn-xuathuy">Xuất hủy</button>
+      <button class="btn btn-green btn-sm" id="kk-d-btn-luutam">Lưu tạm</button>
+      <button class="btn btn-orange btn-sm" id="kk-d-btn-apdung">Áp dụng kiểm kê</button>
+      <button class="btn btn-gray btn-sm" disabled title="Chưa xác định chức năng — Evidence Required" style="padding:0 8px"><span style="font-size:var(--fs-icon)">≡</span></button>
+      <button class="btn btn-gray btn-sm" disabled title="Chưa xác định chức năng — Evidence Required" style="padding:0 8px"><span style="font-size:var(--fs-icon)">⬇</span></button>
+    </div>
+
+    <!-- Toolbar riêng cho tab "Sản phẩm đã kiểm kê" — theo ảnh thật PO gửi
+         (2026-08-10): ô tìm kiếm + 2 dropdown Nhóm SP/Vị trí SP + Tìm kiếm
+         + icon xuất. Chỉ filter trên dữ liệu đã có của phiếu này (client-
+         side), không gọi thêm API mới. -->
+    <div class="kk-d-toolbar" id="kk-d-toolbar-tab2" style="display:none">
+      <div class="kk-d-search-wrap" style="width:220px">
+        <input id="kk-d2-search" class="kk-d-search" placeholder="Tên sản phẩm, mã vạch (F3)">
+      </div>
+      <select id="kk-d2-nhom" class="kk-sb-inp" style="width:160px;height:var(--h-4)">
+        <option value="">Nhóm sản phẩm</option>
+      </select>
+      <select id="kk-d2-vitri" class="kk-sb-inp" style="width:160px;height:var(--h-4)">
+        <option value="">Vị trí sản phẩm</option>
+      </select>
+      <button class="btn btn-green btn-sm" id="kk-d2-btn-search">Tìm kiếm</button>
+      <button class="btn btn-gray btn-sm" disabled title="Chưa xác định chức năng — Evidence Required" style="padding:0 8px"><span style="font-size:var(--fs-icon)">⬇</span></button>
+    </div>
+
+    <div class="kk-d-grid-wrap">
+      <table class="kk-d-tbl">
+        <thead id="kk-d-tbl-head"></thead>
+        <tbody id="kk-d-tbl-body"></tbody>
+      </table>
+    </div>
+
+    <div class="kk-d-footer">
+      <div id="kk-d-info" style="font-size:var(--fs-2);color:var(--text2)">—</div>
+      <div id="kk-d-status" style="font-size:var(--fs-2)"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  CONTROLLER LAYER: KiemKeModule (mod_kiemke.html)
+//  Sprint 11 — Kiểm kê Tồn kho
+// ════════════════════════════════════════════════════════════════
+const KiemKeModule = {
+  PAGE_SIZE: 15,
+
+  state: {
+    view: 'list',              // 'list' | 'detail'
+    allPhieu: [],
+    filteredPhieu: [],
+    currentPage: 1,
+
+    // Detail view state
+    currentKiemKeID: null,
+    currentPhieu: null,
+    lines: [],                 // leaf rows (1/lot hoặc 1/sản phẩm không lô)
+    catalog: [],                // Product catalog (tải 1 lần khi vào detail)
+    inventoryAll: [],           // Toàn bộ TK_KHO (tải 1 lần khi vào detail)
+    detailTab: 1,                // 1 = Kiểm kê tạm thời, 2 = Sản phẩm đã kiểm kê
+
+    // Tab 2 "Sản phẩm đã kiểm kê" — GLOBAL, mọi phiếu đã Áp dụng (PO
+    // Decision 2026-08-11) — KHÔNG phụ thuộc phiếu đang mở, tải riêng qua
+    // apiKiemKeAppliedResults() mỗi lần chuyển sang tab này.
+    appliedResults: [],
+    appliedResultsLoaded: false
+  },
+
+  dom: {},
+  initialized: false,
+
+  init() {
+    if (this.initialized) return;
+    this.cacheDOM();
+    this.bindEvents();
+    this.initialized = true;
+  },
+
+  cacheDOM() {
+    this.dom = {
+      fNgay: document.getElementById('kk-f-ngay'),
+      fDot: document.getElementById('kk-f-dot'),
+      btnSearch: document.getElementById('kk-btn-search'),
+      btnAdd: document.getElementById('kk-btn-add'),
+      tblBody: document.getElementById('kk-tbl-body'),
+      pgInfo: document.getElementById('kk-pg-info'),
+      pgBtns: document.getElementById('kk-pg-btns'),
+
+      listView: document.getElementById('kk-list-view'),
+      detailView: document.getElementById('kk-detail-view'),
+      dBack: document.getElementById('kk-d-back'),
+      dTab1: document.getElementById('kk-d-tab1'),
+      dTab2: document.getElementById('kk-d-tab2'),
+      dSearch: document.getElementById('kk-d-search'),
+      dDd: document.getElementById('kk-d-dd'),
+      dBtnLamMoi: document.getElementById('kk-d-btn-lammoi'),
+      dBtnXuatHuy: document.getElementById('kk-d-btn-xuathuy'),
+      dBtnLuuTam: document.getElementById('kk-d-btn-luutam'),
+      dBtnApDung: document.getElementById('kk-d-btn-apdung'),
+      dTblHead: document.getElementById('kk-d-tbl-head'),
+      dTblBody: document.getElementById('kk-d-tbl-body'),
+      dInfo: document.getElementById('kk-d-info'),
+      dStatus: document.getElementById('kk-d-status'),
+
+      toolbarTab1: document.getElementById('kk-d-toolbar-tab1'),
+      toolbarTab2: document.getElementById('kk-d-toolbar-tab2'),
+      d2Search: document.getElementById('kk-d2-search'),
+      d2Nhom: document.getElementById('kk-d2-nhom'),
+      d2Vitri: document.getElementById('kk-d2-vitri'),
+      d2BtnSearch: document.getElementById('kk-d2-btn-search')
+    };
+  },
+
+  bindEvents() {
+    this.dom.btnSearch.onclick = () => this.applyFilter();
+    this.dom.fNgay.onchange = () => this.applyFilter();
+    this.dom.fDot.oninput = () => this.applyFilter();
+    this.dom.btnAdd.onclick = () => this.openCreate();
+
+    this.dom.dBack.onclick = () => this.backToList();
+    this.dom.dTab1.onclick = () => this.switchTab(1);
+    this.dom.dTab2.onclick = () => this.switchTab(2);
+    this.dom.dSearch.oninput = (e) => this.searchProduct(e.target.value);
+    this.dom.dBtnLamMoi.onclick = () => this.reloadDetail(true);
+    this.dom.dBtnXuatHuy.onclick = () => this.confirmResetSlThucTe_();
+    this.dom.dBtnLuuTam.onclick = () => this.saveDraft();
+    this.dom.dBtnApDung.onclick = () => this.confirmApply();
+    this.dom.d2Search.oninput = () => this.renderTab2_();
+    this.dom.d2Nhom.onchange = () => this.renderTab2_();
+    this.dom.d2Vitri.onchange = () => this.renderTab2_();
+    this.dom.d2BtnSearch.onclick = () => this.renderTab2_();
+
+    document.addEventListener('click', e => {
+      if (this.dom.dDd && !e.target.closest('.kk-d-search-wrap')) {
+        this.dom.dDd.classList.remove('open');
+      }
+    });
+
+    // F3 -> focus ô tìm sản phẩm, chỉ khi đang ở detail view của trang Kiểm kê.
+    document.addEventListener('keydown', e => {
+      const page = document.getElementById('page-kiemke');
+      if (!page || !page.classList.contains('show')) return;
+      if (this.state.view !== 'detail') return;
+      if (e.key === 'F3') {
+        e.preventDefault();
+        this.dom.dSearch.focus();
+      }
+    });
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  //  LIST VIEW
+  // ─────────────────────────────────────────────────────────────
+  loadData() {
+    this.showListView_();
+    this.renderLoading_();
+    ApiClient.call('apiKiemKeList')
+      .then(res => {
+        if (!res || !res.success) {
+          this.renderError_((res && res.message) || 'Lỗi không xác định');
+          return;
+        }
+        this.state.allPhieu = res.data || [];
+        this.applyFilter();
+      })
+      .catch(err => this.renderError_(err.message));
+  },
+
+  applyFilter() {
+    const ngay = this.dom.fNgay.value;
+    const dot = (this.dom.fDot.value || '').toLowerCase().trim();
+    this.state.filteredPhieu = this.state.allPhieu.filter(p => {
+      if (ngay && p.ngayKiemKe !== ngay) return false;
+      if (dot && !(p.dotKiemKe || '').toLowerCase().includes(dot)) return false;
+      return true;
+    });
+    this.state.currentPage = 1;
+    this.renderTable_();
+  },
+
+  renderLoading_() {
+    this.dom.tblBody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text2);font-style:italic"><span class="spin"></span> Đang tải danh sách kiểm kê...</td></tr>`;
+  },
+  renderError_(msg) {
+    this.dom.tblBody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--red);font-weight:bold">Lỗi tải dữ liệu: ${msg}</td></tr>`;
+  },
+
+  dash_(v) {
+    return (v === null || v === undefined) ? '<span class="kk-dash">—</span>' : this.fmt(v);
+  },
+
+  renderTable_() {
+    if (!this.state.filteredPhieu.length) {
+      this.dom.tblBody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text2);font-style:italic">Không có dữ liệu.</td></tr>`;
+      this.renderPager_(0);
+      return;
+    }
+    const start = (this.state.currentPage - 1) * this.PAGE_SIZE;
+    const pageData = this.state.filteredPhieu.slice(start, start + this.PAGE_SIZE);
+    this.dom.tblBody.innerHTML = pageData.map((p, idx) => {
+      const stt = start + idx + 1;
+      const badge = p.daApDung ? '<span class="kk-badge done">Đã áp dụng</span>' : '<span class="kk-badge draft">Nháp</span>';
+      return `
+        <tr>
+          <td style="text-align:center;color:var(--text2)">${stt}</td>
+          <td>${p.ngayKiemKe || '—'}</td>
+          <td style="font-weight:600;color:#90caf9;cursor:pointer" onclick="KiemKeModule.openDetail('${p.kiemKeID}')">${p.dotKiemKe || '—'}</td>
+          <td style="text-align:right">${this.dash_(p.ttNhapTruoc)}</td>
+          <td style="text-align:right">${this.fmt(p.ttBanTruoc)}</td>
+          <td style="text-align:right">${this.dash_(p.clTienNhap)}</td>
+          <td style="text-align:right">${this.fmt(p.clTienBan)}</td>
+          <td style="text-align:right">${this.dash_(p.ttNhapSau)}</td>
+          <td style="text-align:center">${badge}</td>
+          <td style="text-align:center"><button class="btn btn-green btn-sm" onclick="KiemKeModule.openDetail('${p.kiemKeID}')">Mở</button></td>
+        </tr>`;
+    }).join('');
+    this.renderPager_(this.state.filteredPhieu.length);
+  },
+
+  renderPager_(total) {
+    const pages = Math.ceil(total / this.PAGE_SIZE);
+    if (!total) {
+      this.dom.pgInfo.textContent = 'Tổng số bản ghi: 0 - Tổng số trang: 0';
+      this.dom.pgBtns.innerHTML = '';
+      return;
+    }
+    this.dom.pgInfo.textContent = `Tổng số bản ghi: ${total} - Tổng số trang: ${pages}`;
+    let html = `<button class="kk-pg-btn" onclick="KiemKeModule.gotoPage(${this.state.currentPage - 1})" ${this.state.currentPage === 1 ? 'disabled' : ''}>‹</button>`;
+    const from = Math.max(1, this.state.currentPage - 2);
+    const to = Math.min(pages, from + 4);
+    for (let i = from; i <= to; i++) {
+      html += `<button class="kk-pg-btn${i === this.state.currentPage ? ' on' : ''}" onclick="KiemKeModule.gotoPage(${i})">${i}</button>`;
+    }
+    html += `<button class="kk-pg-btn" onclick="KiemKeModule.gotoPage(${this.state.currentPage + 1})" ${this.state.currentPage === pages ? 'disabled' : ''}>›</button>`;
+    this.dom.pgBtns.innerHTML = html;
+  },
+
+  gotoPage(p) {
+    const maxPage = Math.ceil(this.state.filteredPhieu.length / this.PAGE_SIZE);
+    if (p < 1 || p > maxPage) return;
+    this.state.currentPage = p;
+    this.renderTable_();
+  },
+
+  openCreate() {
+    KiemKeCreateEditor.open({
+      onSaved: (created) => {
+        this.openDetail(created.kiemKeID);
+      }
+    });
+  },
+
+  showListView_() {
+    this.state.view = 'list';
+    this.dom.listView.style.display = 'flex';
+    this.dom.detailView.classList.remove('show');
+  },
+
+  backToList() {
+    this.loadData();
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  //  DETAIL VIEW
+  // ─────────────────────────────────────────────────────────────
+  openDetail(kiemKeID) {
+    this.state.view = 'detail';
+    this.state.currentKiemKeID = kiemKeID;
+    this.dom.listView.style.display = 'none';
+    this.dom.detailView.classList.add('show');
+    this.switchTab(1);
+    this.reloadDetail();
+  },
+
+  // PERF FIX (2026-08-11): mỗi lần "mở phiếu" trước đây LUÔN tải lại từ
+  // đầu cả 3 nguồn (chi tiết phiếu + TOÀN BỘ danh mục sản phẩm + TOÀN BỘ
+  // TK_KHO) dù danh mục/tồn kho hầu như không đổi giữa các lần mở phiếu
+  // khác nhau trong cùng phiên làm việc — đây là phần chiếm phần lớn thời
+  // gian "load hơi lâu" (không phải lỗi ở apiKiemKeDetail). Fix: cache
+  // catalog/inventoryAll ở cấp module, chỉ tải lại lần đầu tiên trong
+  // phiên hoặc khi người dùng chủ động bấm "Làm mới" (forceRefresh=true)
+  // — các lần "Mở" phiếu khác chỉ còn 1 round-trip (apiKiemKeDetail).
+  _catalogCache: null,
+  _inventoryCache: null,
+
+  reloadDetail(forceRefresh) {
+    this.dom.dTblBody.innerHTML = `<tr><td colspan="13" style="text-align:center;padding:24px;color:var(--text2);font-style:italic"><span class="spin"></span> Đang tải...</td></tr>`;
+    const needMasterData = forceRefresh || !this._catalogCache || !this._inventoryCache;
+    Promise.all([
+      ApiClient.call('apiKiemKeDetail', this.state.currentKiemKeID),
+      needMasterData
+        ? (typeof ProductService !== 'undefined' ? ProductService.load() : Promise.resolve([]))
+        : Promise.resolve(this._catalogCache),
+      needMasterData ? InventoryService.load() : Promise.resolve(this._inventoryCache)
+    ]).then(([detailRes, catalog, invAll]) => {
+      if (!detailRes || !detailRes.success) {
+        toast((detailRes && detailRes.message) || 'Lỗi tải phiếu kiểm kê', 'err');
+        return;
+      }
+      this._catalogCache = catalog || [];
+      this._inventoryCache = invAll || [];
+      this.state.currentPhieu = detailRes.data.phieu;
+      this.state.catalog = this._catalogCache;
+      this.state.inventoryAll = this._inventoryCache;
+      // Chuẩn hoá lines đã lưu (nếu có) thành cấu trúc leaf-row nội bộ.
+      this.state.lines = (detailRes.data.lines || []).map(l => ({
+        maSP: l.maSP, tenSP: l.tenSP, kho: l.kho || 'Kho chính', dvt: l.dvt,
+        soLo: l.soLo, hanDung: l.hanDung,
+        tonKho: l.tonKho, slThucTe: l.slThucTe,
+        giaBan: l.donGiaBan, giaNhap: l.donGiaNhap
+      }));
+      this.renderDetailGrid_();
+      this.renderDetailFooter_();
+      this.updateApplyButtonState_();
+    }).catch(err => toast('Lỗi hệ thống: ' + err.message, 'err'));
+  },
+
+  switchTab(n) {
+    this.state.detailTab = n;
+    this.dom.dTab1.classList.toggle('on', n === 1);
+    this.dom.dTab2.classList.toggle('on', n === 2);
+    this.dom.toolbarTab1.style.display = n === 1 ? 'flex' : 'none';
+    this.dom.toolbarTab2.style.display = n === 2 ? 'flex' : 'none';
+    if (n === 2) {
+      this.loadAppliedResults_();
+    } else {
+      this.renderDetailGrid_();
+    }
+  },
+
+  // Tab 2 "Sản phẩm đã kiểm kê" — scope theo ĐÚNG phiếu đang mở
+  // (CORRECTION 2026-08-11, KK-DEC-P006 — đảo lại quyết định GLOBAL
+  // trước đó, PO xác nhận lại workflow thật của TheLight: mỗi phiếu chỉ
+  // hiện kết quả của chính nó, không gộp phiếu khác). Tải lại MỖI LẦN
+  // chuyển sang tab này để luôn thấy dữ liệu mới nhất (không cần F5),
+  // đọc thẳng snapshot đã lưu trong KK_CHITIET (không tính lại từ TK_KHO).
+  loadAppliedResults_() {
+    this.renderHead_();
+    this.dom.dTblBody.innerHTML = `<tr><td colspan="15" style="text-align:center;padding:24px;color:var(--text2);font-style:italic"><span class="spin"></span> Đang tải...</td></tr>`;
+    ApiClient.call('apiKiemKeAppliedResults', this.state.currentKiemKeID)
+      .then(res => {
+        if (!res || !res.success) {
+          const msg = (res && res.message) || 'Lỗi tải báo cáo sản phẩm đã kiểm kê';
+          toast(msg, 'err');
+          this.dom.dTblBody.innerHTML = `<tr><td colspan="15" style="text-align:center;padding:24px;color:var(--red);font-weight:bold">Lỗi tải dữ liệu: ${msg}</td></tr>`;
+          return;
+        }
+        this.state.appliedResults = res.data || [];
+        this.state.appliedResultsLoaded = true;
+        this.buildTab2FilterOptions_();
+        this.renderTab2_();
+      })
+      .catch(err => {
+        toast('Lỗi hệ thống: ' + err.message, 'err');
+        this.dom.dTblBody.innerHTML = `<tr><td colspan="15" style="text-align:center;padding:24px;color:var(--red);font-weight:bold">Lỗi hệ thống: ${err.message}</td></tr>`;
+      });
+  },
+
+  // Dựng option Nhóm sản phẩm/Vị trí sản phẩm cho toolbar tab 2 — DISTINCT
+  // trên các sản phẩm đang có trong báo cáo GLOBAL (không gọi thêm API).
+  buildTab2FilterOptions_() {
+    const nhomSet = new Set(), vitriSet = new Set();
+    this.state.appliedResults.forEach(l => {
+      const prod = this.state.catalog.find(p => p.maSP === l.maSP);
+      if (prod && prod.nhomSP) nhomSet.add(prod.nhomSP);
+      if (prod && prod.viTri) vitriSet.add(prod.viTri);
+    });
+    this.dom.d2Nhom.innerHTML = '<option value="">Nhóm sản phẩm</option>' +
+      Array.from(nhomSet).sort().map(v => `<option value="${v}">${v}</option>`).join('');
+    this.dom.d2Vitri.innerHTML = '<option value="">Vị trí sản phẩm</option>' +
+      Array.from(vitriSet).sort().map(v => `<option value="${v}">${v}</option>`).join('');
+  },
+
+  // Lưu tạm chỉ ENABLED khi: có ít nhất 1 dòng VÀ TẤT CẢ dòng đã có SL
+  // thực tế hợp lệ (0 là hợp lệ — chỉ null/undefined mới coi là chưa
+  // nhập, đúng §3 spec bổ sung 2026-08-11). Áp dụng kiểm kê KHÔNG đổi
+  // rule — vẫn giữ nguyên KK-DEC-P005 (Locked Decision): chỉ chặn khi
+  // KHÔNG có bất kỳ dòng nào có SL thực tế, cho phép Áp dụng một phần
+  // (dòng còn trống bị bỏ qua, không tạo adjustment). KHÔNG đổi thành
+  // "phải đủ 100% dòng mới Apply được" vì sẽ đảo ngược 1 quyết định đã
+  // lock — xem AUDIT report (KK-LIST/KK-DETAIL bổ sung workflow,
+  // 2026-08-11) để biết lý do không tự đổi rule này.
+  // Kiểm tra tự đứng vững — không dựa vào giả định "onSlThucTeChange() đã
+  // lọc sẵn" (2026-08-11, audit phát hiện NaN/''/số âm không bị loại nếu
+  // lọt tới đây từ path khác ngoài onSlThucTeChange()).
+  isValidSlThucTe_(v) {
+    return typeof v === 'number' && !isNaN(v) && v >= 0;
+  },
+
+  canSaveDraft_() {
+    return this.state.lines.length > 0 &&
+      this.state.lines.every(l => this.isValidSlThucTe_(l.slThucTe));
+  },
+
+  updateApplyButtonState_() {
+    const applied = this.state.currentPhieu && this.state.currentPhieu.daApDung;
+    this.dom.dBtnApDung.disabled = !!applied;
+    this.dom.dBtnLuuTam.disabled = !!applied || !this.canSaveDraft_();
+    this.dom.dBtnXuatHuy.disabled = !!applied;
+    this.dom.dStatus.innerHTML = applied
+      ? `<span class="kk-badge done">Đã áp dụng ${this.state.currentPhieu.ngayApDung || ''}</span>`
+      : `<span class="kk-badge draft">Đang kiểm kê (nháp)</span>`;
+  },
+
+  // ── "Xuất hủy" (PO Decision 2026-08-11, Inventory Count Lifecycle §3/4):
+  //    reset TOÀN BỘ SL thực tế trong phiếu về EMPTY — CHỈ ở UI/bộ nhớ,
+  //    KHÔNG đụng TK_KHO/Sheet/sản phẩm/lô. Muốn giữ lại trạng thái reset
+  //    phải bấm "Lưu tạm" sau đó — nhưng vì rule "Lưu tạm" (§5, KK-DEC-P007
+  //    đã lock từ trước) yêu cầu MỌI dòng phải có SL thực tế hợp lệ (rỗng
+  //    KHÔNG hợp lệ), nên NGAY SAU KHI Xuất hủy, "Lưu tạm" sẽ tự động
+  //    DISABLED trở lại (PO xác nhận 2026-08-11: giữ nguyên rule §5 tuyệt
+  //    đối, không nới lỏng riêng cho trường hợp này) — user phải nhập lại
+  //    ít nhất đủ SL thực tế cho mọi dòng trước khi Lưu tạm được lần nữa.
+  //    Nếu phiếu chưa từng Lưu tạm lần nào (STATE 1 UNSAVED), Xuất hủy chỉ
+  //    xoá dữ liệu đang gõ dở — thoát trang không Lưu tạm thì mất luôn,
+  //    đúng nguyên tắc Save Draft = persistence boundary (§6).
+  confirmResetSlThucTe_() {
+    if (this.state.currentPhieu && this.state.currentPhieu.daApDung) return;
+    if (!this.state.lines.length) return;
+    const msg = 'Xuất hủy sẽ xóa toàn bộ SL thực tế đã nhập trong phiếu này. Nếu chưa Lưu tạm, dữ liệu đã nhập sẽ mất. Bạn có chắc chắn muốn tiếp tục?';
+    if (typeof window.showConfirm === 'function') {
+      window.showConfirm(msg, 'Xác nhận Xuất hủy').then(ok => { if (ok) this.resetSlThucTe_(); });
+    } else if (confirm(msg)) {
+      this.resetSlThucTe_();
+    }
+  },
+
+  resetSlThucTe_() {
+    this.state.lines.forEach(l => { l.slThucTe = null; });
+    this.renderDetailGrid_();
+    this.renderDetailFooter_();
+    this.updateApplyButtonState_();
+    toast('Đã xuất hủy — toàn bộ SL thực tế đã được đặt lại. Nhập lại đầy đủ để Lưu tạm.', 'ok');
+  },
+
+  // ── Search sản phẩm (tên/mã vạch), client-side trên catalog đã tải ──
+  searchProduct(q) {
+    q = (q || '').toLowerCase().trim();
+    if (!q) { this.dom.dDd.classList.remove('open'); return; }
+    const hits = this.state.catalog.filter(p =>
+      (p.tenSP || '').toLowerCase().includes(q) ||
+      (p.maSP || '').toLowerCase().includes(q) ||
+      (p.maVach1 || '').toLowerCase().includes(q) ||
+      (p.maVach2 || '').toLowerCase().includes(q)
+    ).slice(0, 30);
+
+    if (!hits.length) {
+      this.dom.dDd.innerHTML = `<div class="kk-d-dd-empty">Không tìm thấy sản phẩm</div>`;
+    } else {
+      this.dom.dDd.innerHTML = hits.map(p => {
+        const ton = this.tonCuaSanPham_(p.maSP);
+        return `<div class="kk-d-dd-item" onclick="KiemKeModule.selectProduct('${p.maSP}')">
+          <div class="kk-d-dd-name">${p.tenSP} - ${p.dvtGoc || ''} - Tồn: ${this.fmt(ton)}</div>
+          <div class="kk-d-dd-meta">SĐK: ${p.sdk || '-'} - HSX: ${p.hangSX || '-'}</div>
+        </div>`;
+      }).join('');
+    }
+    this.dom.dDd.classList.add('open');
+  },
+
+  tonCuaSanPham_(maSP) {
+    return this.state.inventoryAll
+      .filter(r => (r.MaSP || r.maSP) === maSP)
+      .reduce((acc, r) => acc + (parseFloat(r.SLTon || r.slTon || 0)), 0);
+  },
+
+  // ── Chọn sản phẩm từ kết quả search → thêm toàn bộ lô hiện có của SP
+  //    đó vào danh sách kiểm kê (BR §5/§6). Không tạo trùng dòng. ──────
+  selectProduct(maSP) {
+    const prod = this.state.catalog.find(p => p.maSP === maSP);
+    if (!prod) return;
+
+    const lots = this.state.inventoryAll.filter(r => (r.MaSP || r.maSP) === maSP);
+
+    // PO Decision 2026-08-10: Đơn giá nhập lấy từ DM_SANPHAM.GiaNhapMacDinh
+    // (giá tham chiếu mặc định trên Danh mục Sản phẩm — không phải giá vốn
+    // lịch sử theo từng lần nhập).
+    const giaNhap = Number(prod.giaNhapMacDinh) || 0;
+
+    if (!lots.length) {
+      // Sản phẩm chưa từng có phát sinh tồn kho (chưa nhập lần nào) —
+      // vẫn cho thêm để kiểm kê thực tế tìm thấy trên quầy, Tồn kho = 0,
+      // áp dụng đúng công thức Chênh lệch = SL thực tế - Tồn kho (0).
+      this.addLine_({
+        maSP: prod.maSP, tenSP: prod.tenSP, kho: 'Kho chính', dvt: prod.dvtGoc,
+        soLo: '', hanDung: '', tonKho: 0, giaBan: Number(prod.giaBanLe) || 0, giaNhap: giaNhap
+      });
+    } else {
+      lots.forEach(r => {
+        this.addLine_({
+          maSP: prod.maSP, tenSP: prod.tenSP, kho: r.Kho || r.kho || 'Kho chính', dvt: prod.dvtGoc,
+          soLo: r.SoLo || r.soLo || '', hanDung: r.HanDung || r.hanDung || '',
+          tonKho: parseFloat(r.SLTon || r.slTon || 0), giaBan: Number(prod.giaBanLe) || 0, giaNhap: giaNhap
+        });
+      });
+    }
+
+    this.dom.dSearch.value = '';
+    this.dom.dDd.classList.remove('open');
+    this.renderDetailGrid_();
+    this.renderDetailFooter_();
+    this.updateApplyButtonState_();
+  },
+
+  addLine_(line) {
+    const exists = this.state.lines.some(l =>
+      l.maSP === line.maSP && l.kho === line.kho &&
+      String(l.soLo || '') === String(line.soLo || '') &&
+      String(l.hanDung || '') === String(line.hanDung || '')
+    );
+    if (exists) return; // không tạo dòng trùng (BR §7 workflow)
+    line.slThucTe = null;
+    this.state.lines.push(line);
+  },
+
+  removeLine(idx) {
+    if (this.state.currentPhieu && this.state.currentPhieu.daApDung) return;
+    this.state.lines.splice(idx, 1);
+    this.renderDetailGrid_();
+    this.renderDetailFooter_();
+    this.updateApplyButtonState_();
+  },
+
+  // Số âm không có ý nghĩa vật lý cho "SL thực tế đếm được" — coi là
+  // giá trị không hợp lệ, tương đương "chưa nhập" (đúng §3: "hoặc giá
+  // trị không hợp lệ theo validation mới được coi là chưa nhập"). 0 vẫn
+  // luôn là giá trị hợp lệ, không bị chặn bởi rule này.
+  onSlThucTeChange(idx, val) {
+    const v = val === '' ? null : Number(val);
+    this.state.lines[idx].slThucTe = (v === null || isNaN(v) || v < 0) ? null : v;
+    this.renderDetailGrid_();
+    this.renderDetailFooter_();
+    this.updateApplyButtonState_();
+  },
+
+  // ── Gộp các dòng leaf theo MaSP để hiển thị (giống mod_tonkho.html) ──
+  groupLines_() {
+    const map = new Map();
+    this.state.lines.forEach((l, idx) => {
+      if (!map.has(l.maSP)) {
+        map.set(l.maSP, { maSP: l.maSP, tenSP: l.tenSP, giaBan: l.giaBan, giaNhap: l.giaNhap, lots: [] });
+      }
+      map.get(l.maSP).lots.push(Object.assign({ _idx: idx }, l));
+    });
+    return Array.from(map.values());
+  },
+
+  clStyle_(v) {
+    if (v === null || v === undefined) return '';
+    if (v > 0) return 'kk-cl-pos';
+    if (v < 0) return 'kk-cl-neg';
+    return 'kk-cl-zero';
+  },
+
+  renderDetailGrid_() {
+    this.renderHead_();
+    if (this.state.detailTab === 2) this.renderTab2_();
+    else this.renderTab1_();
+  },
+
+  // Dựng đúng <thead> theo tab đang active — Tab 1 (Kiểm kê tạm thời) và
+  // Tab 2 (Sản phẩm đã kiểm kê, theo ảnh thật TheLight PO gửi 2026-08-10)
+  // có bố cục cột khác nhau (Tab 2 có thêm STT/Mã SP, không có Xóa).
+  renderHead_() {
+    if (this.state.detailTab === 2) {
+      this.dom.dTblHead.innerHTML = `
+        <tr>
+          <th style="width:44px;text-align:center">STT</th>
+          <th style="width:90px">Mã SP</th>
+          <th>Tên SP</th>
+          <th style="width:70px">ĐVT</th>
+          <th style="width:130px">Số lô - Hạn dùng</th>
+          <th style="width:80px;text-align:right">Tồn kho</th>
+          <th style="width:90px;text-align:right">SL thực tế</th>
+          <th style="width:90px;text-align:right">Chênh lệch</th>
+          <th style="width:100px;text-align:right">Đơn giá nhập</th>
+          <th style="width:100px;text-align:right">Đơn giá bán</th>
+          <th style="width:110px;text-align:right">Thành tiền nhập</th>
+          <th style="width:110px;text-align:right">Thành tiền bán</th>
+          <th style="width:110px;text-align:right">CL - Theo giá nhập</th>
+          <th style="width:110px;text-align:right">CL - Theo giá bán</th>
+          <th style="width:140px">Thời gian áp dụng</th>
+        </tr>`;
+    } else {
+      this.dom.dTblHead.innerHTML = `
+        <tr>
+          <th>Tên SP</th>
+          <th style="width:70px">ĐVT</th>
+          <th style="width:130px">Số lô - Hạn dùng</th>
+          <th style="width:80px;text-align:right">Tồn kho</th>
+          <th style="width:90px;text-align:right">SL thực tế</th>
+          <th style="width:90px;text-align:right">Chênh lệch</th>
+          <th style="width:100px;text-align:right">Đơn giá nhập</th>
+          <th style="width:100px;text-align:right">Đơn giá bán</th>
+          <th style="width:110px;text-align:right">Thành tiền nhập</th>
+          <th style="width:110px;text-align:right">Thành tiền bán</th>
+          <th style="width:110px;text-align:right">CL - Theo giá nhập</th>
+          <th style="width:110px;text-align:right">CL - Theo giá bán</th>
+          <th style="width:60px;text-align:center">Xóa</th>
+        </tr>`;
+    }
+  },
+
+  // ── Tab 1 "Kiểm kê tạm thời" — grid nhập liệu (13 cột, có Xóa) ──────
+  renderTab1_() {
+    // PO Decision 2026-08-12: sau khi "Áp dụng kiểm kê", tab "Kiểm kê tạm
+    // thời" KHÔNG còn hiển thị record nào nữa — kết quả đã "chuyển hẳn"
+    // sang tab "Sản phẩm đã kiểm kê" (khác với thiết kế trước đó là vẫn
+    // hiện read-only ở cả 2 tab). Đây là UI-only — dữ liệu KK_CHITIET vẫn
+    // giữ nguyên trong Sheet (Historical Snapshot không đổi), chỉ ẩn khỏi
+    // tab 1 khi phiếu đã daApDung=true.
+    if (this.state.currentPhieu && this.state.currentPhieu.daApDung) {
+      this.dom.dTblBody.innerHTML = `<tr><td colspan="13" style="text-align:center;padding:32px;color:var(--text2);font-style:italic">Phiếu này đã được Áp dụng kiểm kê — xem kết quả ở tab "Sản phẩm đã kiểm kê"</td></tr>`;
+      return;
+    }
+
+    const groups = this.groupLines_();
+
+    if (!groups.length) {
+      this.dom.dTblBody.innerHTML = `<tr><td colspan="13" style="text-align:center;padding:32px;color:var(--text2);font-style:italic">Chưa có sản phẩm nào — tìm và chọn sản phẩm ở ô phía trên</td></tr>`;
+      return;
+    }
+
+    const readOnly = !!(this.state.currentPhieu && this.state.currentPhieu.daApDung);
+    const rows = [];
+
+    groups.forEach(g => {
+      const singleLotless = g.lots.length === 1 && !g.lots[0].soLo && !g.lots[0].hanDung;
+
+      if (singleLotless) {
+        const l = g.lots[0];
+        const chenhLech = l.slThucTe === null ? null : (l.slThucTe - l.tonKho);
+        const thanhTienNhap = l.tonKho * l.giaNhap;
+        const thanhTienBan = l.tonKho * l.giaBan;
+        const clGiaNhap = chenhLech === null ? null : chenhLech * l.giaNhap;
+        const clGiaBan = chenhLech === null ? null : chenhLech * l.giaBan;
+        rows.push(`
+          <tr>
+            <td>${g.tenSP}</td>
+            <td>${l.dvt || '—'}</td>
+            <td class="kk-dash">—</td>
+            <td style="text-align:right">${this.fmt(l.tonKho)}</td>
+            <td style="text-align:right">${readOnly ? this.fmt(l.slThucTe) : `<input class="kk-sl-inp" type="number" min="0" value="${l.slThucTe === null ? '' : l.slThucTe}" onchange="KiemKeModule.onSlThucTeChange(${l._idx}, this.value)">`}</td>
+            <td style="text-align:right" class="${this.clStyle_(chenhLech)}">${chenhLech === null ? '<span class="kk-dash">—</span>' : this.fmt(chenhLech)}</td>
+            <td style="text-align:right">${this.fmt(l.giaNhap)}</td>
+            <td style="text-align:right">${this.fmt(l.giaBan)}</td>
+            <td style="text-align:right">${this.fmt(thanhTienNhap)}</td>
+            <td style="text-align:right">${this.fmt(thanhTienBan)}</td>
+            <td style="text-align:right" class="${this.clStyle_(clGiaNhap)}">${clGiaNhap === null ? '<span class="kk-dash">—</span>' : this.fmt(clGiaNhap)}</td>
+            <td style="text-align:right" class="${this.clStyle_(clGiaBan)}">${clGiaBan === null ? '<span class="kk-dash">—</span>' : this.fmt(clGiaBan)}</td>
+            <td style="text-align:center">${readOnly ? '' : `<button class="btn btn-red btn-sm" onclick="KiemKeModule.removeLine(${l._idx})">Xóa</button>`}</td>
+          </tr>`);
+        return;
+      }
+
+      // Nhiều lô (hoặc 1 lô nhưng có Số lô/Hạn dùng thật) — luôn hiện dòng
+      // tổng sản phẩm (derive, không lưu riêng) + từng dòng lô (BR §8).
+      const tonTong = g.lots.reduce((a, l) => a + l.tonKho, 0);
+      const daDuSL = g.lots.every(l => l.slThucTe !== null);
+      const slTong = daDuSL ? g.lots.reduce((a, l) => a + l.slThucTe, 0) : null;
+      const clTong = slTong === null ? null : (slTong - tonTong);
+      const thanhTienBanTong = tonTong * g.giaBan;
+      const clGiaBanTong = clTong === null ? null : clTong * g.giaBan;
+
+      rows.push(`
+        <tr class="kk-row-product">
+          <td>${g.tenSP}</td>
+          <td></td>
+          <td></td>
+          <td style="text-align:right">${this.fmt(tonTong)}</td>
+          <td style="text-align:right">${slTong === null ? '<span class="kk-dash">—</span>' : this.fmt(slTong)}</td>
+          <td style="text-align:right" class="${this.clStyle_(clTong)}">${clTong === null ? '<span class="kk-dash">—</span>' : this.fmt(clTong)}</td>
+          <td class="kk-dash">—</td>
+          <td style="text-align:right">${this.fmt(g.giaBan)}</td>
+          <td class="kk-dash">—</td>
+          <td style="text-align:right">${this.fmt(thanhTienBanTong)}</td>
+          <td class="kk-dash">—</td>
+          <td style="text-align:right" class="${this.clStyle_(clGiaBanTong)}">${clGiaBanTong === null ? '<span class="kk-dash">—</span>' : this.fmt(clGiaBanTong)}</td>
+          <td></td>
+        </tr>`);
+
+      g.lots.forEach(l => {
+        const chenhLech = l.slThucTe === null ? null : (l.slThucTe - l.tonKho);
+        const thanhTienNhap = l.tonKho * l.giaNhap;
+        const thanhTienBan = l.tonKho * l.giaBan;
+        const clGiaNhap = chenhLech === null ? null : chenhLech * l.giaNhap;
+        const clGiaBan = chenhLech === null ? null : chenhLech * l.giaBan;
+        const lotLabel = (l.soLo || l.hanDung) ? `${l.soLo || '-'} - ${l.hanDung || '-'}` : '—';
+        rows.push(`
+          <tr class="kk-row-lot">
+            <td class="kk-lot-indent"></td>
+            <td>${l.dvt || '—'}</td>
+            <td>${lotLabel}</td>
+            <td style="text-align:right">${this.fmt(l.tonKho)}</td>
+            <td style="text-align:right">${readOnly ? this.fmt(l.slThucTe) : `<input class="kk-sl-inp" type="number" min="0" value="${l.slThucTe === null ? '' : l.slThucTe}" onchange="KiemKeModule.onSlThucTeChange(${l._idx}, this.value)">`}</td>
+            <td style="text-align:right" class="${this.clStyle_(chenhLech)}">${chenhLech === null ? '<span class="kk-dash">—</span>' : this.fmt(chenhLech)}</td>
+            <td style="text-align:right">${this.fmt(l.giaNhap)}</td>
+            <td style="text-align:right">${this.fmt(l.giaBan)}</td>
+            <td style="text-align:right">${this.fmt(thanhTienNhap)}</td>
+            <td style="text-align:right">${this.fmt(thanhTienBan)}</td>
+            <td style="text-align:right" class="${this.clStyle_(clGiaNhap)}">${clGiaNhap === null ? '<span class="kk-dash">—</span>' : this.fmt(clGiaNhap)}</td>
+            <td style="text-align:right" class="${this.clStyle_(clGiaBan)}">${clGiaBan === null ? '<span class="kk-dash">—</span>' : this.fmt(clGiaBan)}</td>
+            <td style="text-align:center">${readOnly ? '' : `<button class="btn btn-red btn-sm" onclick="KiemKeModule.removeLine(${l._idx})">Xóa</button>`}</td>
+          </tr>`);
+      });
+    });
+
+    this.dom.dTblBody.innerHTML = rows.join('');
+  },
+
+  // ── Tab 2 "Sản phẩm đã kiểm kê" — GLOBAL, mọi phiếu đã Áp dụng (PO
+  //    Decision 2026-08-11) — nguồn dữ liệu là this.state.appliedResults
+  //    (snapshot lịch sử đọc từ KK_CHITIET.ThoiGianApDung, KHÔNG phải
+  //    this.state.lines của phiếu đang mở). STT + Mã SP mỗi dòng, dòng
+  //    TỔNG CỘNG, filter bằng ô tìm kiếm + Nhóm SP + Vị trí SP (client-
+  //    side trên dữ liệu đã tải). Không có cột Xóa — chỉ xem (read-only,
+  //    đây là historical record, không sửa lại — PO Decision mục 17). ──
+  //    Gộp theo (MaSP + KiemKeID): cùng 1 sản phẩm có thể xuất hiện ở
+  //    NHIỀU đợt kiểm kê khác nhau (nhiều Thời gian áp dụng khác nhau) —
+  //    không được gộp chung các đợt khác nhau vào 1 dòng tổng (PO Decision
+  //    mục 13, InventoryCount 1-nhiều InventoryCountResult).
+  renderTab2_() {
+    let rowsData = this.state.appliedResults;
+
+    const q = (this.dom.d2Search.value || '').toLowerCase().trim();
+    const nhom = this.dom.d2Nhom.value;
+    const vitri = this.dom.d2Vitri.value;
+    if (q || nhom || vitri) {
+      rowsData = rowsData.filter(l => {
+        const prod = this.state.catalog.find(p => p.maSP === l.maSP);
+        if (q && !((l.tenSP || '').toLowerCase().includes(q) || (l.maSP || '').toLowerCase().includes(q))) return false;
+        if (nhom && (!prod || prod.nhomSP !== nhom)) return false;
+        if (vitri && (!prod || prod.viTri !== vitri)) return false;
+        return true;
+      });
+    }
+
+    if (!rowsData.length) {
+      this.dom.dTblBody.innerHTML = `<tr><td colspan="15" style="text-align:center;padding:32px;color:var(--text2);font-style:italic">Chưa có sản phẩm nào đã kiểm kê</td></tr>`;
+      return;
+    }
+
+    const map = new Map();
+    rowsData.forEach(l => {
+      const key = l.maSP + '|' + l.kiemKeID;
+      if (!map.has(key)) map.set(key, { maSP: l.maSP, tenSP: l.tenSP, donGiaBan: l.donGiaBan, thoiGianApDung: l.thoiGianApDung, lots: [] });
+      map.get(key).lots.push(l);
+    });
+    // Sắp theo Thời gian áp dụng mới nhất trước — dễ tra cứu đợt vừa Apply.
+    const groups = Array.from(map.values()).sort((a, b) => (b.thoiGianApDung || '').localeCompare(a.thoiGianApDung || ''));
+
+    const rows = [];
+    let stt = 0;
+    let tongTon = 0, tongSL = 0, tongCL = 0, tongTTNhap = 0, tongTTBan = 0, tongCLNhap = 0, tongCLBan = 0;
+
+    groups.forEach(g => {
+      stt++;
+      const singleLotless = g.lots.length === 1 && !g.lots[0].soLo && !g.lots[0].hanDung;
+
+      if (singleLotless) {
+        const l = g.lots[0];
+        tongTon += l.tonKho; tongSL += Number(l.slThucTe) || 0; tongCL += l.chenhLech || 0;
+        tongTTNhap += l.thanhTienNhap; tongTTBan += l.thanhTienBan;
+        tongCLNhap += l.clTheoGiaNhap || 0; tongCLBan += l.clTheoGiaBan || 0;
+        rows.push(`
+          <tr>
+            <td style="text-align:center">${stt}</td>
+            <td>${g.maSP}</td>
+            <td>${g.tenSP}</td>
+            <td>${l.dvt || '—'}</td>
+            <td class="kk-dash">—</td>
+            <td style="text-align:right">${this.fmt(l.tonKho)}</td>
+            <td style="text-align:right">${this.fmt(l.slThucTe)}</td>
+            <td style="text-align:right" class="${this.clStyle_(l.chenhLech)}">${this.fmt(l.chenhLech)}</td>
+            <td style="text-align:right">${this.fmt(l.donGiaNhap)}</td>
+            <td style="text-align:right">${this.fmt(l.donGiaBan)}</td>
+            <td style="text-align:right">${this.fmt(l.thanhTienNhap)}</td>
+            <td style="text-align:right">${this.fmt(l.thanhTienBan)}</td>
+            <td style="text-align:right" class="${this.clStyle_(l.clTheoGiaNhap)}">${this.fmt(l.clTheoGiaNhap)}</td>
+            <td style="text-align:right" class="${this.clStyle_(l.clTheoGiaBan)}">${this.fmt(l.clTheoGiaBan)}</td>
+            <td>${l.thoiGianApDung || '—'}</td>
+          </tr>`);
+        return;
+      }
+
+      const tonTong = g.lots.reduce((a, l) => a + l.tonKho, 0);
+      const slTong = g.lots.reduce((a, l) => a + (Number(l.slThucTe) || 0), 0);
+      const clTong = g.lots.reduce((a, l) => a + (l.chenhLech || 0), 0);
+      const thanhTienBanTong = g.lots.reduce((a, l) => a + l.thanhTienBan, 0);
+      const clGiaBanTong = g.lots.reduce((a, l) => a + (l.clTheoGiaBan || 0), 0);
+      tongTon += tonTong; tongSL += slTong; tongCL += clTong;
+      tongTTBan += thanhTienBanTong; tongCLBan += clGiaBanTong;
+
+      rows.push(`
+        <tr class="kk-row-product">
+          <td style="text-align:center">${stt}</td>
+          <td>${g.maSP}</td>
+          <td>${g.tenSP}</td>
+          <td></td>
+          <td></td>
+          <td style="text-align:right">${this.fmt(tonTong)}</td>
+          <td style="text-align:right">${this.fmt(slTong)}</td>
+          <td style="text-align:right" class="${this.clStyle_(clTong)}">${this.fmt(clTong)}</td>
+          <td class="kk-dash">—</td>
+          <td style="text-align:right">${this.fmt(g.donGiaBan)}</td>
+          <td class="kk-dash">—</td>
+          <td style="text-align:right">${this.fmt(thanhTienBanTong)}</td>
+          <td class="kk-dash">—</td>
+          <td style="text-align:right" class="${this.clStyle_(clGiaBanTong)}">${this.fmt(clGiaBanTong)}</td>
+          <td>${g.thoiGianApDung || '—'}</td>
+        </tr>`);
+
+      g.lots.forEach(l => {
+        tongTTNhap += l.thanhTienNhap;
+        tongCLNhap += l.clTheoGiaNhap || 0;
+        const lotLabel = (l.soLo || l.hanDung) ? `${l.soLo || '-'} - ${l.hanDung || '-'}` : '—';
+        rows.push(`
+          <tr class="kk-row-lot">
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>${l.dvt || '—'}</td>
+            <td>${lotLabel}</td>
+            <td style="text-align:right">${this.fmt(l.tonKho)}</td>
+            <td style="text-align:right">${this.fmt(l.slThucTe)}</td>
+            <td style="text-align:right" class="${this.clStyle_(l.chenhLech)}">${this.fmt(l.chenhLech)}</td>
+            <td style="text-align:right">${this.fmt(l.donGiaNhap)}</td>
+            <td style="text-align:right">${this.fmt(l.donGiaBan)}</td>
+            <td style="text-align:right">${this.fmt(l.thanhTienNhap)}</td>
+            <td style="text-align:right">${this.fmt(l.thanhTienBan)}</td>
+            <td style="text-align:right" class="${this.clStyle_(l.clTheoGiaNhap)}">${this.fmt(l.clTheoGiaNhap)}</td>
+            <td style="text-align:right" class="${this.clStyle_(l.clTheoGiaBan)}">${this.fmt(l.clTheoGiaBan)}</td>
+            <td>${l.thoiGianApDung || '—'}</td>
+          </tr>`);
+      });
+    });
+
+    rows.push(`
+      <tr style="background:#0a2040;font-weight:700">
+        <td colspan="3" style="text-align:center">TỔNG CỘNG</td>
+        <td></td>
+        <td></td>
+        <td style="text-align:right">${this.fmt(tongTon)}</td>
+        <td style="text-align:right">${this.fmt(tongSL)}</td>
+        <td style="text-align:right" class="${this.clStyle_(tongCL)}">${this.fmt(tongCL)}</td>
+        <td></td>
+        <td></td>
+        <td style="text-align:right">${this.fmt(tongTTNhap)}</td>
+        <td style="text-align:right">${this.fmt(tongTTBan)}</td>
+        <td style="text-align:right" class="${this.clStyle_(tongCLNhap)}">${this.fmt(tongCLNhap)}</td>
+        <td style="text-align:right" class="${this.clStyle_(tongCLBan)}">${this.fmt(tongCLBan)}</td>
+        <td></td>
+      </tr>`);
+
+    this.dom.dTblBody.innerHTML = rows.join('');
+  },
+
+  renderDetailFooter_() {
+    const p = this.state.currentPhieu;
+    const soSP = this.groupLines_().length;
+    this.dom.dInfo.textContent = `${p ? p.dotKiemKe : ''} — Ngày kiểm kê: ${p ? p.ngayKiemKe : ''} — Số sản phẩm: ${soSP}`;
+  },
+
+  // ── Lưu tạm — KHÔNG đụng TK_KHO (KK-DEC-002) ──────────────────────
+  saveDraft() {
+    if (this.state.currentPhieu && this.state.currentPhieu.daApDung) return;
+    const payload = {
+      kiemKeID: this.state.currentKiemKeID,
+      lines: this.state.lines.map(l => {
+        const chenhLech = l.slThucTe === null ? null : (l.slThucTe - l.tonKho);
+        const thanhTienNhap = l.tonKho * l.giaNhap;
+        const thanhTienBan = l.tonKho * l.giaBan;
+        const clGiaNhap = chenhLech === null ? null : chenhLech * l.giaNhap;
+        const clGiaBan = chenhLech === null ? null : chenhLech * l.giaBan;
+        return {
+          maSP: l.maSP, tenSP: l.tenSP, kho: l.kho, dvt: l.dvt,
+          soLo: l.soLo, hanDung: l.hanDung,
+          tonKho: l.tonKho, slThucTe: l.slThucTe, chenhLech: chenhLech,
+          donGiaNhap: l.giaNhap, thanhTienNhap: thanhTienNhap, clTheoGiaNhap: clGiaNhap,
+          donGiaBan: l.giaBan, thanhTienBan: thanhTienBan, clTheoGiaBan: clGiaBan
+        };
+      })
+    };
+    // Phản hồi UI rõ ràng lúc đang gửi (2026-08-11 — user báo bấm Lưu tạm
+    // không thấy phản ứng gì, không phân biệt được đã bấm hay chưa).
+    this.dom.dBtnLuuTam.disabled = true;
+    this.dom.dBtnLuuTam.innerHTML = '⏳ Đang lưu...';
+    ApiClient.call('apiKiemKeSaveDraft', payload)
+      .then(res => {
+        this.dom.dBtnLuuTam.disabled = false;
+        this.dom.dBtnLuuTam.innerHTML = 'Lưu tạm';
+        if (!res || !res.success) {
+          toast((res && res.message) || 'Lỗi lưu tạm', 'err');
+          return;
+        }
+        toast('Đã lưu tạm phiếu kiểm kê', 'ok');
+      })
+      .catch(err => {
+        this.dom.dBtnLuuTam.disabled = false;
+        this.dom.dBtnLuuTam.innerHTML = 'Lưu tạm';
+        toast('Lỗi hệ thống: ' + err.message, 'err');
+      });
+  },
+
+  // ── Áp dụng kiểm kê — luôn Lưu tạm trước để đảm bảo dữ liệu mới nhất
+  //    đã có trên server trước khi Service đọc lại và post Adjustment. ──
+  confirmApply() {
+    if (this.state.currentPhieu && this.state.currentPhieu.daApDung) return;
+    if (!this.state.lines.length) {
+      toast('Không có sản phẩm để kiểm kê.', 'warn');
+      return;
+    }
+    // PO Decision 2026-08-10: nếu KHÔNG có dòng nào được nhập SL thực tế,
+    // chặn ngay trên client (backend cũng validate lại — xem KK-DEC-P002).
+    const coDongDaNhap = this.state.lines.some(l => l.slThucTe !== null && l.slThucTe !== undefined);
+    if (!coDongDaNhap) {
+      toast('Không có sản phẩm để kiểm kê.', 'warn');
+      return;
+    }
+    const msg = 'Áp dụng kiểm kê sẽ điều chỉnh tồn kho thực tế theo số liệu đã nhập và KHÔNG thể hoàn tác. Bạn có chắc chắn muốn tiếp tục?';
+    if (typeof window.showConfirm === 'function') {
+      window.showConfirm(msg, 'Xác nhận Áp dụng kiểm kê').then(ok => { if (ok) this.doApply_(); });
+    } else if (confirm(msg)) {
+      this.doApply_();
+    }
+  },
+
+  doApply_() {
+    this.dom.dBtnApDung.disabled = true;
+    this.dom.dBtnApDung.innerHTML = '⏳ Đang áp dụng...';
+
+    const payload = {
+      kiemKeID: this.state.currentKiemKeID,
+      // forApply=true: bỏ qua rule "đủ 100% dòng mới được lưu" (chỉ áp
+      // dụng cho nút Lưu tạm người dùng bấm trực tiếp) — Áp dụng một phần
+      // vẫn phải hoạt động đúng KK-DEC-P005 (xem backend_kiemke_service.gs
+      // saveDraft()).
+      forApply: true,
+      lines: this.state.lines.map(l => {
+        const chenhLech = l.slThucTe === null ? null : (l.slThucTe - l.tonKho);
+        const thanhTienNhap = l.tonKho * l.giaNhap;
+        const thanhTienBan = l.tonKho * l.giaBan;
+        const clGiaNhap = chenhLech === null ? null : chenhLech * l.giaNhap;
+        const clGiaBan = chenhLech === null ? null : chenhLech * l.giaBan;
+        return {
+          maSP: l.maSP, tenSP: l.tenSP, kho: l.kho, dvt: l.dvt,
+          soLo: l.soLo, hanDung: l.hanDung,
+          tonKho: l.tonKho, slThucTe: l.slThucTe, chenhLech: chenhLech,
+          donGiaNhap: l.giaNhap, thanhTienNhap: thanhTienNhap, clTheoGiaNhap: clGiaNhap,
+          donGiaBan: l.giaBan, thanhTienBan: thanhTienBan, clTheoGiaBan: clGiaBan
+        };
+      })
+    };
+
+    // Lưu tạm trước (đảm bảo KK_CHITIET trên server khớp UI), sau đó mới Apply.
+    ApiClient.call('apiKiemKeSaveDraft', payload)
+      .then(() => ApiClient.call('apiKiemKeApply', this.state.currentKiemKeID))
+      .then(res => {
+        this.dom.dBtnApDung.innerHTML = 'Áp dụng kiểm kê';
+        if (!res || !res.success) {
+          this.dom.dBtnApDung.disabled = false;
+          toast((res && res.message) || 'Lỗi áp dụng kiểm kê', 'err');
+          return;
+        }
+        toast(`Đã áp dụng kiểm kê — điều chỉnh ${res.data.adjustedLines} dòng`, 'ok');
+        // Apply vừa đổi TK_KHO — cache tồn kho module-level (PERF FIX) đã
+        // lỗi thời, phải xoá để lần mở phiếu tiếp theo tải lại tồn mới.
+        this._inventoryCache = null;
+        this.reloadDetail(true);
+      })
+      .catch(err => {
+        this.dom.dBtnApDung.disabled = false;
+        this.dom.dBtnApDung.innerHTML = 'Áp dụng kiểm kê';
+        toast('Lỗi hệ thống: ' + err.message, 'err');
+      });
+  },
+
+  fmt(v) {
+    if (v === null || v === undefined) return '0';
+    const n = parseFloat(v) || 0;
+    if (n === 0) return '0';
+    return Math.round(n).toLocaleString('vi-VN');
+  }
+};
+</script>

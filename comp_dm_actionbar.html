@@ -1,0 +1,115 @@
+<style>
+.dm-actionbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  height: var(--dialog-footer-height, 65px);
+  padding: 0 var(--space-lg, 24px);
+  background-color: var(--color-bg-dialog, #0c1524);
+  border-top: 1px solid var(--color-border-main, #1e293b);
+}
+.dm-actionbar-shortcuts {
+  font-size: var(--font-xs, 11px);
+  color: var(--color-text-dark, #475569);
+  user-select: none;
+}
+.dm-actionbar-btn-group {
+  display: flex;
+  gap: 8px;
+}
+.dm-btn {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: var(--radius-lg, 8px);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-base, 13px);
+  font-weight: var(--font-weight-medium, 500);
+  cursor: pointer;
+  transition: var(--transition-fast, all 0.15s ease);
+}
+.dm-btn-primary {
+  background-color: var(--color-primary, #10b981);
+  color: var(--color-text-main, #f8fafc);
+  border: none;
+}
+.dm-btn-primary:hover {
+  background-color: var(--color-primary-hover, #059669);
+}
+.dm-btn-secondary {
+  background-color: var(--color-info, #3b82f6);
+  color: var(--color-text-main, #f8fafc);
+  border: none;
+}
+.dm-btn-secondary:hover {
+  background-color: var(--color-info-hover, #2563eb);
+}
+.dm-btn-outline {
+  background: none;
+  color: var(--color-text-muted, #94a3b8);
+  border: 1px solid var(--color-border-main, #1e293b);
+}
+.dm-btn-outline:hover {
+  border-color: var(--color-text-muted, #94a3b8);
+  color: var(--color-text-main, #f8fafc);
+}
+</style>
+<script>
+class DMActionBar {
+  constructor(container, config = {}) {
+    this.container = typeof container === 'string' ? document.getElementById(container) : container;
+    this.config = Object.assign({
+      buttons: [],
+      shortcuts: 'Tab: Di chuyển | Esc: Hủy bỏ | Ctrl+S: Lưu'
+    }, config);
+    this.dom = {};
+    this.init();
+  }
+
+  init() {
+    this.render();
+    this.bindEvents();
+  }
+
+  render() {
+    if (!this.container) return;
+    const btnsHtml = this.config.buttons.map(b => {
+      let priorityClass = 'dm-btn-outline';
+      if (b.priority === 'primary') priorityClass = 'dm-btn-primary';
+      else if (b.priority === 'secondary') priorityClass = 'dm-btn-secondary';
+      return `<button class="dm-btn ${priorityClass}" data-action="${b.action}">${b.label}</button>`;
+    }).join('');
+
+    this.container.innerHTML = `
+      <div class="dm-actionbar">
+        <div class="dm-actionbar-shortcuts">${this.config.shortcuts}</div>
+        <div class="dm-actionbar-btn-group">
+          ${btnsHtml}
+        </div>
+      </div>
+    `;
+    this.dom.wrapper = this.container.querySelector('.dm-actionbar');
+    this.dom.btnGroup = this.container.querySelector('.dm-actionbar-btn-group');
+  }
+
+  bindEvents() {
+    if (!this.dom.btnGroup) return;
+    this.dom.btnGroup.onclick = (e) => {
+      const btn = e.target.closest('button');
+      if (btn) {
+        const action = btn.getAttribute('data-action');
+        const buttonConfig = this.config.buttons.find(b => b.action === action);
+        if (buttonConfig && typeof buttonConfig.onClick === 'function') {
+          buttonConfig.onClick();
+        }
+      }
+    };
+  }
+
+  destroy() {
+    if (this.dom.btnGroup) this.dom.btnGroup.onclick = null;
+    this.container.innerHTML = '';
+    this.dom = {};
+  }
+}
+</script>

@@ -1,0 +1,61 @@
+<script>
+// =================================================================
+//  SHARED BUSINESS SERVICE: PRODUCT SERVICE (ProductService)
+//  Business logic validation layer. Calls ProductRepository.
+// =================================================================
+const ProductService = {
+  // ======================
+  // Public Interface
+  // ======================
+  load() {
+    return ProductService.handleResponse_(ProductRepository.load());
+  },
+
+  save(payload) {
+    // Business Validation
+    if (!payload.product.tenSP) {
+      return Promise.reject(new Error('Tên sản phẩm không được để trống!'));
+    }
+    if (!payload.uoms || payload.uoms.length === 0) {
+      return Promise.reject(new Error('Phải có ít nhất một đơn vị tính!'));
+    }
+
+    return ProductService.handleResponse_(ProductRepository.create(payload));
+  },
+
+  update(payload) {
+    // Business Validation
+    if (!payload.product.maSP) {
+      return Promise.reject(new Error('Thiếu mã sản phẩm để cập nhật!'));
+    }
+    if (!payload.product.tenSP) {
+      return Promise.reject(new Error('Tên sản phẩm không được để trống!'));
+    }
+
+    return ProductService.handleResponse_(ProductRepository.update(payload));
+  },
+
+  remove(id) {
+    return ProductService.handleResponse_(ProductRepository.remove(id));
+  },
+
+  find(id) {
+    return ProductService.handleResponse_(ProductRepository.find(id));
+  },
+
+  search(keyword) {
+    return ProductService.handleResponse_(ProductRepository.search(keyword));
+  },
+
+  // Private Helper to standardize response/error formats
+  handleResponse_(promise) {
+    return promise.then(res => {
+      if (res.success) {
+        return res.data; // Return clean data to the caller (DanhMucModule / ProductEditor)
+      } else {
+        throw new Error(res.message || 'Lỗi không xác định ở tầng dữ liệu');
+      }
+    });
+  }
+};
+</script>

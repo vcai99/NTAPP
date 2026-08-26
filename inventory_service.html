@@ -1,0 +1,25 @@
+<script>
+// =================================================================
+//  CLIENT INVENTORY SERVICE (inventory_service.html)
+//  Business Service Layer on Frontend for Stock Queries
+// =================================================================
+const InventoryService = {
+  load() {
+    return InventoryService.handleResponse_(InventoryRepository.load());
+  },
+
+  getLots(maSP, kho) {
+    return InventoryService.handleResponse_(InventoryRepository.loadLots(maSP, kho));
+  },
+
+  handleResponse_(promise) {
+    return promise.then(res => {
+      if (res && res.success) {
+        return res.data;
+      } else {
+        throw new Error((res && res.message) || 'Lỗi không xác định ở tầng dữ liệu tồn kho');
+      }
+    });
+  }
+};
+</script>

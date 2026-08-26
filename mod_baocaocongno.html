@@ -1,0 +1,155 @@
+<!-- ════════════════════════════════════════════════════════════════
+      BÁO CÁO TỔNG HỢP DOANH THU – CÔNG NỢ (mod_baocaocongno.html)
+      Sprint 14 — Thu Chi & Công Nợ
+      Theo evidence "...Cách xem công nợ của nhà cung cấp hoặc khách
+      hàng trên phần mềm.pdf": Báo cáo → Báo cáo tổng hợp doanh thu –
+      công nợ → chọn khoảng thời gian + Khách hàng/Nhà cung cấp → Tìm
+      kiếm. Cột: Tên NCC/KH, Dư đầu kỳ, Phát sinh trong kỳ, Thanh toán,
+      Nợ trong kỳ, Dư cuối kỳ + dòng TỔNG CỘNG.
+
+      Công thức = PO Decision #2/#3 (2026-08-14) — tính qua
+      DebtEngineBackend (apiThuChiDebtReport), KHÔNG tính riêng ở đây.
+     ════════════════════════════════════════════════════════════════ -->
+
+<style>
+#page-baocaocongno { display: none; height: calc(100vh - 52px); min-height: 0; overflow: hidden; flex-direction: column; }
+#page-baocaocongno.show { display: flex; }
+
+.bccn-topbar { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 8px 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+.bccn-inp, .bccn-sel { height: var(--h-4); padding: 0 8px; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 4px; color: var(--text); font-size: var(--fs-3); }
+.bccn-inp:focus, .bccn-sel:focus { outline: none; border-color: #1976D2; }
+
+.bccn-tbl-wrap { flex: 1; overflow: auto; border: 1px solid var(--border); margin: 8px 10px; border-radius: 6px; background: var(--bg2); }
+.bccn-tbl { width: 100%; border-collapse: collapse; min-width: 900px; }
+.bccn-tbl th { background: #0a2040; color: var(--text2); padding: 8px 10px; text-align: left; font-size: var(--fs-1); font-weight: 700; white-space: nowrap; border-bottom: 1px solid var(--border); border-right: 1px solid #0d1f3c; }
+.bccn-tbl th:last-child { border-right: none; }
+.bccn-tbl td { padding: 7px 10px; font-size: var(--fs-2); color: var(--text); border-right: 1px solid #0d1f3c; border-bottom: 1px solid #0d1f3c; vertical-align: middle; }
+.bccn-tbl td:last-child { border-right: none; }
+.bccn-tbl tbody tr:hover { background: #0d2347; }
+.bccn-sum-tr { background: #0a2560; font-weight: 700; }
+.bccn-sum-tr td { color: #fff; }
+</style>
+
+<div class="page" id="page-baocaocongno">
+  <div class="bccn-topbar">
+    <select id="bccn-loai" class="bccn-sel">
+      <option value="CUSTOMER">Khách hàng</option>
+      <option value="SUPPLIER">Nhà cung cấp</option>
+    </select>
+    <label style="font-size:var(--fs-2);color:var(--text2)">Từ ngày</label>
+    <input id="bccn-tu" type="date" class="bccn-inp">
+    <label style="font-size:var(--fs-2);color:var(--text2)">Đến ngày</label>
+    <input id="bccn-den" type="date" class="bccn-inp">
+    <button class="btn btn-green" id="bccn-btn-search">Tìm kiếm</button>
+    <div style="margin-left:auto;font-size:var(--fs-3);font-weight:700;color:var(--text2)">Báo cáo tổng hợp doanh thu — công nợ</div>
+  </div>
+
+  <div class="bccn-tbl-wrap">
+    <table class="bccn-tbl" id="bccn-main-tbl">
+      <thead>
+        <tr>
+          <th style="width:44px;text-align:center">STT</th>
+          <th id="bccn-th-ten">Tên khách hàng</th>
+          <th style="width:130px;text-align:right">Dư đầu kỳ</th>
+          <th style="width:130px;text-align:right">Phát sinh trong kỳ</th>
+          <th style="width:130px;text-align:right">Thanh toán</th>
+          <th style="width:130px;text-align:right">Nợ trong kỳ</th>
+          <th style="width:130px;text-align:right">Dư cuối kỳ</th>
+        </tr>
+      </thead>
+      <tbody id="bccn-tbl-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  CONTROLLER LAYER: BaoCaoCongNoModule (mod_baocaocongno.html)
+//  Sprint 14 — Báo cáo tổng hợp doanh thu — công nợ
+// ════════════════════════════════════════════════════════════════
+const BaoCaoCongNoModule = {
+  dom: {},
+  initialized: false,
+
+  init() {
+    if (this.initialized) return;
+    this.dom = {
+      loai: document.getElementById('bccn-loai'),
+      tu: document.getElementById('bccn-tu'),
+      den: document.getElementById('bccn-den'),
+      btnSearch: document.getElementById('bccn-btn-search'),
+      thTen: document.getElementById('bccn-th-ten'),
+      tblBody: document.getElementById('bccn-tbl-body')
+    };
+    this.dom.loai.onchange = () => {
+      this.dom.thTen.textContent = this.dom.loai.value === 'CUSTOMER' ? 'Tên khách hàng' : 'Tên nhà cung cấp';
+    };
+    this.dom.btnSearch.onclick = () => this.search_();
+    this.initialized = true;
+  },
+
+  loadData() {
+    // Mặc định: tháng hiện tại (khớp evidence "Tháng/Năm" mặc định tháng nay).
+    const now = new Date();
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    this.dom.tu.value = this.toIso_(first);
+    this.dom.den.value = this.toIso_(now);
+    this.search_();
+  },
+
+  search_() {
+    const entityType = this.dom.loai.value;
+    const startIso = this.dom.tu.value || null;
+    const endIso = this.dom.den.value || null;
+
+    this.dom.tblBody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text2);font-style:italic"><span class="spin"></span> Đang tải...</td></tr>`;
+    ApiClient.call('apiThuChiDebtReport', { entityType: entityType, startIso: startIso, endIso: endIso })
+      .then(res => {
+        if (!res || !res.success) {
+          this.dom.tblBody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--red);font-weight:bold">Lỗi tải dữ liệu: ${(res && res.message) || 'Không xác định'}</td></tr>`;
+          return;
+        }
+        this.render_(res.data.rows || [], res.data.tong || {});
+      })
+      .catch(err => {
+        this.dom.tblBody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--red);font-weight:bold">Lỗi hệ thống: ${err.message}</td></tr>`;
+      });
+  },
+
+  render_(rows, tong) {
+    if (!rows.length) {
+      this.dom.tblBody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text2);font-style:italic">Không có dữ liệu</td></tr>`;
+      return;
+    }
+    const body = rows.map((r, idx) => `
+      <tr>
+        <td style="text-align:center;color:var(--text2)">${idx + 1}</td>
+        <td>${r.ten || '—'}</td>
+        <td style="text-align:right">${this.fmt_(r.duDauKy)}</td>
+        <td style="text-align:right">${this.fmt_(r.phatSinh)}</td>
+        <td style="text-align:right">${this.fmt_(r.thanhToan)}</td>
+        <td style="text-align:right">${this.fmt_(r.noTrongKy)}</td>
+        <td style="text-align:right">${this.fmt_(r.duCuoiKy)}</td>
+      </tr>`).join('');
+    const sumRow = `
+      <tr class="bccn-sum-tr">
+        <td colspan="2" style="text-align:center">TỔNG CỘNG</td>
+        <td style="text-align:right">${this.fmt_(tong.duDauKy)}</td>
+        <td style="text-align:right">${this.fmt_(tong.phatSinh)}</td>
+        <td style="text-align:right">${this.fmt_(tong.thanhToan)}</td>
+        <td style="text-align:right">${this.fmt_(tong.noTrongKy)}</td>
+        <td style="text-align:right">${this.fmt_(tong.duCuoiKy)}</td>
+      </tr>`;
+    this.dom.tblBody.innerHTML = sumRow + body;
+  },
+
+  toIso_(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  },
+
+  fmt_(v) {
+    const n = Math.round(Number(v) || 0);
+    return n.toLocaleString('vi-VN');
+  }
+};
+</script>

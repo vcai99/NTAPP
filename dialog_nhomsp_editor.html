@@ -1,0 +1,357 @@
+<style>
+/* =================================================================
+   CSS SCOPED FOR NHÓM SẢN PHẨM EDITOR DIALOG (.nsp-dlg-)
+   Đồng bộ Design System với dialog_doctor_editor.html / dialog_ncc_editor.html
+   ================================================================= */
+
+#nh-ov-nhomsp {
+  transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+.nsp-dlg-wrap {
+  width: 480px;
+  max-width: 94%;
+  background: #16213e;
+  border-radius: 8px;
+  border: 1px solid #0d3377;
+  padding: 0;
+  box-shadow: 0 10px 30px rgba(0,0,0,.6);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.nsp-dlg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid #0d3377;
+  background: #0d2144;
+  flex-shrink: 0;
+}
+.nsp-dlg-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #90caf9;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.nsp-dlg-close {
+  background: none;
+  border: none;
+  color: #ff5252;
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+  transition: color .15s;
+  padding: 0;
+}
+.nsp-dlg-close:hover { color: #ff1744; }
+
+.nsp-dlg-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #16213e;
+}
+.nsp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.nsp-lbl {
+  font-size: 11px;
+  font-weight: 500;
+  color: #90caf9;
+}
+.nsp-inp, .nsp-sel {
+  height: 30px;
+  background: #0d2144;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #e0e0e0;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color .15s;
+}
+.nsp-inp::placeholder { color: #546e7a; }
+.nsp-inp:focus, .nsp-sel:focus { border-color: #42a5f5; }
+
+textarea.nsp-inp {
+  height: 56px;
+  padding: 6px 8px;
+  resize: vertical;
+  font-family: Arial, sans-serif;
+}
+
+.nsp-dlg-foot {
+  padding: 12px 18px;
+  border-top: 1px solid #0d3377;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  background: #0d2144;
+  flex-shrink: 0;
+}
+.nsp-btn-save {
+  padding: 6px 16px;
+  background: #1565C0;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .15s;
+}
+.nsp-btn-save:hover { background: #0d47a1; }
+.nsp-btn-save:disabled { background: #263850; color: #78909c; cursor: not-allowed; }
+
+.nsp-btn-cancel {
+  padding: 6px 14px;
+  background: #263850;
+  color: #ccc;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .15s;
+}
+.nsp-btn-cancel:hover { background: #1e3060; }
+</style>
+
+<!-- ══ DIALOG: Thêm / Sửa Nhóm Sản Phẩm ══
+     Field theo đúng thứ tự reference TheLight (DM_NSP_Thelight.pdf):
+     Loại sản phẩm / Mã nhóm / Tên nhóm / Ghi chú.
+     PO Decision Sprint 1 mục 6: "Loại sản phẩm" chỉ có 1 option xác nhận
+     được từ reference ("Sản phẩm") — KHÔNG tự chế thêm option nào khác.
+     Nếu cần thêm option, phải chờ PO cung cấp danh sách đầy đủ. -->
+<div class="ov" id="nh-ov-nhomsp" onclick="NhomSPEditor._ovClick(event)">
+  <div class="nsp-dlg-wrap">
+    <!-- Header -->
+    <div class="nsp-dlg-head">
+      <span class="nsp-dlg-title" id="nhomsp-dlg-title-text">➕ Thêm mới nhóm sản phẩm</span>
+      <button class="nsp-dlg-close" onclick="NhomSPEditor.close()">&times;</button>
+    </div>
+
+    <div class="nsp-dlg-body">
+      <div class="nsp-field">
+        <label class="nsp-lbl">Loại sản phẩm</label>
+        <select id="nhomsp-editor-loai" class="nsp-sel">
+          <option value="Sản phẩm">Sản phẩm</option>
+        </select>
+      </div>
+      <div class="nsp-field">
+        <label class="nsp-lbl">Mã nhóm</label>
+        <input id="nhomsp-editor-manhom" class="nsp-inp" placeholder="Mã nhóm">
+      </div>
+      <div class="nsp-field">
+        <label class="nsp-lbl">Tên nhóm</label>
+        <input id="nhomsp-editor-tennhom" class="nsp-inp" placeholder="Tên nhóm">
+      </div>
+      <div class="nsp-field">
+        <label class="nsp-lbl">Ghi chú</label>
+        <textarea id="nhomsp-editor-ghichu" class="nsp-inp" placeholder="Ghi chú"></textarea>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="nsp-dlg-foot">
+      <button class="nsp-btn-save" id="nhomsp-editor-btn-save" onclick="NhomSPEditor.save()">&#10003; Lưu lại</button>
+      <button class="nsp-btn-cancel" onclick="NhomSPEditor.close()">&times; Thoát</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  NHÓM SẢN PHẨM EDITOR DIALOG (NhomSPEditor)
+//  File: dialog_nhomsp_editor.html
+//  Sprint 1 — Danh mục Nhóm Sản phẩm
+//  PO Decision mục 2: Mã nhóm nhập tay (không tự sinh mã).
+//  Reference cho thấy Mã nhóm là input thường (không readonly) cả ở dialog
+//  Sửa, nên cho phép đổi — maNhomOriginal (giá trị lúc mở dialog) được gửi
+//  kèm để backend xác định đúng record cần cập nhật.
+// ════════════════════════════════════════════════════════════════
+const NhomSPEditor = {
+
+  state: {
+    mode:     'create',   // 'create' | 'edit'
+    maNhom:   null,       // Mã nhóm gốc lúc mở dialog (dùng làm khóa tìm record)
+    onSaved:  null        // callback({ maNhom, tenNhom }) sau khi lưu
+  },
+
+  open(config = {}) {
+    this.state.mode    = config.mode    || 'create';
+    this.state.maNhom  = config.maNhom  || null;
+    this.state.onSaved = config.onSaved || null;
+
+    const titleEl = document.getElementById('nhomsp-dlg-title-text');
+    if (titleEl) {
+      titleEl.textContent = this.state.mode === 'edit'
+        ? '✏️ Sửa thông tin nhóm sản phẩm'
+        : '➕ Thêm mới nhóm sản phẩm';
+    }
+
+    this._resetForm();
+    this._bindKeys();
+
+    if (this.state.mode === 'edit' && this.state.maNhom) {
+      this._loadForEdit(this.state.maNhom);
+    }
+
+    const ov = document.getElementById('nh-ov-nhomsp');
+    if (ov) ov.classList.add('open');
+
+    setTimeout(() => {
+      const inp = document.getElementById('nhomsp-editor-manhom');
+      if (inp) inp.focus();
+    }, 160);
+  },
+
+  close() {
+    const ov = document.getElementById('nh-ov-nhomsp');
+    if (ov) ov.classList.remove('open');
+    this._unbindKeys();
+  },
+
+  save() {
+    const tenEl = document.getElementById('nhomsp-editor-tennhom');
+    const ten = tenEl ? tenEl.value.trim() : '';
+    if (!ten) {
+      toast('Tên nhóm không được để trống!', 'warn');
+      if (tenEl) {
+        tenEl.focus();
+        tenEl.style.borderColor = '#ef5350';
+        setTimeout(() => { tenEl.style.borderColor = ''; }, 2000);
+      }
+      return;
+    }
+
+    const btn = document.getElementById('nhomsp-editor-btn-save');
+    if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Đang lưu...'; }
+
+    const g = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+    const payload = {
+      maNhom:      g('nhomsp-editor-manhom'),
+      tenNhom:     ten,
+      loaiSanPham: g('nhomsp-editor-loai'),
+      ghiChu:      g('nhomsp-editor-ghichu')
+    };
+
+    const isEdit = (this.state.mode === 'edit' && this.state.maNhom);
+    const apiName = isEdit ? 'apiNhomSPUpdate' : 'apiNhomSPCreate';
+    const apiPayload = isEdit ? { ...payload, maNhomOriginal: this.state.maNhom } : payload;
+
+    ApiClient.call(apiName, apiPayload)
+      .then(res => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '&#10003; Lưu lại'; }
+
+        if (!res || !res.success) {
+          const msg = (res && res.message) ? res.message : 'Lỗi lưu nhóm sản phẩm';
+          toast(msg, 'warn');
+          return;
+        }
+
+        const saved = {
+          maNhom:  res.data.maNhom || payload.maNhom,
+          tenNhom: res.data.tenNhom || ten
+        };
+
+        toast(isEdit
+          ? `Đã cập nhật: ${saved.tenNhom}`
+          : `Đã thêm mới: ${saved.tenNhom}`,
+          'ok'
+        );
+
+        this.close();
+
+        if (typeof this.state.onSaved === 'function') {
+          this.state.onSaved(saved);
+        }
+      })
+      .catch(err => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '&#10003; Lưu lại'; }
+        toast('Lỗi hệ thống: ' + (err.message || err), 'err');
+      });
+  },
+
+  _resetForm() {
+    const ids = ['nhomsp-editor-manhom', 'nhomsp-editor-tennhom', 'nhomsp-editor-ghichu'];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.value = ''; el.style.borderColor = ''; }
+    });
+    const loaiSel = document.getElementById('nhomsp-editor-loai');
+    if (loaiSel) loaiSel.selectedIndex = 0;
+
+    const btn = document.getElementById('nhomsp-editor-btn-save');
+    if (btn) { btn.disabled = false; btn.innerHTML = '&#10003; Lưu lại'; }
+  },
+
+  _loadForEdit(maNhom) {
+    ApiClient.call('apiNhomSPLoad')
+      .then(res => {
+        let list = [];
+        if (res && res.success && Array.isArray(res.data)) {
+          list = res.data;
+        }
+
+        const group = list.find(g => String(g.maNhom) === String(maNhom));
+        if (!group) {
+          toast('Không tìm thấy nhóm sản phẩm: ' + maNhom, 'warn');
+          return;
+        }
+
+        const set = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.value = val || '';
+        };
+        set('nhomsp-editor-manhom',  group.maNhom);
+        set('nhomsp-editor-tennhom', group.tenNhom);
+        set('nhomsp-editor-ghichu',  group.ghiChu);
+
+        const loaiSel = document.getElementById('nhomsp-editor-loai');
+        if (loaiSel && group.loaiSanPham) loaiSel.value = group.loaiSanPham;
+      })
+      .catch(err => {
+        console.error('NhomSPEditor._loadForEdit error:', err);
+        toast('Lỗi tải dữ liệu nhóm sản phẩm: ' + (err.message || err), 'err');
+      });
+  },
+
+  _onKeydown(e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      NhomSPEditor.save();
+    }
+    if (e.key === 'Escape') {
+      NhomSPEditor.close();
+    }
+  },
+
+  _bindKeys() {
+    const ov = document.getElementById('nh-ov-nhomsp');
+    if (ov) ov.addEventListener('keydown', this._onKeydown);
+  },
+
+  _unbindKeys() {
+    const ov = document.getElementById('nh-ov-nhomsp');
+    if (ov) ov.removeEventListener('keydown', this._onKeydown);
+  },
+
+  _ovClick(e) {
+    if (e.target.id === 'nh-ov-nhomsp') this.close();
+  }
+};
+</script>

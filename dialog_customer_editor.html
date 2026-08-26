@@ -1,0 +1,496 @@
+<style>
+/* =================================================================
+   CSS SCOPED FOR CUSTOMER EDITOR DIALOG (.cus-)
+   Đồng bộ Design System với dialog_ncc_editor.html
+   ================================================================= */
+
+#cus-ov {
+  transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+.cus-dlg-wrap {
+  width: 760px;
+  max-width: 94%;
+  background: #16213e;
+  border-radius: 8px;
+  border: 1px solid #0d3377;
+  padding: 0;
+  box-shadow: 0 10px 30px rgba(0,0,0,.6);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.cus-dlg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid #0d3377;
+  background: #0d2144;
+  flex-shrink: 0;
+}
+.cus-dlg-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #90caf9;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.cus-dlg-close {
+  background: none;
+  border: none;
+  color: #ff5252;
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+  transition: color .15s;
+  padding: 0;
+}
+.cus-dlg-close:hover { color: #ff1744; }
+
+.cus-dlg-body {
+  padding: 18px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 12px 14px;
+  background: #16213e;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.cus-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cus-field.span2 { grid-column: span 2; }
+.cus-field.span4 { grid-column: span 4; }
+
+.cus-lbl {
+  font-size: 11px;
+  font-weight: 500;
+  color: #90caf9;
+}
+.cus-inp, .cus-sel {
+  height: 30px;
+  background: #0d2144;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #e0e0e0;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color .15s;
+}
+.cus-inp::placeholder { color: #546e7a; }
+.cus-inp:focus, .cus-sel:focus { border-color: #42a5f5; }
+.cus-inp[readonly] { color: #546e7a; cursor: default; }
+
+/* Tuổi + Năm/Tháng ghép chung 1 field, giống đúng bố cục TheLight */
+.cus-field-pair {
+  display: flex;
+  gap: 4px;
+}
+.cus-field-pair .cus-inp { flex: 1 1 60%; }
+.cus-field-pair .cus-sel { flex: 1 1 40%; }
+
+.cus-check-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  grid-column: span 4;
+  padding-top: 4px;
+  flex-wrap: wrap;
+}
+.cus-check-lbl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e0e0e0;
+  cursor: pointer;
+  user-select: none;
+}
+.cus-check-lbl input[type=checkbox] {
+  accent-color: #42a5f5;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.cus-dlg-foot {
+  padding: 12px 18px;
+  border-top: 1px solid #0d3377;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  background: #0d2144;
+  flex-shrink: 0;
+}
+.cus-btn-save {
+  padding: 6px 16px;
+  background: #1565C0;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .15s;
+}
+.cus-btn-save:hover { background: #0d47a1; }
+.cus-btn-save:disabled { background: #263850; color: #78909c; cursor: not-allowed; }
+
+.cus-btn-cancel {
+  padding: 6px 14px;
+  background: #263850;
+  color: #ccc;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .15s;
+}
+.cus-btn-cancel:hover { background: #1e3060; }
+</style>
+
+<!-- ══ DIALOG: Thêm / Sửa Khách Hàng (Sprint 7.0) ══
+     Layout clone đúng ảnh chụp màn hình thật "Thêm mới khách hàng" của
+     TheLight (PO cung cấp). Các field mới (Mức giảm giá, Tuổi, Năm/Tháng,
+     Tên đơn vị xuất HĐĐT, Mã ĐVNS, Gửi thông báo khi bán hàng) chỉ persist
+     giá trị thô — KHÔNG có nghiệp vụ nào được tự chế/gắn thêm cho chúng,
+     ý nghĩa nghiệp vụ thật vẫn Pending Product Owner. ══ -->
+<div class="ov" id="cus-ov" onclick="CustomerEditor._ovClick(event)">
+  <div class="cus-dlg-wrap">
+    <div class="cus-dlg-head">
+      <span class="cus-dlg-title" id="cus-dlg-title-text">➕ Thêm mới khách hàng</span>
+      <button class="cus-dlg-close" onclick="CustomerEditor.close()">&times;</button>
+    </div>
+
+    <div class="cus-dlg-body">
+      <!-- Hàng 1: Mã KH | Tên KH | Điện thoại | Ngày sinh -->
+      <div class="cus-field">
+        <label class="cus-lbl">Mã khách hàng</label>
+        <input id="cus-editor-ma" class="cus-inp" placeholder="Tự động" readonly>
+      </div>
+      <div class="cus-field">
+        <label class="cus-lbl">Tên khách hàng *</label>
+        <input id="cus-editor-ten" class="cus-inp" placeholder="Tên khách hàng/Người giám hộ">
+      </div>
+      <div class="cus-field">
+        <label class="cus-lbl">Điện thoại</label>
+        <input id="cus-editor-sdt" class="cus-inp" placeholder="Điện thoại">
+      </div>
+      <div class="cus-field">
+        <label class="cus-lbl">Ngày sinh</label>
+        <input id="cus-editor-ngaysinh" class="cus-inp" type="date">
+      </div>
+
+      <!-- Hàng 2: Địa chỉ (span4) -->
+      <div class="cus-field span4">
+        <label class="cus-lbl">Địa chỉ</label>
+        <input id="cus-editor-diachi" class="cus-inp" placeholder="Địa chỉ">
+      </div>
+
+      <!-- Hàng 3: Giới tính | Cân nặng | Mức giảm giá (%) | Tuổi + Năm/Tháng -->
+      <div class="cus-field">
+        <label class="cus-lbl">Giới tính</label>
+        <select id="cus-editor-gioitinh" class="cus-sel">
+          <option value="">-- Chọn --</option>
+          <option value="Nam">Nam</option>
+          <option value="Nữ">Nữ</option>
+        </select>
+      </div>
+      <div class="cus-field">
+        <label class="cus-lbl">Cân nặng</label>
+        <input id="cus-editor-cannang" class="cus-inp" placeholder="Cân nặng">
+      </div>
+      <div class="cus-field">
+        <label class="cus-lbl">Mức giảm giá (%)</label>
+        <input id="cus-editor-mucgiamgia" class="cus-inp" type="number" min="0" max="100" placeholder="Mức giảm giá (%)">
+      </div>
+      <div class="cus-field">
+        <label class="cus-lbl">Tuổi</label>
+        <div class="cus-field-pair">
+          <input id="cus-editor-tuoi" class="cus-inp" type="number" min="0" placeholder="Tuổi">
+          <select id="cus-editor-donvituoi" class="cus-sel">
+            <option value="Năm">Năm</option>
+            <option value="Tháng">Tháng</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Hàng 4: Mã số thuế | Tên đơn vị xuất HĐĐT | Mã ĐVNS | Email -->
+      <div class="cus-field">
+        <label class="cus-lbl">Mã số thuế</label>
+        <input id="cus-editor-mst" class="cus-inp" placeholder="Mã số thuế">
+      </div>
+      <div class="cus-field">
+        <label class="cus-lbl">Tên đơn vị xuất HĐĐT</label>
+        <input id="cus-editor-tendvhddt" class="cus-inp" placeholder="Tên đơn vị xuất HĐĐT">
+      </div>
+      <div class="cus-field">
+        <label class="cus-lbl">Mã ĐVNS</label>
+        <input id="cus-editor-madvns" class="cus-inp" placeholder="Mã ĐVNS">
+      </div>
+      <div class="cus-field">
+        <label class="cus-lbl">Email</label>
+        <input id="cus-editor-email" class="cus-inp" placeholder="Email" type="email">
+      </div>
+
+      <!-- Hàng 5: Ghi chú (span4) -->
+      <div class="cus-field span4">
+        <label class="cus-lbl">Ghi chú</label>
+        <input id="cus-editor-ghichu" class="cus-inp" placeholder="Ghi chú">
+      </div>
+
+      <!-- Hàng 6: checkbox -->
+      <div class="cus-check-row">
+        <label class="cus-check-lbl">
+          <input type="checkbox" id="cus-editor-tichdiem" checked>
+          Tích điểm
+        </label>
+        <label class="cus-check-lbl">
+          <input type="checkbox" id="cus-editor-macdinhban">
+          Mặc định bán
+        </label>
+        <label class="cus-check-lbl">
+          <input type="checkbox" id="cus-editor-noibo" checked>
+          KH nội bộ
+        </label>
+        <label class="cus-check-lbl">
+          <input type="checkbox" id="cus-editor-guithongbao" checked>
+          Gửi thông báo khi bán hàng
+        </label>
+      </div>
+    </div>
+
+    <div class="cus-dlg-foot">
+      <button class="cus-btn-save" id="cus-editor-btn-save" onclick="CustomerEditor.save()">✔ Lưu lại</button>
+      <button class="cus-btn-cancel" onclick="CustomerEditor.close()">✕ Thoát</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  CUSTOMER EDITOR DIALOG (CustomerEditor)
+//  File: dialog_customer_editor.html — Sprint 7.0
+//  Theo pattern NccEditor/DvtEditor — hoạt động độc lập, giao tiếp qua
+//  callback onSaved. Không chứa business logic của module gọi nó.
+// ════════════════════════════════════════════════════════════════
+const CustomerEditor = {
+
+  state: {
+    mode:    'create',   // 'create' | 'edit'
+    maKH:    null,
+    onSaved: null        // callback(customer) sau khi lưu
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  //  PUBLIC API
+  // ─────────────────────────────────────────────────────────────
+
+  // config: { mode: 'create'|'edit', maKH, onSaved(customer) }
+  open(config = {}) {
+    this.state.mode    = config.mode    || 'create';
+    this.state.maKH    = config.maKH    || null;
+    this.state.onSaved = config.onSaved || null;
+
+    const titleEl = document.getElementById('cus-dlg-title-text');
+    if (titleEl) {
+      titleEl.textContent = this.state.mode === 'edit'
+        ? '✏️ Chỉnh sửa khách hàng'
+        : '➕ Thêm mới khách hàng';
+    }
+
+    this._resetForm();
+    this._bindKeys();
+
+    if (this.state.mode === 'edit' && this.state.maKH) {
+      this._loadForEdit(this.state.maKH);
+    }
+
+    const ov = document.getElementById('cus-ov');
+    if (ov) ov.classList.add('open');
+
+    setTimeout(() => {
+      const inp = document.getElementById('cus-editor-ten');
+      if (inp) inp.focus();
+    }, 160);
+  },
+
+  close() {
+    const ov = document.getElementById('cus-ov');
+    if (ov) ov.classList.remove('open');
+    this._unbindKeys();
+  },
+
+  save() {
+    const tenEl = document.getElementById('cus-editor-ten');
+    const ten = tenEl ? tenEl.value.trim() : '';
+    if (!ten) {
+      toast('Tên khách hàng không được để trống!', 'warn');
+      if (tenEl) {
+        tenEl.focus();
+        tenEl.style.borderColor = '#ef5350';
+        setTimeout(() => { tenEl.style.borderColor = ''; }, 2000);
+      }
+      return;
+    }
+
+    const btn = document.getElementById('cus-editor-btn-save');
+    if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Đang lưu...'; }
+
+    const g = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+    const c = id => !!(document.getElementById(id) || {}).checked;
+
+    const payload = {
+      tenKH:             ten,
+      sdt:                g('cus-editor-sdt'),
+      diaChi:             g('cus-editor-diachi'),
+      ngaySinh:           g('cus-editor-ngaysinh'),
+      gioiTinh:           g('cus-editor-gioitinh'),
+      canNang:            g('cus-editor-cannang'),
+      mucGiamGia:         g('cus-editor-mucgiamgia'),
+      tuoi:               g('cus-editor-tuoi'),
+      donViTuoi:          g('cus-editor-donvituoi'),
+      maSoThue:           g('cus-editor-mst'),
+      tenDonViXuatHDDT:   g('cus-editor-tendvhddt'),
+      maDVNS:             g('cus-editor-madvns'),
+      email:              g('cus-editor-email'),
+      ghiChu:             g('cus-editor-ghichu'),
+      tichDiem:           c('cus-editor-tichdiem'),
+      macDinhBan:         c('cus-editor-macdinhban'),
+      khachNoiBo:         c('cus-editor-noibo'),
+      guiThongBaoKhiBan:  c('cus-editor-guithongbao')
+    };
+
+    const isEdit = (this.state.mode === 'edit' && this.state.maKH);
+    const apiCall = isEdit
+      ? CustomerService.update(Object.assign({}, payload, { maKH: this.state.maKH }))
+      : CustomerService.save(payload);
+
+    apiCall
+      .then(customer => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '✔ Lưu lại'; }
+
+        toast(isEdit
+          ? `Đã cập nhật: ${customer.tenKH || ten}`
+          : `Đã thêm mới: ${customer.tenKH || ten}`,
+          'ok'
+        );
+
+        this.close();
+
+        if (typeof this.state.onSaved === 'function') {
+          this.state.onSaved(customer);
+        }
+      })
+      .catch(err => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '✔ Lưu lại'; }
+        toast(err.message || 'Lỗi lưu khách hàng', 'err');
+      });
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  //  PRIVATE HELPERS
+  // ─────────────────────────────────────────────────────────────
+
+  _resetForm() {
+    const ids = ['cus-editor-ma','cus-editor-ten','cus-editor-sdt','cus-editor-ngaysinh',
+                 'cus-editor-diachi','cus-editor-cannang','cus-editor-mucgiamgia','cus-editor-tuoi',
+                 'cus-editor-mst','cus-editor-tendvhddt','cus-editor-madvns','cus-editor-email',
+                 'cus-editor-ghichu'];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.value = ''; el.style.borderColor = ''; }
+    });
+    const gt = document.getElementById('cus-editor-gioitinh');
+    if (gt) gt.value = '';
+    const dvt = document.getElementById('cus-editor-donvituoi');
+    if (dvt) dvt.value = 'Năm';
+
+    const cbTichDiem  = document.getElementById('cus-editor-tichdiem');
+    const cbMacDinh   = document.getElementById('cus-editor-macdinhban');
+    const cbNoiBo     = document.getElementById('cus-editor-noibo');
+    const cbThongBao  = document.getElementById('cus-editor-guithongbao');
+    if (cbTichDiem) cbTichDiem.checked = true;
+    if (cbMacDinh)  cbMacDinh.checked  = false;
+    if (cbNoiBo)    cbNoiBo.checked    = true;
+    if (cbThongBao) cbThongBao.checked = true;
+
+    const btn = document.getElementById('cus-editor-btn-save');
+    if (btn) { btn.disabled = false; btn.innerHTML = '✔ Lưu lại'; }
+  },
+
+  _loadForEdit(maKH) {
+    const maEl = document.getElementById('cus-editor-ma');
+    if (maEl) maEl.value = maKH;
+
+    CustomerService.find(maKH)
+      .then(customer => {
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+        set('cus-editor-ma',          customer.maKH);
+        set('cus-editor-ten',         customer.tenKH);
+        set('cus-editor-sdt',         customer.sdt);
+        set('cus-editor-diachi',      customer.diaChi);
+        set('cus-editor-ngaysinh',    customer.ngaySinh);
+        set('cus-editor-gioitinh',    customer.gioiTinh);
+        set('cus-editor-cannang',     customer.canNang);
+        set('cus-editor-mucgiamgia',  customer.mucGiamGia);
+        set('cus-editor-tuoi',        customer.tuoi);
+        set('cus-editor-donvituoi',   customer.donViTuoi || 'Năm');
+        set('cus-editor-mst',         customer.maSoThue);
+        set('cus-editor-tendvhddt',   customer.tenDonViXuatHDDT);
+        set('cus-editor-madvns',      customer.maDVNS);
+        set('cus-editor-email',       customer.email);
+        set('cus-editor-ghichu',      customer.ghiChu);
+
+        const cbTichDiem  = document.getElementById('cus-editor-tichdiem');
+        const cbMacDinh   = document.getElementById('cus-editor-macdinhban');
+        const cbNoiBo     = document.getElementById('cus-editor-noibo');
+        const cbThongBao  = document.getElementById('cus-editor-guithongbao');
+        if (cbTichDiem) cbTichDiem.checked = !!customer.tichDiem;
+        if (cbMacDinh)  cbMacDinh.checked  = !!customer.macDinhBan;
+        if (cbNoiBo)    cbNoiBo.checked    = !!customer.khachNoiBo;
+        if (cbThongBao) cbThongBao.checked = !!customer.guiThongBaoKhiBan;
+      })
+      .catch(err => {
+        toast('Lỗi tải dữ liệu khách hàng: ' + (err.message || err), 'err');
+      });
+  },
+
+  _onKeydown(e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      CustomerEditor.save();
+    }
+    if (e.key === 'Escape') {
+      CustomerEditor.close();
+    }
+  },
+
+  _bindKeys() {
+    const ov = document.getElementById('cus-ov');
+    if (ov) ov.addEventListener('keydown', this._onKeydown);
+  },
+
+  _unbindKeys() {
+    const ov = document.getElementById('cus-ov');
+    if (ov) ov.removeEventListener('keydown', this._onKeydown);
+  },
+
+  _ovClick(e) {
+    if (e.target.id === 'cus-ov') this.close();
+  }
+};
+</script>

@@ -1,0 +1,32 @@
+<script>
+/* UI-only currency formatting. Values sent to services remain Numbers. */
+const CurrencyUtils = {
+  parseMoney(value) {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+    const normalized = String(value ?? '').trim().replace(/[^0-9-]/g, '');
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  },
+
+  formatMoney(value) {
+    return Math.round(this.parseMoney(value)).toLocaleString('vi-VN');
+  },
+
+  formatInput(input) {
+    if (input) input.value = this.formatMoney(input.value);
+  }
+};
+
+function formatMoney(value) { return CurrencyUtils.formatMoney(value); }
+function parseMoney(value) { return CurrencyUtils.parseMoney(value); }
+
+document.addEventListener('blur', event => {
+  if (event.target.matches('.money-input')) CurrencyUtils.formatInput(event.target);
+}, true);
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Enter' && event.target.matches('.money-input')) {
+    CurrencyUtils.formatInput(event.target);
+  }
+});
+</script>

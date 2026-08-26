@@ -1,0 +1,567 @@
+<style>
+.layout{display:none}
+.layout.show{display:flex;height:calc(100vh - 52px);min-height:0}
+.sidebar{width:250px;min-width:250px;background:#16213e;border-right:1px solid #0d3377;padding:10px;display:flex;flex-direction:column;gap:8px;overflow-y:auto}
+.sb-lbl{font-size:var(--fs-1);color:#90caf9;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
+.sb-sel,.sb-inp{width:100%;height:var(--h-4);padding:0 8px;background:#0d2144;border:1px solid #1e4080;border-radius:4px;color:#e0e0e0;font-size:var(--fs-3)}
+.sb-sel:focus,.sb-inp:focus{outline:none;border-color:#42a5f5}
+.sb-inp::placeholder{color:#546e7a}
+.sb-divider{height:1px;background:#1e4080;margin:4px 0}
+.sb-stat{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.stat{background:#0d2144;border:1px solid #1e4080;border-radius:5px;padding:8px}
+.stat b{display:block;font-size:20px;color:#42a5f5}
+.stat span{font-size:var(--fs-1);color:#90caf9;text-transform:uppercase}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.dm-topbar{background:#16213e;border-bottom:1px solid #0d3377;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0}
+.topbar-left{display:flex;align-items:center;gap:6px;min-width:0;flex:1}
+.topbar-right{font-size:var(--fs-3);font-weight:600;color:#90caf9;letter-spacing:.3px;white-space:nowrap}
+.btn{padding:6px 14px;border-radius:4px;font-size:var(--fs-3);font-weight:600;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.b-green{background:#43a047;color:#fff}.b-green:hover{background:#2e7d32}
+.b-blue{background:#1565C0;color:#fff}.b-blue:hover{background:#0d47a1}
+.b-gray{background:#263850;color:#ccc;border:1px solid #1e4080}.b-gray:hover{background:#1e3060}
+.b-red{background:#c62828;color:#fff}.b-red:hover{background:#b71c1c}
+.b-icon{background:#2e7d32;color:#fff;padding:6px 10px;border-radius:4px;cursor:pointer;border:none;font-size:var(--fs-icon)}
+.search{height:var(--h-4);min-width:240px;flex:1;padding:0 8px;background:#0d2144;border:1px solid #1e4080;border-radius:4px;color:#e0e0e0;font-size:var(--fs-3)}
+.search:focus{outline:none;border-color:#42a5f5}
+.pw{position:relative}
+.col-panel{position:absolute;top:34px;left:0;width:235px;background:#16213e;border:1px solid #1565C0;border-radius:5px;z-index:999;display:none;box-shadow:0 6px 20px rgba(0,0,0,.5);padding:8px}
+.col-panel.open{display:block}
+.ck{display:flex;align-items:center;gap:7px;color:#90caf9;font-size:var(--fs-2);height:var(--h-3);cursor:pointer}
+.ck input{accent-color:#43a047}
+.summary-row{background:#0d3377;display:flex;border-bottom:1px solid #1e4080;flex-shrink:0}
+.sum-cell{padding:8px 10px;border-right:1px solid #1e4080;font-size:var(--fs-2);color:#90caf9;font-weight:500;min-width:130px}
+.sum-cell.label{font-weight:700;color:#fff;background:#0a2560;min-width:210px}
+.sum-cell .val{color:#66bb6a;font-weight:700;font-size:var(--fs-2)}
+.tbl-wrap{flex:1;overflow:auto;min-height:0}
+table{width:100%;border-collapse:collapse;min-width:1180px}
+thead{position:sticky;top:0;z-index:10}
+thead tr{background:#0d3377}
+th{padding:8px 10px;text-align:left;font-size:var(--fs-1);font-weight:600;color:#90caf9;border-bottom:1px solid #1565C0;border-right:1px solid #1e4080;white-space:nowrap}
+th:last-child{border-right:none}
+tbody tr{border-bottom:1px solid #1a2a4a;transition:background .12s}
+tbody tr:hover{background:#1e2d50}
+td{padding:7px 10px;font-size:var(--fs-2);color:#e0e0e0;border-right:1px solid #1a2a4a;vertical-align:middle}
+td:last-child{border-right:none}
+.tag{display:inline-block;font-size:var(--fs-1);padding:2px 7px;border-radius:3px;font-weight:600}
+.tag-id{background:#1e3a6e;color:#90caf9}
+.tbl-act{display:flex;gap:4px}
+.btn-mini{border:none;border-radius:3px;padding:3px 8px;font-size:var(--fs-1);cursor:pointer;font-weight:600}
+.pager{background:#16213e;border-top:1px solid #0d3377;padding:8px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.pg-info{font-size:var(--fs-2);color:#546e7a}
+.pg-btns{display:flex;gap:4px;align-items:center}
+.pg-btn{min-width:var(--h-2);height:var(--h-2);border:1px solid #1e4080;background:#0d2144;color:#90caf9;border-radius:4px;cursor:pointer;font-size:var(--fs-2);display:flex;align-items:center;justify-content:center;padding:0 8px}
+.pg-btn:hover{background:#1e3060;color:#fff}
+.pg-btn.on{background:#1565C0;color:#fff;border-color:#1565C0}
+.pg-btn:disabled{opacity:.4;cursor:not-allowed}
+</style>
+
+<div class="page layout" id="page-dm_sanpham">
+  <!-- SIDEBAR (BỘ LỌC TĨNH) -->
+  <div class="sidebar">
+    <div>
+      <div class="sb-lbl">Nhóm sản phẩm</div>
+      <select id="f-nhom" class="sb-sel">
+        <option value="">Tất cả</option>
+        <option>1. Dược phẩm</option>
+        <option>2. Thực phẩm chức năng</option>
+        <option>3. Mỹ phẩm</option>
+        <option>4. Vật tư y tế</option>
+      </select>
+    </div>
+    <div>
+      <div class="sb-lbl">Nhà cung cấp</div>
+      <select id="f-ncc" class="sb-sel">
+        <option value="">Tất cả NCC</option>
+      </select>
+    </div>
+    <div>
+      <div class="sb-lbl">Hãng sản xuất</div>
+      <select id="f-hang" class="sb-sel">
+        <option value="">Tất cả hãng</option>
+      </select>
+    </div>
+    <div>
+      <div class="sb-lbl">Vị trí</div>
+      <select id="f-vitri" class="sb-sel">
+        <option value="">Tất cả vị trí</option>
+      </select>
+    </div>
+    <div class="sb-divider"></div>
+    <div>
+      <div class="sb-lbl">APP tích điểm</div>
+      <select id="f-app" class="sb-sel">
+        <option value="">Tất cả</option>
+        <option value="true">Có</option>
+        <option value="false">Không</option>
+      </select>
+    </div>
+    <div>
+      <div class="sb-lbl">Trạng thái</div>
+      <select id="f-active" class="sb-sel">
+        <option value="">Tất cả</option>
+        <option value="true" selected>Đang kinh doanh</option>
+        <option value="false">Ngừng kinh doanh</option>
+      </select>
+    </div>
+    <div class="sb-divider"></div>
+    <button class="btn b-green" id="dm-btn-reload" style="width:100%;justify-content:center">Tải lại dữ liệu</button>
+    <div class="sb-stat">
+      <div class="stat"><b id="st-total">0</b><span>Tổng SP</span></div>
+      <div class="stat"><b id="st-filter">0</b><span>Đang lọc</span></div>
+    </div>
+  </div>
+
+  <!-- MAIN AREA -->
+  <div class="main">
+    <!-- TOOLBAR & ACTIONS -->
+    <div class="dm-topbar">
+      <div class="topbar-left">
+        <button class="btn b-green" id="dm-btn-add-product">+ Thêm sản phẩm mới</button>
+        <div class="pw">
+          <button class="btn b-gray" id="dm-btn-cols">☰ Chọn cột</button>
+          <div class="col-panel" id="col-panel"></div>
+        </div>
+        <button class="b-icon" id="dm-btn-export-excel" title="Xuất Excel">⬇</button>
+        <button class="b-icon" id="dm-btn-import-excel" title="Import Excel">⬆</button>
+        <input id="search" class="search" placeholder="Tên SP / Mã SP / Mã vạch / SĐK">
+      </div>
+      <div class="topbar-right">Danh mục sản phẩm</div>
+    </div>
+
+    <!-- SUMMARY ROW -->
+    <div class="summary-row">
+      <div class="sum-cell label">TỔNG QUAN DANH MỤC</div>
+      <div class="sum-cell"><div>Tổng sản phẩm</div><div class="val" id="sum-total">0</div></div>
+      <div class="sum-cell"><div>Đang kinh doanh</div><div class="val" id="sum-active">0</div></div>
+      <div class="sum-cell"><div>Ngừng kinh doanh</div><div class="val" id="sum-stop" style="color:#ffcc02">0</div></div>
+      <div class="sum-cell"><div>Có APP tích điểm</div><div class="val" id="sum-app" style="color:#42a5f5">0</div></div>
+    </div>
+
+    <!-- DATA GRID -->
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr id="tbl-head">
+            <th style="width: 80px;">Mã</th>
+            <th>Tên sản phẩm</th>
+            <th style="width: 60px;">ĐVT</th>
+            <th style="width: 120px;">Hãng SX</th>
+            <th style="width: 100px;">Giá nhập</th>
+            <th style="width: 100px;">Giá bán lẻ</th>
+            <th style="width: 100px;">Giá bán buôn</th>
+            <th style="width: 120px;">SĐK/GPNK</th>
+            <th style="width: 105px;">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody id="tbl-body">
+        </tbody>
+      </table>
+    </div>
+
+    <!-- PAGER -->
+    <div class="pager">
+      <div class="pg-info" id="pg-info">Hiển thị 0-0/0 sản phẩm</div>
+      <div class="pg-btns">
+        <select class="sb-sel" style="width:86px;height:var(--h-4)">
+          <option>20</option>
+          <option>50</option>
+          <option>100</option>
+        </select>
+        <div class="pg-btns">
+          <button class="pg-btn" disabled>‹</button>
+          <button class="pg-btn on">1</button>
+          <button class="pg-btn" disabled>›</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DanhMucModule = {
+  config: {
+    columns: [
+      { key: 'maSP', label: 'Mã', visible: true },
+      { key: 'tenSP', label: 'Tên sản phẩm', visible: true },
+      { key: 'dvtGoc', label: 'ĐVT', visible: true },
+      { key: 'hangSX', label: 'Hãng SX', visible: true },
+      { key: 'giaNhapMacDinh', label: 'Giá nhập', visible: true },
+      { key: 'giaBanLe', label: 'Giá bán lẻ', visible: true },
+      { key: 'giaBanBuon', label: 'Giá bán buôn', visible: true },
+      { key: 'sdk', label: 'SĐK/GPNK', visible: true }
+    ],
+    pageSize: 20
+  },
+
+  mock: {
+    products: []
+  },
+
+  state: {
+    allProducts: [],
+    filteredProducts: [],
+    loading: false,
+    paging: {
+      currentPage: 1,
+      pageSize: 20
+    },
+    selectedRow: null,
+    sort: {
+      key: null,
+      asc: true
+    }
+  },
+
+  initialized: false,
+
+  init() {
+    if (!this.initialized) {
+      this.bindEvents();
+      this.buildColPanel();
+      this.initialized = true;
+    }
+    this.loadData();
+  },
+
+  bindEvents() {
+    const reloadBtn = document.getElementById('dm-btn-reload');
+    if (reloadBtn) {
+      reloadBtn.onclick = () => this.loadData();
+    }
+
+    const addProductBtn = document.getElementById('dm-btn-add-product');
+    if (addProductBtn) {
+      addProductBtn.onclick = () => {
+        ProductEditor.open({
+          mode: 'create',
+          onSave: (payload, action) => this.handleSave(payload, action)
+        });
+      };
+    }
+
+    const exportBtn = document.getElementById('dm-btn-export-excel');
+    if (exportBtn) {
+      exportBtn.onclick = () => {
+        toast('Tính năng Xuất Excel sẽ hoạt động ở Sprint sau', 'warn');
+      };
+    }
+
+    const importBtn = document.getElementById('dm-btn-import-excel');
+    if (importBtn) {
+      importBtn.onclick = () => {
+        toast('Tính năng Nhập Excel sẽ hoạt động ở Sprint sau', 'warn');
+      };
+    }
+
+    const searchInp = document.getElementById('search');
+    if (searchInp) {
+      searchInp.oninput = () => this.applyFilter();
+    }
+
+    // Bind sidebar select dropdowns filter
+    ['f-nhom', 'f-ncc', 'f-hang', 'f-vitri', 'f-app', 'f-active'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.onchange = () => this.applyFilter();
+    });
+
+    // Bind column panel toggle
+    const btnCols = document.getElementById('dm-btn-cols');
+    const colPanel = document.getElementById('col-panel');
+    if (btnCols && colPanel) {
+      btnCols.onclick = (e) => {
+        e.stopPropagation();
+        colPanel.classList.toggle('open');
+      };
+      
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.pw')) {
+          colPanel.classList.remove('open');
+        }
+      });
+    }
+
+    // Table Header Click Delegation (for sorting)
+    const tblHead = document.getElementById('tbl-head');
+    if (tblHead) {
+      tblHead.onclick = (e) => {
+        const th = e.target.closest('th[data-sort]');
+        if (th) {
+          const key = th.getAttribute('data-sort');
+          this.sort(key);
+        }
+      };
+    }
+
+    // Table Body Click Delegation (for editing)
+    const tblBody = document.getElementById('tbl-body');
+    if (tblBody) {
+      tblBody.onclick = (e) => {
+        const editBtn = e.target.closest('.btn-mini.b-blue');
+        if (editBtn) {
+          const maSP = editBtn.getAttribute('data-ma');
+          ProductEditor.open({
+            mode: 'edit',
+            productId: maSP,
+            onSave: (payload, action) => this.handleSave(payload, action)
+          });
+        }
+        const delBtn = e.target.closest('.btn-mini.b-red');
+        if (delBtn) {
+          const maSP = delBtn.getAttribute('data-ma');
+          // REUSE window.showConfirm() (đúng convention chung của project,
+          // VD mod_dsphieu.html::xoaPhieu()) thay vì confirm() gốc của
+          // trình duyệt — theo yêu cầu PO, mọi xác nhận phải hiện dạng
+          // thông báo góc phải màn hình, không dùng popup hệ thống.
+          window.showConfirm('Bạn có chắc chắn muốn xóa sản phẩm ' + maSP + ' không?', 'Xác nhận xóa sản phẩm')
+            .then(ok => {
+              if (!ok) return;
+              showLoading();
+              ProductService.remove(maSP)
+                .then(() => {
+                  hideLoading();
+                  toast('Xóa sản phẩm thành công', 'ok');
+                  this.loadData();
+                })
+                .catch(err => {
+                  hideLoading();
+                  toast(err.message, 'err');
+                });
+            });
+        }
+      };
+    }
+  },
+
+  loadData() {
+    this.state.loading = true;
+    document.getElementById('tbl-body').innerHTML =
+      '<tr><td colspan="9" class="loading" style="text-align:center;padding:20px;"><span class="spin"></span>Đang tải dữ liệu...</td></tr>';
+    
+    const loadStart = performance.now();
+    ProductService.load()
+      .then(products => {
+        const loadEnd = performance.now();
+        console.log(`--- PERF: ProductService.load() took ${(loadEnd - loadStart).toFixed(2)}ms`);
+        console.log("--- DEBUG ProductService.load() return ---");
+        console.log(products);
+        console.log(typeof products);
+        console.log(Array.isArray(products));
+        this.state.allProducts = products;
+        
+        const renderStart = performance.now();
+        this.fillFilters();
+        this.applyFilter();
+        const renderEnd = performance.now();
+        console.log(`--- PERF: UI rendering took ${(renderEnd - renderStart).toFixed(2)}ms`);
+        this.state.loading = false;
+      })
+      .catch(err => {
+        toast('Lỗi tải dữ liệu: ' + err.message, 'err');
+        this.state.loading = false;
+      });
+  },
+
+  handleSave(payload, action) {
+    showLoading();
+    ProductEditor.setLoading(true);
+    // Dùng thẳng trạng thái mode/productId của chính dialog (set khi mở
+    // ProductEditor.open({mode,...}) — đáng tin cậy tuyệt đối) thay vì suy
+    // ra isEdit bằng cách so `payload.product.maSP` với cache `allProducts`
+    // đã tải trước đó — cache này có thể bị stale (VD: sản phẩm vừa được
+    // tạo ở nơi khác, hoặc danh sách chưa refresh), khiến gọi nhầm
+    // ProductService.save() (Create) cho 1 mã ĐÃ TỒN TẠI → ghi trùng dòng
+    // trên Sheet (bug thật đã xảy ra: 1 MaSP xuất hiện nhiều dòng khác giá).
+    const isEdit = ProductEditor.state.mode === 'edit' && !!ProductEditor.state.productId;
+    const promise = isEdit ? ProductService.update(payload) : ProductService.save(payload);
+
+    promise
+      .then(res => {
+        hideLoading();
+        ProductEditor.setLoading(false);
+        // LƯU Ý: `ProductService.save()/update()` đã unwrap qua
+        // `handleResponse_()` (product_service.html) — `res` ở đây LÀ
+        // `res.data` (object sản phẩm), KHÔNG có field `.success`, và mọi
+        // lỗi backend (kể cả DUPLICATE_PRODUCT mới thêm ở create()) đã
+        // được `handleResponse_()` chuyển thành Promise reject → rơi vào
+        // `.catch()` bên dưới, KHÔNG rơi vào `.then()` này. Vì vậy không
+        // được check `res.success` ở đây (khác các module gọi thẳng
+        // ApiClient.call() không qua lớp unwrap, VD Thu Chi/NCC).
+        toast('Đã lưu sản phẩm thành công!', 'ok');
+        ProductEditor.clearDirty();
+        
+        // Refresh grid
+        this.loadData();
+        
+        // Coordinate dialog closing/clearing
+        if (action === 'save-close') {
+          ProductEditor.close();
+        } else if (action === 'save-new') {
+          ProductEditor.reset();
+          ProductEditor.load();
+        } else if (action === 'save-copy') {
+          document.getElementById('dm-inp-maSP').value = '';
+          ProductEditor.state.mode = 'create';
+          ProductEditor.renderForm();
+          ProductEditor.markDirty();
+        }
+      })
+      .catch(err => {
+        hideLoading();
+        ProductEditor.setLoading(false);
+        toast(err.message, 'err');
+      });
+  },
+
+  fillFilters() {
+    console.log("--- DEBUG fillFilters ---");
+    console.log(this.state.allProducts);
+    console.log(typeof this.state.allProducts);
+    console.log(Array.isArray(this.state.allProducts));
+    this.fillSelect('f-nhom', this.state.allProducts.map(r => r.nhomSP), 'Tất cả');
+    this.fillSelect('f-ncc', this.state.allProducts.map(r => r.ncc), 'Tất cả NCC');
+    this.fillSelect('f-hang', this.state.allProducts.map(r => r.hangSX), 'Tất cả hãng');
+    this.fillSelect('f-vitri', this.state.allProducts.map(r => r.viTri), 'Tất cả vị trí');
+  },
+
+  fillSelect(id, values, label) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const cur = el.value;
+    const opts = ['<option value="">' + label + '</option>'].concat([...new Set(values.filter(Boolean))].sort().map(v => '<option>' + esc(v) + '</option>'));
+    el.innerHTML = opts.join('');
+    el.value = cur;
+  },
+
+  applyFilter() {
+    const q = (document.getElementById('search').value || '').toLowerCase().trim();
+    const nhom = document.getElementById('f-nhom').value;
+    const ncc = document.getElementById('f-ncc').value;
+    const hang = document.getElementById('f-hang').value;
+    const vitri = document.getElementById('f-vitri').value;
+    const app = document.getElementById('f-app').value;
+    const active = document.getElementById('f-active').value;
+
+    this.state.filteredProducts = this.state.allProducts.filter(r => {
+      const hay = [r.tenSP, r.maSP, r.sdk, r.tenVietTat].join(' ').toLowerCase();
+      if (q && !hay.includes(q)) return false;
+      if (nhom && r.nhomSP !== nhom) return false;
+      if (ncc && r.ncc !== ncc) return false;
+      if (hang && r.hangSX !== hang) return false;
+      if (vitri && r.viTri !== vitri) return false;
+      if (app && String(!!r.appTichDiem) !== app) return false;
+      if (active && String(!!r.active) !== active) return false;
+      return true;
+    });
+
+    if (this.state.sort.key) {
+      this.applySort();
+    }
+
+    this.render();
+  },
+
+  sort(key) {
+    if (this.state.sort.key === key) {
+      this.state.sort.asc = !this.state.sort.asc;
+    } else {
+      this.state.sort.key = key;
+      this.state.sort.asc = true;
+    }
+    this.applySort();
+    this.render();
+  },
+
+  applySort() {
+    const key = this.state.sort.key;
+    const asc = this.state.sort.asc;
+    this.state.filteredProducts.sort((a, b) => {
+      let valA = a[key] ?? '';
+      let valB = b[key] ?? '';
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (valA < valB) return asc ? -1 : 1;
+      if (valA > valB) return asc ? 1 : -1;
+      return 0;
+    });
+  },
+
+  buildColPanel() {
+    const panel = document.getElementById('col-panel');
+    if (!panel) return;
+    panel.innerHTML = this.config.columns.map((c, i) => 
+      '<label class="ck"><input type="checkbox" ' + (c.visible ? 'checked' : '') + 
+      ' data-index="' + i + '"> ' + c.label + '</label>'
+    ).join('');
+
+    panel.querySelectorAll('input').forEach(input => {
+      input.onchange = (e) => {
+        const idx = parseInt(e.target.getAttribute('data-index'));
+        this.config.columns[idx].visible = e.target.checked;
+        this.render();
+      };
+    });
+  },
+
+  render() {
+    this.renderSummary();
+    this.renderHeader();
+    this.renderBody();
+  },
+
+  renderSummary() {
+    const total = this.state.allProducts.length;
+    const filtered = this.state.filteredProducts.length;
+    const active = this.state.filteredProducts.filter(r => r.active).length;
+    const stop = filtered - active;
+    const app = this.state.filteredProducts.filter(r => r.appTichDiem).length;
+    
+    document.getElementById('st-total').textContent = total;
+    document.getElementById('sum-total').textContent = total;
+    document.getElementById('st-filter').textContent = filtered;
+    document.getElementById('sum-active').textContent = active;
+    document.getElementById('sum-stop').textContent = stop;
+    document.getElementById('sum-app').textContent = app;
+    document.getElementById('pg-info').textContent = 'Hiển thị 1-' + filtered + '/' + filtered + ' sản phẩm';
+  },
+
+  renderHeader() {
+    const visible = this.config.columns.filter(c => c.visible);
+    document.getElementById('tbl-head').innerHTML = 
+      visible.map(c => '<th style="cursor:pointer" data-sort="' + c.key + '">' + c.label + (this.state.sort.key === c.key ? (this.state.sort.asc ? ' ▴' : ' ▾') : '') + '</th>').join('') + '<th style="width:105px">Thao tác</th>';
+  },
+
+  renderBody() {
+    const visible = this.config.columns.filter(c => c.visible);
+    const rows = this.state.filteredProducts;
+    if (!rows.length) {
+      document.getElementById('tbl-body').innerHTML = 
+        '<tr class="empty-row"><td colspan="' + (visible.length + 1) + '">Không có dữ liệu</td></tr>';
+    } else {
+      document.getElementById('tbl-body').innerHTML = rows.map(r => '<tr>' +
+        visible.map(c => this.cell(c.key, r)).join('') +
+        '<td><div class="tbl-act"><button class="btn-mini b-blue" data-ma="' + r.maSP + '">Sửa</button><button class="btn-mini b-red" data-ma="' + r.maSP + '">Xóa</button></div></td>' +
+        '</tr>').join('');
+    }
+  },
+
+  cell(k, r) {
+    if (k === 'maSP') return '<td><span class="tag tag-id">' + esc(r.maSP) + '</span></td>';
+    if (k === 'tenSP') return '<td><b>' + esc(r.tenSP || '') + '</b>' + (r.tenVietTat ? '<div style="font-size:var(--fs-1);color:#546e7a">' + esc(r.tenVietTat) + '</div>' : '') + '</td>';
+    if (k === 'dvtGoc') return '<td><span class="tag tag-id">' + esc(r.dvtGoc) + '</span></td>';
+    if (k === 'giaNhapMacDinh' || k === 'giaBanLe' || k === 'giaBanBuon') return '<td style="color:#42a5f5">' + fmtMoney(r[k]) + '</td>';
+    return '<td>' + esc(r[k] || '') + '</td>';
+  },
+
+  destroy() {
+    // Clean up if necessary
+  }
+};
+
+// Helper functions inside local module scope
+function esc(s) {
+  return String(s ?? '').replace(/[&<>\"]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[m]));
+}
+function fmtMoney(n) {
+  return (parseFloat(n) || 0).toLocaleString('vi-VN') + ' ₫';
+}
+</script>

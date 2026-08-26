@@ -1,0 +1,153 @@
+<style>
+/* =================================================================
+   CSS SCOPED FOR NCC OPENING DEBT DIALOG (.nccdebt-)
+   Sprint 14 — mirror dialog_customer_debt.html (Sprint 7.0), KHÔNG reuse
+   chung 1 dialog với Customer (đúng nguyên tắc Sprint 8.0: NCC không lấy
+   Customer làm chuẩn business logic — chỉ reuse kỹ thuật/UI pattern).
+   ================================================================= */
+#nccdebt-ov { transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out; }
+.nccdebt-dlg-wrap {
+  width: 380px; max-width: 94%; background: #16213e; border-radius: 8px;
+  border: 1px solid #0d3377; box-shadow: 0 10px 30px rgba(0,0,0,.6);
+  overflow: hidden; display: flex; flex-direction: column;
+}
+.nccdebt-dlg-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 18px; border-bottom: 1px solid #0d3377; background: #0d2144; flex-shrink: 0;
+}
+.nccdebt-dlg-title { font-size: 14px; font-weight: 700; color: #90caf9; }
+.nccdebt-dlg-close { background: none; border: none; color: #ff5252; font-size: 22px; cursor: pointer; line-height: 1; padding: 0; }
+.nccdebt-dlg-close:hover { color: #ff1744; }
+.nccdebt-dlg-body { padding: 18px; display: flex; flex-direction: column; gap: 14px; background: #16213e; }
+.nccdebt-field { display: flex; flex-direction: column; gap: 4px; }
+.nccdebt-lbl { font-size: 11px; font-weight: 500; color: #90caf9; }
+.nccdebt-inp {
+  height: 32px; background: #0d2144; border: 1px solid #1e4080; border-radius: 4px;
+  padding: 0 8px; font-size: 13px; color: #e0e0e0; outline: none; width: 100%; box-sizing: border-box;
+}
+.nccdebt-inp:focus { border-color: #42a5f5; }
+.nccdebt-dlg-foot { padding: 12px 18px; border-top: 1px solid #0d3377; display: flex; justify-content: flex-end; gap: 8px; background: #0d2144; flex-shrink: 0; }
+.nccdebt-btn-save { padding: 6px 16px; background: #1565C0; color: #fff; border: none; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.nccdebt-btn-save:hover { background: #0d47a1; }
+.nccdebt-btn-save:disabled { background: #263850; color: #78909c; cursor: not-allowed; }
+.nccdebt-btn-cancel { padding: 6px 14px; background: #263850; color: #ccc; border: 1px solid #1e4080; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.nccdebt-btn-cancel:hover { background: #1e3060; }
+</style>
+
+<!-- ══ DIALOG: Công nợ tồn đầu NCC (Sprint 14) ══
+     SET (ghi đè) CongNo của NCC bằng số tiền nhập, kèm Ngày làm mốc —
+     đúng evidence "Thu_Chi_cong_no_ton_dau.pdf". Đây là OPENING DEBT,
+     không phải Current Debt (PO Decision #2). ══ -->
+<div class="ov" id="nccdebt-ov" onclick="NccDebtEditor._ovClick(event)">
+  <div class="nccdebt-dlg-wrap">
+    <div class="nccdebt-dlg-head">
+      <span class="nccdebt-dlg-title" id="nccdebt-dlg-title-text">Công nợ tồn đầu</span>
+      <button class="nccdebt-dlg-close" onclick="NccDebtEditor.close()">&times;</button>
+    </div>
+
+    <div class="nccdebt-dlg-body">
+      <div class="nccdebt-field">
+        <label class="nccdebt-lbl">Ngày</label>
+        <input id="nccdebt-editor-ngay" class="nccdebt-inp" type="date">
+      </div>
+      <div class="nccdebt-field">
+        <label class="nccdebt-lbl">Số tiền</label>
+        <input id="nccdebt-editor-sotien" class="nccdebt-inp" type="text" inputmode="numeric" placeholder="0">
+      </div>
+    </div>
+
+    <div class="nccdebt-dlg-foot">
+      <button class="nccdebt-btn-save" id="nccdebt-editor-btn-save" onclick="NccDebtEditor.save()">✔ Lưu lại</button>
+      <button class="nccdebt-btn-cancel" onclick="NccDebtEditor.close()">✕ Thoát</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  NCC OPENING DEBT DIALOG (NccDebtEditor)
+//  File: dialog_ncc_debt.html — Sprint 14
+// ════════════════════════════════════════════════════════════════
+const NccDebtEditor = {
+  state: { maNCC: null, onSaved: null },
+
+  // config: { maNCC, tenNCC, congNoHienTai, onSaved(result) }
+  open(config = {}) {
+    this.state.maNCC = config.maNCC || null;
+    this.state.onSaved = config.onSaved || null;
+
+    const titleEl = document.getElementById('nccdebt-dlg-title-text');
+    if (titleEl) titleEl.textContent = `Công nợ tồn đầu (NCC: ${config.tenNCC || ''})`;
+
+    const ngayEl = document.getElementById('nccdebt-editor-ngay');
+    const tienEl = document.getElementById('nccdebt-editor-sotien');
+    if (ngayEl) ngayEl.value = new Date().toISOString().slice(0, 10);
+    if (tienEl) tienEl.value = config.congNoHienTai ? formatMoney(config.congNoHienTai) : '';
+
+    const btn = document.getElementById('nccdebt-editor-btn-save');
+    if (btn) { btn.disabled = false; btn.innerHTML = '✔ Lưu lại'; }
+
+    this._bindKeys();
+    const ov = document.getElementById('nccdebt-ov');
+    if (ov) ov.classList.add('open');
+    setTimeout(() => { if (tienEl) tienEl.focus(); }, 160);
+  },
+
+  close() {
+    const ov = document.getElementById('nccdebt-ov');
+    if (ov) ov.classList.remove('open');
+    this._unbindKeys();
+  },
+
+  save() {
+    const ngayEl = document.getElementById('nccdebt-editor-ngay');
+    const tienEl = document.getElementById('nccdebt-editor-sotien');
+    const soTien = parseMoney(tienEl ? tienEl.value : '0');
+
+    if (!Number.isFinite(soTien) || soTien < 0) {
+      toast('Số tiền không hợp lệ!', 'warn');
+      if (tienEl) tienEl.focus();
+      return;
+    }
+
+    const btn = document.getElementById('nccdebt-editor-btn-save');
+    if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Đang lưu...'; }
+
+    ApiClient.call('apiNccSetOpeningDebt', {
+      maNCC: this.state.maNCC,
+      ngay: ngayEl ? ngayEl.value : '',
+      soTien: soTien
+    })
+      .then(res => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '✔ Lưu lại'; }
+        if (!res || !res.success) {
+          toast((res && res.message) || 'Lỗi lưu công nợ tồn đầu', 'err');
+          return;
+        }
+        toast('Đã lưu công nợ tồn đầu', 'ok');
+        this.close();
+        if (typeof this.state.onSaved === 'function') this.state.onSaved(res.data);
+      })
+      .catch(err => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '✔ Lưu lại'; }
+        toast(err.message || 'Lỗi lưu công nợ tồn đầu', 'err');
+      });
+  },
+
+  _onKeydown(e) {
+    if (e.key === 'Enter') { e.preventDefault(); NccDebtEditor.save(); }
+    if (e.key === 'Escape') { NccDebtEditor.close(); }
+  },
+  _bindKeys() {
+    const ov = document.getElementById('nccdebt-ov');
+    if (ov) ov.addEventListener('keydown', this._onKeydown);
+  },
+  _unbindKeys() {
+    const ov = document.getElementById('nccdebt-ov');
+    if (ov) ov.removeEventListener('keydown', this._onKeydown);
+  },
+  _ovClick(e) {
+    if (e.target.id === 'nccdebt-ov') this.close();
+  }
+};
+</script>

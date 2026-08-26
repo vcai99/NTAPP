@@ -1,0 +1,529 @@
+<!-- ════════════════════════════════════════════════════════════════
+      TRẢ HÀNG NHÀ CUNG CẤP MODULE (mod_trancc.html)
+      Sprint 13 — Theo docs/13. Tra_hang_NCC/NCC_BusinessLogic.md
+      Clone workflow TheLight (Huong_dan_tra_hang_NCC_Thelight.pdf):
+      Chọn NCC → Chọn phiếu → chọn Phiếu Nhập gốc → nhập SL trả → Áp dụng
+      → dòng về grid chính → Lưu phiếu / Lưu & In.
+
+      PO DECISIONS (2026-08-14, UNBLOCK Sprint Trả hàng NCC):
+      "Lưu phiếu" post Inventory (GIẢM TK_KHO đúng kho+lô phiếu nhập gốc,
+      qua InventoryRepositoryBackend.updateStock() trực tiếp — không qua
+      InventoryServiceBackend.post(), xem backend_trancc_service.gs),
+      validate SL trả lũy kế không vượt SL đã nhập của đúng dòng nhập gốc
+      (backend tự tính lại, không tin số liệu frontend). KHÔNG cập nhật
+      công nợ NCC (PO Decision 3). KHÔNG tính costing khác — Giá nhập
+      snapshot nguyên từ Phiếu Nhập gốc (PO Decision 4). KHÔNG có Sửa/Xóa/
+      Hủy sau khi Lưu (PO Decision 5).
+     ════════════════════════════════════════════════════════════════ -->
+
+<style>
+#page-trancc { display: none; height: calc(100vh - 52px); min-height: 0; overflow: hidden; flex-direction: column; }
+#page-trancc.show { display: flex; }
+
+.tncc-header {
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  padding: 8px 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0;
+}
+.tncc-field { display: flex; flex-direction: column; gap: 3px; }
+.tncc-lbl { font-size: var(--fs-1); color: var(--text2); font-weight: 700; }
+.tncc-inp {
+  height: var(--h-4); padding: 0 8px; background: var(--input-bg);
+  border: 1px solid var(--input-border); border-radius: 4px; color: var(--text); font-size: var(--fs-3);
+}
+.tncc-inp:focus { outline: none; border-color: #1976D2; }
+.tncc-search-wrap { position: relative; width: 220px; }
+.tncc-dd {
+  position: absolute; top: calc(100% + 2px); left: 0; right: 0; background: #0d2347;
+  border: 1px solid var(--border); border-radius: 5px; z-index: 999; max-height: 240px;
+  overflow-y: auto; display: none; box-shadow: 0 6px 20px rgba(0,0,0,.5);
+}
+.tncc-dd.open { display: block; }
+.tncc-dd-item { padding: 7px 10px; cursor: pointer; border-bottom: 1px solid #0d1f3c; display: flex; justify-content: space-between; }
+.tncc-dd-item:hover { background: #112244; }
+.tncc-dd-empty { padding: 10px; text-align: center; color: var(--text2); font-style: italic; font-size: var(--fs-2); }
+
+/* NCC-BUG-001 fix: KHÔNG dùng thuộc tính `disabled` gốc cho nút "Chọn
+   phiếu" — button disabled không bao giờ phát sinh sự kiện click trong
+   DOM, khiến guard/toast trong openChonPhieu_() không bao giờ chạy được
+   khi user thật sự cần thấy thông báo. Dùng class này để TRÔNG như
+   disabled (giữ đúng UI pattern) nhưng vẫn cho click lọt vào JS. */
+.tncc-btn-disabled { opacity: .5; cursor: not-allowed; }
+
+.tncc-grid-wrap { flex: 1; overflow: auto; margin: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg2); }
+.tncc-tbl { width: 100%; border-collapse: collapse; min-width: 1100px; }
+.tncc-tbl th {
+  background: #0a2040; color: var(--text2); padding: 7px 8px; text-align: left;
+  font-size: var(--fs-1); font-weight: 700; white-space: nowrap; border-bottom: 1px solid var(--border); border-right: 1px solid #0d1f3c;
+}
+.tncc-tbl th:last-child { border-right: none; }
+.tncc-tbl td {
+  padding: 6px 8px; font-size: var(--fs-2); color: var(--text);
+  border-right: 1px solid #0d1f3c; border-bottom: 1px solid #0d1f3c; vertical-align: middle;
+}
+.tncc-tbl td:last-child { border-right: none; }
+
+.tncc-footer { background: var(--bg2); border-top: 1px solid var(--border); padding: 8px 10px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+.tncc-footer-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.tncc-footer-actions { display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+</style>
+
+<div class="page" id="page-trancc">
+  <div class="tncc-header">
+    <div class="tncc-field">
+      <div class="tncc-lbl">Chọn Nhà cung cấp</div>
+      <div class="tncc-search-wrap">
+        <input id="tncc-ncc-search" class="tncc-inp" placeholder="Nhà cung cấp" style="width:220px">
+        <div class="tncc-dd" id="tncc-ncc-dd"></div>
+      </div>
+    </div>
+    <div class="tncc-field">
+      <div class="tncc-lbl">Số hóa đơn</div>
+      <input id="tncc-so-hoadon" class="tncc-inp" placeholder="Số hóa đơn" style="width:140px">
+    </div>
+    <div class="tncc-field">
+      <div class="tncc-lbl">Ngày</div>
+      <input id="tncc-ngay-tra" type="datetime-local" class="tncc-inp" style="width:180px">
+    </div>
+    <div class="tncc-field">
+      <div class="tncc-lbl">HTTT</div>
+      <select id="tncc-httt" class="tncc-inp" style="width:120px"><option>Tiền mặt</option></select>
+    </div>
+    <div class="tncc-field" style="margin-left:auto">
+      <div class="tncc-lbl">&nbsp;</div>
+      <button class="btn btn-green tncc-btn-disabled" id="tncc-btn-chonphieu" title="Chọn nhà cung cấp trước">Chọn phiếu</button>
+    </div>
+  </div>
+
+  <div class="tncc-grid-wrap">
+    <table class="tncc-tbl">
+      <thead>
+        <tr>
+          <th style="width:90px">Mã SP</th>
+          <th>Tên sản phẩm</th>
+          <th style="width:70px">ĐVT</th>
+          <th style="width:90px">Số lô</th>
+          <th style="width:100px">Hạn dùng</th>
+          <th style="width:80px;text-align:right">SL trả</th>
+          <th style="width:90px;text-align:right">Giá nhập</th>
+          <th style="width:100px;text-align:right">Tổng tiền</th>
+          <th style="width:70px;text-align:right">%CK</th>
+          <th style="width:90px;text-align:right">Chiết khấu</th>
+          <th style="width:70px;text-align:right">%VAT</th>
+          <th style="width:90px;text-align:right">TT.VAT</th>
+          <th style="width:50px;text-align:center">Xóa</th>
+        </tr>
+      </thead>
+      <tbody id="tncc-tbl-body"></tbody>
+    </table>
+  </div>
+
+  <div class="tncc-footer">
+    <div class="tncc-footer-row">
+      <div class="tncc-field" style="flex:1;min-width:200px">
+        <div class="tncc-lbl">Ghi chú</div>
+        <input id="tncc-ghichu" class="tncc-inp" placeholder="Ghi chú" style="width:100%">
+      </div>
+      <div class="tncc-field">
+        <div class="tncc-lbl">Tổng tiền</div>
+        <input id="tncc-tongtien" class="tncc-inp" style="width:110px;text-align:right" disabled>
+      </div>
+      <div class="tncc-field">
+        <div class="tncc-lbl">Chiết khấu</div>
+        <input id="tncc-chietkhau" class="tncc-inp" style="width:100px;text-align:right" disabled>
+      </div>
+      <div class="tncc-field">
+        <div class="tncc-lbl">VAT</div>
+        <input id="tncc-vat" class="tncc-inp" style="width:90px;text-align:right" disabled>
+      </div>
+      <div class="tncc-field">
+        <div class="tncc-lbl">Tổng thanh toán</div>
+        <input id="tncc-tongthanhtoan" class="tncc-inp" style="width:110px;text-align:right" disabled>
+      </div>
+    </div>
+    <div class="tncc-footer-row" style="justify-content:flex-end">
+      <div class="tncc-footer-actions">
+        <button class="btn btn-gray btn-sm" id="tncc-btn-timkiem">Tìm kiếm phiếu</button>
+        <button class="btn btn-gray btn-sm" id="tncc-btn-inphieu">In phiếu</button>
+        <button class="btn btn-green btn-sm" id="tncc-btn-luu">Lưu phiếu (F9)</button>
+        <button class="btn btn-orange btn-sm" id="tncc-btn-luuvain">Lưu &amp; In (F7)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  CONTROLLER LAYER: TranCCModule (mod_trancc.html)
+//  Sprint 13 — Trả hàng Nhà cung cấp
+// ════════════════════════════════════════════════════════════════
+const TranCCModule = {
+  state: {
+    currentNCC: null,   // { id, ten } — bắt buộc trước khi Chọn phiếu (BR-NCC-02)
+    nccList: [],
+    nccListLoaded: false,
+    nccLoadPromise: null,  // Promise của apiNccLoad() — filterNcc_() dùng để tự vẽ lại dropdown khi load xong, tránh kẹt "Đang tải..."
+    lines: [],            // grid chính — dòng đã Áp dụng từ dialog
+    savedSoPhieu: null     // set sau khi Lưu phiếu thành công
+  },
+
+  dom: {},
+  initialized: false,
+
+  init() {
+    if (this.initialized) return;
+    this.cacheDOM();
+    this.bindEvents();
+    this.initialized = true;
+  },
+
+  cacheDOM() {
+    this.dom = {
+      nccSearch: document.getElementById('tncc-ncc-search'),
+      nccDd: document.getElementById('tncc-ncc-dd'),
+      soHoaDon: document.getElementById('tncc-so-hoadon'),
+      ngayTra: document.getElementById('tncc-ngay-tra'),
+      httt: document.getElementById('tncc-httt'),
+      btnChonPhieu: document.getElementById('tncc-btn-chonphieu'),
+      tblBody: document.getElementById('tncc-tbl-body'),
+      ghiChu: document.getElementById('tncc-ghichu'),
+      tongTien: document.getElementById('tncc-tongtien'),
+      chietKhau: document.getElementById('tncc-chietkhau'),
+      vat: document.getElementById('tncc-vat'),
+      tongThanhToan: document.getElementById('tncc-tongthanhtoan'),
+      btnTimKiem: document.getElementById('tncc-btn-timkiem'),
+      btnInPhieu: document.getElementById('tncc-btn-inphieu'),
+      btnLuu: document.getElementById('tncc-btn-luu'),
+      btnLuuVaIn: document.getElementById('tncc-btn-luuvain')
+    };
+  },
+
+  bindEvents() {
+    this.dom.nccSearch.oninput = (e) => this.filterNcc_(e.target.value);
+    this.dom.nccSearch.onfocus = (e) => this.filterNcc_(e.target.value);
+    document.addEventListener('click', e => {
+      if (this.dom.nccDd && !e.target.closest('.tncc-search-wrap')) this.dom.nccDd.classList.remove('open');
+    });
+
+    this.dom.btnChonPhieu.onclick = () => this.openChonPhieu_();
+    this.dom.btnTimKiem.onclick = () => this.timKiemPhieu_();
+    this.dom.btnInPhieu.onclick = () => toast('In phiếu — chưa triển khai (đúng hiện trạng chung của dự án, xem mod_banhang.html::inPhieuNhanh()).', 'warn');
+    this.dom.btnLuu.onclick = () => this.luuPhieu_(false);
+    this.dom.btnLuuVaIn.onclick = () => this.luuPhieu_(true);
+
+    document.addEventListener('keydown', e => {
+      const page = document.getElementById('page-trancc');
+      if (!page || !page.classList.contains('show')) return;
+      if (e.key === 'F9') { e.preventDefault(); this.luuPhieu_(false); }
+      if (e.key === 'F7') { e.preventDefault(); this.luuPhieu_(true); }
+    });
+  },
+
+  loadData() {
+    this.resetForm_();
+    // Tải danh sách NCC 1 lần (REUSE apiNccLoad — không có search API riêng
+    // cho NCC, cùng cách mod_nhaphang.html chọn NCC), lọc client-side.
+    // NCC-BUG (race condition, phát hiện qua runtime report 2026-08-14):
+    // Promise được lưu lại ở `state.nccLoadPromise` — filterNcc_() sẽ tự
+    // gọi lại chính nó khi Promise này resolve NẾU dropdown vẫn đang mở,
+    // để không còn kẹt "Đang tải..." vĩnh viễn khi user focus vào ô tìm
+    // kiếm TRƯỚC KHI apiNccLoad() trả về (trước đây không có cơ chế này —
+    // dropdown chỉ render "Đang tải..." 1 LẦN DUY NHẤT tại đúng thời điểm
+    // focus, không tự vẽ lại khi API xong, phải blur/focus lại mới thấy
+    // dữ liệu thật).
+    if (!this.state.nccLoadPromise) {
+      this.state.nccLoadPromise = ApiClient.call('apiNccLoad')
+        .then(res => {
+          const data = (res && res.success) ? res.data : res;
+          this.state.nccList = (Array.isArray(data) ? data : []).map(n => ({
+            id: n.maNCC || n.id,
+            ten: n.tenNCC || n.name
+          }));
+          console.log('[NCC-DEBUG] state.nccList sau map =', JSON.stringify(this.state.nccList.map((n, i) => ({
+            index: i, id: n.id, idType: typeof n.id, ten: n.ten
+          }))));
+          this.state.nccListLoaded = true;
+        })
+        .catch(err => { this.state.nccList = []; console.log('[NCC-DEBUG] apiNccLoad lỗi =', err && err.message); });
+    }
+  },
+
+  resetForm_() {
+    this.state.currentNCC = null;
+    this.state.lines = [];
+    this.state.savedSoPhieu = null;
+    this.dom.nccSearch.value = '';
+    this.dom.soHoaDon.value = '';
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    this.dom.ngayTra.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    this.dom.ghiChu.value = '';
+    this.dom.btnChonPhieu.classList.add('tncc-btn-disabled');
+    this.dom.btnChonPhieu.title = 'Chọn nhà cung cấp trước';
+    this.renderGrid_();
+    this.recalcFooter_();
+  },
+
+  filterNcc_(q) {
+    const kw = (q || '').toLowerCase().trim();
+    const dd = this.dom.nccDd;
+    dd.classList.add('open');
+
+    if (!this.state.nccListLoaded) {
+      dd.innerHTML = '<div class="tncc-dd-item" style="color:var(--text2)">Đang tải...</div>';
+      // Fix race condition "Đang tải kẹt": khi apiNccLoad() xong, tự vẽ lại
+      // dropdown với đúng từ khoá hiện tại NẾU dropdown vẫn đang mở — không
+      // bắt user phải blur/focus lại mới thấy dữ liệu thật.
+      if (this.state.nccLoadPromise) {
+        this.state.nccLoadPromise.then(() => {
+          if (this.dom.nccDd.classList.contains('open')) {
+            this.filterNcc_(this.dom.nccSearch.value);
+          }
+        });
+      }
+      return;
+    }
+
+    const found = !kw ? this.state.nccList : this.state.nccList.filter(n =>
+      (n.ten || '').toLowerCase().includes(kw) || (n.id || '').toLowerCase().includes(kw)
+    );
+    if (!found.length) {
+      dd.innerHTML = '<div class="tncc-dd-empty">Không tìm thấy nhà cung cấp</div>';
+      this._nccDdFound = [];
+      return;
+    }
+
+    // NCC-BUG-002 FIX (root cause xác nhận qua audit): KHÔNG còn nhúng
+    // `n.id` (MaNCC) vào chuỗi HTML onclick — cách cũ `onclick="...('${n.id}')"`
+    // sẽ hỏng/khớp sai bất cứ khi nào MaNCC rỗng/undefined/chứa ký tự đặc
+    // biệt (vd 2 NCC "Bình Định 22"/"Dược Hậu giang" thiếu MaNCC trong
+    // DM_NHACUNGCAP → id=undefined → chuỗi "undefined" không khớp lại được
+    // với giá trị undefined thật khi so sánh === trong selectNcc_()). Thay
+    // bằng data-ncc-idx trỏ vào chính mảng đã render (`_nccDdFound`), gán
+    // listener bằng JS thật (không qua chuỗi) — an toàn với MỌI giá trị id.
+    this._nccDdFound = found;
+    dd.innerHTML = found.map((n, idx) => `
+      <div class="tncc-dd-item" data-ncc-idx="${idx}">
+        <span style="font-weight:600">${n.ten}</span>
+      </div>`).join('');
+    dd.querySelectorAll('.tncc-dd-item[data-ncc-idx]').forEach(el => {
+      el.onclick = () => this.selectNcc_(Number(el.dataset.nccIdx));
+    });
+  },
+
+  // NCC-BUG-002 FIX: nhận INDEX trong danh sách VỪA render (`_nccDdFound`),
+  // tham chiếu trực tiếp object — không còn so khớp lại `id` bằng `===` sau
+  // khi đã đi qua vòng chuyển thành chuỗi HTML (nguồn gốc lỗi cũ). Nếu NCC
+  // được click thật sự thiếu MaNCC hợp lệ trong dữ liệu — báo lỗi RÕ RÀNG
+  // cho user, KHÔNG tự sinh mã giả, KHÔNG âm thầm bỏ qua.
+  selectNcc_(idx) {
+    const n = (this._nccDdFound || [])[idx];
+    console.log('[NCC-DEBUG] selectNcc_ idx =', idx, '| option =', JSON.stringify(n));
+    if (!n) return;
+    if (!n.id) {
+      toast('Nhà cung cấp "' + (n.ten || '') + '" đang thiếu Mã NCC hợp lệ trong Danh mục Nhà cung cấp — vui lòng cập nhật lại trước khi sử dụng.', 'err');
+      return;
+    }
+    this.state.currentNCC = { id: n.id, ten: n.ten };
+    this.dom.nccSearch.value = n.ten;
+    this.dom.nccDd.classList.remove('open');
+    this.dom.btnChonPhieu.classList.remove('tncc-btn-disabled');
+    this.dom.btnChonPhieu.title = '';
+  },
+
+  // BR-NCC-02: nhà cung cấp là điều kiện bắt buộc trước khi mở popup "Chọn
+  // phiếu". NCC-BUG-001 FIX: nút "Chọn phiếu" KHÔNG còn dùng `disabled` gốc
+  // (button disabled không bao giờ phát sinh sự kiện click trong DOM, nên
+  // toast cảnh báo bên dưới trước đây không có cách nào tự chạy khi user
+  // click lúc chưa chọn NCC) — nay luôn nhận click, guard này là nơi DUY
+  // NHẤT quyết định có mở popup hay không, không fallback "tất cả NCC"/
+  // "tất cả Phiếu Nhập".
+  openChonPhieu_() {
+    if (!this.state.currentNCC || !this.state.currentNCC.id) {
+      console.log('[NCC-DEBUG] no supplier selected');
+      toast('Vui lòng chọn nhà cung cấp trước khi chọn phiếu.', 'warn');
+      return;
+    }
+    TranCCChonPhieuDialog.open({
+      maNCC: this.state.currentNCC.id,
+      tenNCC: this.state.currentNCC.ten,
+      onApply: (chosenLines) => this.applyChosenLines_(chosenLines)
+    });
+  },
+
+  // BR-NCC-06: đưa dòng đã Apply về grid chính — không tạo dòng trùng
+  // (cùng phiếu gốc + cùng SP + cùng lô/hạn dùng thì cộng dồn SL thay vì
+  // tạo 2 dòng, tránh nhầm lẫn khi Lưu).
+  applyChosenLines_(chosenLines) {
+    chosenLines.forEach(nl => {
+      const existing = this.state.lines.find(l =>
+        l.soPhieuNhapGoc === nl.soPhieuNhapGoc && l.maSP === nl.maSP &&
+        String(l.soLo || '') === String(nl.soLo || '') && String(l.hanDung || '') === String(nl.hanDung || '')
+      );
+      if (existing) {
+        existing.soLuong += nl.soLuong;
+      } else {
+        this.state.lines.push(nl);
+      }
+    });
+    this.renderGrid_();
+    this.recalcFooter_();
+    toast(`Đã áp dụng ${chosenLines.length} dòng trả hàng`, 'ok');
+  },
+
+  removeLine_(idx) {
+    this.state.lines.splice(idx, 1);
+    this.renderGrid_();
+    this.recalcFooter_();
+  },
+
+  lineCalc_(l) {
+    const gross = (Number(l.soLuong) || 0) * (Number(l.giaNhap) || 0);
+    const ttck = gross * ((Number(l.ck) || 0) / 100);
+    const thanhTien = gross - ttck;
+    const ttvat = thanhTien * ((Number(l.vat) || 0) / 100);
+    return { gross, ttck, thanhTien, ttvat };
+  },
+
+  renderGrid_() {
+    if (!this.state.lines.length) {
+      this.dom.tblBody.innerHTML = `<tr><td colspan="13" style="text-align:center;padding:32px;color:var(--text2);font-style:italic">Chưa có sản phẩm — bấm "Chọn phiếu" để thêm</td></tr>`;
+      return;
+    }
+    this.dom.tblBody.innerHTML = this.state.lines.map((l, idx) => {
+      const c = this.lineCalc_(l);
+      return `
+        <tr>
+          <td>${l.maSP}</td>
+          <td>${l.tenSP}</td>
+          <td>${l.dvt || '—'}</td>
+          <td>${l.soLo || '—'}</td>
+          <td>${l.hanDung || '—'}</td>
+          <td style="text-align:right">${this.fmt(l.soLuong)}</td>
+          <td style="text-align:right">${this.fmt(l.giaNhap)}</td>
+          <td style="text-align:right">${this.fmt(c.thanhTien)}</td>
+          <td style="text-align:right">${this.fmt(l.ck)}</td>
+          <td style="text-align:right">${this.fmt(c.ttck)}</td>
+          <td style="text-align:right">${this.fmt(l.vat)}</td>
+          <td style="text-align:right">${this.fmt(c.ttvat)}</td>
+          <td style="text-align:center"><button class="btn btn-red btn-sm" onclick="TranCCModule.removeLine_(${idx})">Xóa</button></td>
+        </tr>`;
+    }).join('');
+  },
+
+  // Tổng tiền/Chiết khấu/VAT/Tổng thanh toán tính động từ grid — hiển thị
+  // thuần túy (PO Decision 3: KHÔNG đụng công nợ NCC ở bất kỳ đâu).
+  recalcFooter_() {
+    let tongTien = 0, chietKhau = 0, vat = 0;
+    this.state.lines.forEach(l => {
+      const c = this.lineCalc_(l);
+      tongTien += c.gross;
+      chietKhau += c.ttck;
+      vat += c.ttvat;
+    });
+    const tongThanhToan = Math.max(0, tongTien - chietKhau + vat);
+    this.dom.tongTien.value = this.fmt(tongTien);
+    this.dom.chietKhau.value = this.fmt(chietKhau);
+    this.dom.vat.value = this.fmt(vat);
+    this.dom.tongThanhToan.value = this.fmt(tongThanhToan);
+  },
+
+  // ── "Tìm kiếm phiếu" — mở lại 1 phiếu Trả NCC đã lưu. PO Decision 5:
+  //    không có Sửa/Xóa/Hủy — READ-ONLY. ────────────────────────────────
+  timKiemPhieu_() {
+    const soPhieu = (prompt('Nhập Số phiếu Trả hàng NCC cần mở lại (VD: PTN000001):') || '').trim();
+    if (!soPhieu) return;
+    this.openExisting(soPhieu);
+  },
+
+  openExisting(soPhieu) {
+    ApiClient.call('apiTranCCDetail', soPhieu)
+      .then(res => {
+        if (!res || !res.success) {
+          toast((res && res.message) || 'Không tìm thấy phiếu', 'err');
+          return;
+        }
+        const { phieu, lines } = res.data;
+        this.state.currentNCC = phieu.maNCC ? { id: phieu.maNCC, ten: phieu.tenNCC } : null;
+        this.dom.nccSearch.value = phieu.tenNCC || '';
+        this.dom.soHoaDon.value = phieu.soHoaDon || '';
+        this.dom.ghiChu.value = phieu.ghiChu || '';
+        this.state.lines = lines.map(l => ({
+          soPhieuNhapGoc: l.soPhieuNhapGoc, kho: l.kho, maSP: l.maSP, tenSP: l.tenSP, dvt: l.dvt, heSo: l.heSo,
+          soLo: l.soLo, hanDung: l.hanDung, soLuong: l.soLuong, giaNhap: l.giaNhap,
+          ck: l.ck, vat: l.vat
+        }));
+        this.state.savedSoPhieu = phieu.soPhieu;
+        this.renderGrid_();
+        this.recalcFooter_();
+        toast(`Đã mở phiếu ${phieu.soPhieu} (chỉ xem — Sửa/Xóa/Hủy phiếu đã lưu không thuộc phạm vi Sprint này)`, 'ok');
+      })
+      .catch(err => toast('Lỗi hệ thống: ' + err.message, 'err'));
+  },
+
+  // ── Lưu phiếu (F9) / Lưu & In (F7) — post Inventory (backend validate
+  //    cumulative return + trừ tồn trước khi ghi document, xem
+  //    backend_trancc_service.gs::saveReturn()). KHÔNG cập nhật công nợ NCC
+  //    (PO Decision 3). Double-click guard: 2 nút Lưu bị disable NGAY khi
+  //    bấm, chỉ enable lại khi có lỗi/xong. ─────────────────────────────
+  luuPhieu_(thenPrint) {
+    if (!this.state.lines.length) {
+      toast('Chưa có sản phẩm trả hàng — hãy "Chọn phiếu" và Áp dụng trước.', 'warn');
+      return;
+    }
+    let tongTien = 0, chietKhau = 0, vat = 0;
+    this.state.lines.forEach(l => {
+      const c = this.lineCalc_(l);
+      tongTien += c.gross; chietKhau += c.ttck; vat += c.ttvat;
+    });
+    const tongThanhToan = Math.max(0, tongTien - chietKhau + vat);
+
+    const payload = {
+      ncc: this.state.currentNCC,
+      soHoaDon: this.dom.soHoaDon.value.trim(),
+      ngayTra: this.dom.ngayTra.value,
+      httt: this.dom.httt.value,
+      ghiChu: this.dom.ghiChu.value.trim(),
+      summary: {
+        tongTien: tongTien, chietKhau: chietKhau, vat: vat, tongThanhToan: tongThanhToan
+      },
+      lines: this.state.lines.map(l => {
+        const c = this.lineCalc_(l);
+        return {
+          soPhieuNhapGoc: l.soPhieuNhapGoc, kho: l.kho, maSP: l.maSP, tenSP: l.tenSP, dvt: l.dvt, heSo: l.heSo || 1,
+          soLo: l.soLo, hanDung: l.hanDung, soLuong: l.soLuong, giaNhap: l.giaNhap,
+          thanhTien: c.thanhTien, ck: l.ck, ttck: c.ttck, vat: l.vat, ttvat: c.ttvat
+        };
+      })
+    };
+
+    this.dom.btnLuu.disabled = true;
+    this.dom.btnLuuVaIn.disabled = true;
+    ApiClient.call('apiTranCCSave', payload)
+      .then(res => {
+        this.dom.btnLuu.disabled = false;
+        this.dom.btnLuuVaIn.disabled = false;
+        if (!res || !res.success) {
+          toast((res && res.message) || 'Lỗi lưu phiếu', 'err');
+          return;
+        }
+        this.state.savedSoPhieu = res.data.soPhieu;
+        toast(`Đã lưu phiếu trả hàng NCC: ${res.data.soPhieu}`, 'ok');
+        if (thenPrint) {
+          toast('In phiếu — chưa triển khai (đúng hiện trạng chung của dự án).', 'warn');
+        }
+      })
+      .catch(err => {
+        this.dom.btnLuu.disabled = false;
+        this.dom.btnLuuVaIn.disabled = false;
+        toast('Lỗi hệ thống: ' + err.message, 'err');
+      });
+  },
+
+  fmt(v) {
+    if (v === null || v === undefined) return '0';
+    const n = parseFloat(v) || 0;
+    if (n === 0) return '0';
+    return Math.round(n).toLocaleString('vi-VN');
+  }
+};
+</script>

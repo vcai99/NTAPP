@@ -1,0 +1,249 @@
+<div class="page layout" id="page-donvitinh">
+  <!-- MAIN AREA -->
+  <div class="main">
+    <!-- TOOLBAR & ACTIONS -->
+    <div class="dm-topbar">
+      <div class="topbar-left" style="display:flex;align-items:center;gap:8px;flex:1;">
+        <input id="dvt-search" class="search" placeholder="Nhập từ khóa tìm kiếm..." style="max-width:300px;">
+        <button class="btn b-blue" id="dvt-btn-search">Tìm kiếm</button>
+        <button class="btn b-green" id="dvt-btn-add">+ Thêm mới</button>
+      </div>
+      <div class="topbar-right">Danh sách đơn vị tính</div>
+    </div>
+
+    <!-- DATA GRID -->
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr id="dvt-tbl-head">
+            <th style="cursor: pointer;" data-sort="tenDVT">Tên đơn vị tính</th>
+            <th style="width: 150px; text-align: center;">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody id="dvt-tbl-body">
+          <tr class="empty-row"><td colspan="2">Đang tải dữ liệu...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- FOOTER / PAGER -->
+    <div class="pager">
+      <div class="pg-info" id="dvt-pg-info">Hiển thị 0-0/0 đơn vị tính</div>
+      <div class="pg-btns" style="display:flex;gap:10px;align-items:center;">
+        <select class="sb-sel" style="width:86px;height:var(--h-4);background:#0d2144;border:1px solid #1e4080;color:#e0e0e0;border-radius:4px;font-size:var(--fs-3);">
+          <option>20</option>
+          <option>50</option>
+          <option>100</option>
+        </select>
+        <div class="pg-btns" style="display:flex;gap:4px;align-items:center;">
+          <button class="pg-btn" disabled>‹</button>
+          <button class="pg-btn on">1</button>
+          <button class="pg-btn" disabled>›</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  DVT BUSINESS MODULE (DvtModule)
+//  File: mod_donvitinh.html
+// ════════════════════════════════════════════════════════════════
+const DvtModule = {
+  state: {
+    allDvts: [],
+    filteredDvts: [],
+    sort: { key: 'tenDVT', asc: true }
+  },
+
+  dom: {},
+
+  init() {
+    this.cacheDOM();
+    this.bindEvents();
+    this.loadData();
+  },
+
+  cacheDOM() {
+    this.dom.page = document.getElementById('page-donvitinh');
+    this.dom.search = document.getElementById('dvt-search');
+    this.dom.btnSearch = document.getElementById('dvt-btn-search');
+    this.dom.btnAdd = document.getElementById('dvt-btn-add');
+    this.dom.tblBody = document.getElementById('dvt-tbl-body');
+    this.dom.tblHead = document.getElementById('dvt-tbl-head');
+    this.dom.pgInfo = document.getElementById('dvt-pg-info');
+  },
+
+  bindEvents() {
+    // Search actions
+    this.dom.search.oninput = () => this.applyFilter();
+    this.dom.btnSearch.onclick = () => this.applyFilter();
+    
+    // Add button
+    this.dom.btnAdd.onclick = () => this.addDvt();
+
+    // Edit and Delete grid row actions
+    this.dom.tblBody.onclick = (e) => {
+      const editBtn = e.target.closest('.dvt-edit-btn');
+      const delBtn = e.target.closest('.dvt-del-btn');
+      
+      if (editBtn) {
+        const id = editBtn.getAttribute('data-id');
+        this.openEditor(id);
+      }
+      
+      if (delBtn) {
+        const id = delBtn.getAttribute('data-id');
+        const name = delBtn.getAttribute('data-name');
+        this.confirmDelete(id, name);
+      }
+    };
+
+    // Sort headers
+    this.dom.tblHead.querySelectorAll('th[data-sort]').forEach(th => {
+      th.onclick = () => {
+        const key = th.getAttribute('data-sort');
+        this.sort(key);
+      };
+    });
+  },
+
+  addDvt() {
+    DvtEditor.open({
+      mode: 'create',
+      onSaved: () => this.loadData()
+    });
+  },
+
+  openEditor(id) {
+    DvtEditor.open({
+      mode: 'edit',
+      dvtId: id,
+      onSaved: () => this.loadData()
+    });
+  },
+
+  confirmDelete(id, name) {
+    window.showConfirm(`Bạn có chắc chắn muốn xóa đơn vị tính '${name}' không?`)
+      .then(ok => {
+        if (ok) {
+          showLoading();
+          DvtService.remove(id)
+            .then(() => {
+              hideLoading();
+              toast(`Đã xóa đơn vị tính: ${name}`);
+              this.loadData();
+            })
+            .catch(err => {
+              hideLoading();
+              toast(err.message || 'Lỗi khi xóa', 'err');
+            });
+        }
+      });
+  },
+
+  loadData() {
+    showLoading();
+    DvtService.load()
+      .then(data => {
+        hideLoading();
+        this.state.allDvts = data || [];
+        this.applyFilter();
+      })
+      .catch(err => {
+        hideLoading();
+        toast('Lỗi tải danh mục ĐVT: ' + err.message, 'err');
+      });
+  },
+
+  applyFilter() {
+    const q = (this.dom.search.value || '').toLowerCase().trim();
+
+    this.state.filteredDvts = this.state.allDvts.filter(r => {
+      // Hide soft-deleted (inactive) UOMs from the grid
+      if (r.active === false || r.active === 'false') return false;
+
+      const hay = String(r.tenDVT || '').toLowerCase();
+      if (q && !hay.includes(q)) return false;
+      return true;
+    });
+
+    if (this.state.sort.key) {
+      this.applySort();
+    }
+
+    this.render();
+  },
+
+  sort(key) {
+    if (this.state.sort.key === key) {
+      this.state.sort.asc = !this.state.sort.asc;
+    } else {
+      this.state.sort.key = key;
+      this.state.sort.asc = true;
+    }
+    this.applySort();
+    this.render();
+  },
+
+  applySort() {
+    const key = this.state.sort.key;
+    const asc = this.state.sort.asc;
+    this.state.filteredDvts.sort((a, b) => {
+      let valA = a[key] ?? '';
+      let valB = b[key] ?? '';
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (valA < valB) return asc ? -1 : 1;
+      if (valA > valB) return asc ? 1 : -1;
+      return 0;
+    });
+  },
+
+  render() {
+    this.renderSummary();
+    this.renderHeader();
+    this.renderBody();
+  },
+
+  renderSummary() {
+    const filtered = this.state.filteredDvts.length;
+    this.dom.pgInfo.textContent = 'Hiển thị 1-' + filtered + '/' + filtered + ' đơn vị tính';
+  },
+
+  renderHeader() {
+    this.dom.tblHead.querySelectorAll('th[data-sort]').forEach(th => {
+      const key = th.getAttribute('data-sort');
+      let text = th.textContent.replace(/[▴▾]/g, '').trim();
+      if (this.state.sort.key === key) {
+        text += this.state.sort.asc ? ' ▴' : ' ▾';
+      }
+      th.textContent = text;
+    });
+  },
+
+  renderBody() {
+    const rows = this.state.filteredDvts;
+    if (!rows.length) {
+      this.dom.tblBody.innerHTML = '<tr class="empty-row"><td colspan="2">Không có dữ liệu</td></tr>';
+    } else {
+      this.dom.tblBody.innerHTML = rows.map(r => `
+        <tr data-id="${r.maDVT}" data-name="${esc(r.tenDVT)}">
+          <td><b>${esc(r.tenDVT)}</b></td>
+          <td style="text-align: center;">
+            <div class="tbl-act" style="justify-content: center;">
+              <button class="btn-mini b-blue dvt-edit-btn" data-id="${r.maDVT}">Sửa</button>
+              <button class="btn-mini b-red dvt-del-btn" data-id="${r.maDVT}" data-name="${esc(r.tenDVT)}">Xóa</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+  }
+};
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>\"]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[m]));
+}
+</script>

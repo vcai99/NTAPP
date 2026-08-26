@@ -1,0 +1,407 @@
+<style>
+/* =================================================================
+   CSS SCOPED FOR "CHỌN PHIẾU TRẢ LẠI" DIALOG (.ktlc-)
+   Sprint 12 — Khách Trả Lại, 2 tab theo đúng ảnh reference TheLight
+   (12. Khach_tra_hang.pdf trang 1-2).
+   ================================================================= */
+#nh-ov-khachtra-chonphieu { transition: opacity .2s ease-in-out, visibility .2s ease-in-out; }
+.ktlc-dlg-wrap {
+  width: 92vw; max-width: 1100px; height: 78vh;
+  background: #16213e; border-radius: 8px; border: 1px solid #0d3377;
+  box-shadow: 0 10px 30px rgba(0,0,0,.6);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.ktlc-dlg-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; border-bottom: 1px solid #0d3377; background: #0d2144; flex-shrink: 0;
+}
+.ktlc-dlg-title { font-size: 14px; font-weight: 700; color: #90caf9; }
+.ktlc-dlg-close { background: none; border: none; color: #ff5252; font-size: 22px; cursor: pointer; line-height: 1; padding: 0; }
+.ktlc-dlg-close:hover { color: #ff1744; }
+.ktlc-tabs { display: flex; background: #0d2144; border-bottom: 1px solid #0d3377; flex-shrink: 0; }
+.ktlc-tab { padding: 9px 16px; font-size: 12px; font-weight: 700; color: #90a4c0; cursor: pointer; border-bottom: 2px solid transparent; }
+.ktlc-tab.on { color: #90CAF9; border-bottom-color: #1976D2; }
+.ktlc-toolbar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; flex-wrap: wrap; flex-shrink: 0; background: #16213e; }
+.ktlc-inp { height: 28px; padding: 0 8px; background: #0d2144; border: 1px solid #1e4080; border-radius: 4px; color: #e0e0e0; font-size: 12px; }
+.ktlc-inp:focus { outline: none; border-color: #42a5f5; }
+.ktlc-body { flex: 1; overflow: auto; padding: 0 12px 12px; }
+.ktlc-tbl { width: 100%; border-collapse: collapse; min-width: 900px; }
+.ktlc-tbl th { background: #0a2040; color: #90a4c0; padding: 6px 8px; text-align: left; font-size: 11px; font-weight: 700; white-space: nowrap; border-bottom: 1px solid #0d3377; }
+.ktlc-tbl td { padding: 6px 8px; font-size: 12px; color: #e0e0e0; border-bottom: 1px solid #12294f; vertical-align: middle; }
+.ktlc-tbl tbody tr:hover { background: #0d2347; }
+.ktlc-sl-inp { width: 70px; height: 26px; padding: 0 6px; text-align: right; background: #0d2144; border: 1px solid #1e4080; border-radius: 4px; color: #fff; font-size: 12px; font-weight: 700; }
+.ktlc-sl-inp:focus { outline: none; border-color: #42a5f5; }
+.ktlc-empty { text-align: center; padding: 28px; color: #78909c; font-style: italic; }
+</style>
+
+<div class="ov" id="nh-ov-khachtra-chonphieu" onclick="KhachTraChonPhieuDialog._ovClick(event)">
+  <div class="ktlc-dlg-wrap">
+    <div class="ktlc-dlg-head">
+      <span class="ktlc-dlg-title">Danh sách phiếu xuất (<span id="ktlc-ten-khach"></span>)</span>
+      <button class="ktlc-dlg-close" onclick="KhachTraChonPhieuDialog.close()">&times;</button>
+    </div>
+
+    <div class="ktlc-tabs">
+      <div class="ktlc-tab on" id="ktlc-tab1">Phiếu nhập trả lại</div>
+      <div class="ktlc-tab" id="ktlc-tab2">Chi tiết phiếu nhập trả lại</div>
+    </div>
+
+    <!-- TAB 1: danh sách phiếu xuất của khách hàng -->
+    <div id="ktlc-panel1">
+      <div class="ktlc-toolbar">
+        <input id="ktlc-f-search" class="ktlc-inp" placeholder="Tìm số phiếu" style="width:150px">
+        <input id="ktlc-f-sp" class="ktlc-inp" placeholder="Tên sản phẩm, mã vạch (F3)" style="width:220px">
+        <select id="ktlc-f-thang" class="ktlc-inp"><option value="">Tháng</option></select>
+        <select id="ktlc-f-nam" class="ktlc-inp"><option value="">Năm</option></select>
+        <button class="btn btn-green btn-sm" id="ktlc-btn-search1">Tìm kiếm</button>
+      </div>
+      <div class="ktlc-body">
+        <table class="ktlc-tbl">
+          <thead>
+            <tr>
+              <th style="width:44px"></th>
+              <th style="width:44px">STT</th>
+              <th>Số phiếu</th>
+              <th>Ngày xuất</th>
+              <th>Tổng tiền</th>
+              <th>Chiết khấu</th>
+              <th>Sản phẩm</th>
+            </tr>
+          </thead>
+          <tbody id="ktlc-tbl1-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 2: chi tiết phiếu đã chọn, nhập SL trả lại -->
+    <div id="ktlc-panel2" style="display:none">
+      <div class="ktlc-toolbar">
+        <input id="ktlc-f-search2" class="ktlc-inp" placeholder="Tìm mã, tên SP" style="width:220px">
+        <button class="btn btn-green btn-sm" id="ktlc-btn-apply">Áp dụng</button>
+      </div>
+      <div class="ktlc-body">
+        <table class="ktlc-tbl">
+          <thead>
+            <tr>
+              <th>Tên SP</th>
+              <th>ĐVT</th>
+              <th>Số lô</th>
+              <th>Hạn dùng</th>
+              <th style="text-align:right">SL</th>
+              <th style="text-align:right">SL trả lại</th>
+              <th style="text-align:right">Giá bán</th>
+              <th style="text-align:right">%VAT</th>
+              <th style="text-align:right">TT.VAT</th>
+              <th style="text-align:right">%CK</th>
+              <th style="text-align:right">TT.CK</th>
+            </tr>
+          </thead>
+          <tbody id="ktlc-tbl2-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  DIALOG: KhachTraChonPhieuDialog (dialog_khachtra_chonphieu.html)
+//  Sprint 12 — "Chọn phiếu trả lại" (BR-RETURN-01..06)
+//  REUSE: đọc phiếu xuất gốc qua apiSaleList/apiSaleGetDetail (Sprint 6.0),
+//  KHÔNG tạo API/schema phiếu xuất mới, KHÔNG ghi ngược lại PB_PHIEUBAN.
+// ════════════════════════════════════════════════════════════════
+const KhachTraChonPhieuDialog = {
+  state: {
+    maKhach: '',
+    onApply: null,
+    allPhieu: [],       // toàn bộ apiSaleList(), lọc theo maKhach ở client
+    filteredPhieu: [],
+    currentSoPhieu: null,
+    currentKho: '',     // Kho của phiếu xuất gốc (KTL-BUG-004, BR-RETURN-16)
+    currentLines: []    // dòng chi tiết phiếu gốc đang xem ở tab 2 (kèm slTraLai nhập tay + slConLai)
+  },
+
+  dom: {},
+  initialized: false,
+
+  init() {
+    if (this.initialized) return;
+    this.dom = {
+      tenKhach: document.getElementById('ktlc-ten-khach'),
+      tab1: document.getElementById('ktlc-tab1'),
+      tab2: document.getElementById('ktlc-tab2'),
+      panel1: document.getElementById('ktlc-panel1'),
+      panel2: document.getElementById('ktlc-panel2'),
+      fSearch: document.getElementById('ktlc-f-search'),
+      fSp: document.getElementById('ktlc-f-sp'),
+      fThang: document.getElementById('ktlc-f-thang'),
+      fNam: document.getElementById('ktlc-f-nam'),
+      btnSearch1: document.getElementById('ktlc-btn-search1'),
+      tbl1Body: document.getElementById('ktlc-tbl1-body'),
+      fSearch2: document.getElementById('ktlc-f-search2'),
+      btnApply: document.getElementById('ktlc-btn-apply'),
+      tbl2Body: document.getElementById('ktlc-tbl2-body')
+    };
+
+    let thangHtml = '<option value="">Tháng</option>';
+    for (let m = 1; m <= 12; m++) thangHtml += `<option value="${m}">Tháng ${m}</option>`;
+    this.dom.fThang.innerHTML = thangHtml;
+    const yNow = new Date().getFullYear();
+    let namHtml = '<option value="">Năm</option>';
+    for (let y = yNow; y >= yNow - 3; y--) namHtml += `<option value="${y}">${y}</option>`;
+    this.dom.fNam.innerHTML = namHtml;
+
+    this.dom.tab1.onclick = () => this.switchTab_(1);
+    this.dom.tab2.onclick = () => this.switchTab_(2);
+    this.dom.btnSearch1.onclick = () => this.applyFilter_();
+    this.dom.fSearch.oninput = () => this.applyFilter_();
+    this.dom.fSp.oninput = () => this.applyFilter_();
+    this.dom.fThang.onchange = () => this.applyFilter_();
+    this.dom.fNam.onchange = () => this.applyFilter_();
+    this.dom.fSearch2.oninput = () => this.renderTab2_();
+    this.dom.btnApply.onclick = () => this.doApply_();
+
+    this.initialized = true;
+  },
+
+  open(config) {
+    this.init();
+    this.state.maKhach = config.maKhach || '';
+    this.state.onApply = config.onApply || null;
+    this.dom.tenKhach.textContent = config.tenKhach || 'Khách hàng Lẻ';
+    this.dom.fSearch.value = '';
+    this.dom.fSp.value = '';
+    this.dom.fThang.value = '';
+    this.dom.fNam.value = '';
+    this.switchTab_(1);
+
+    const ov = document.getElementById('nh-ov-khachtra-chonphieu');
+    if (ov) ov.classList.add('open');
+
+    this.dom.tbl1Body.innerHTML = `<tr><td colspan="7" class="ktlc-empty"><span class="spin"></span> Đang tải...</td></tr>`;
+    // [KTL-DEBUG] tạm thời — xem KTL-BUG-001 audit (2026-08-12), xoá sau khi
+    // xác nhận root cause qua dữ liệu thật.
+    console.log('[KTL-DEBUG] dialog open() -> apiSaleList payload = (none, no param) | this.state.maKhach =', this.state.maKhach);
+    ApiClient.call('apiSaleList')
+      .then(res => {
+        if (!res || !res.success) {
+          this.dom.tbl1Body.innerHTML = `<tr><td colspan="7" class="ktlc-empty">Lỗi tải danh sách: ${(res && res.message) || 'Không xác định'}</td></tr>`;
+          return;
+        }
+        // [KTL-DEBUG] tạm thời — in ra toàn bộ (soPhieu, maKhach) để so sánh
+        // trực tiếp với this.state.maKhach — xác định chính xác dữ liệu thật
+        // có MaKhach cho khách này hay không, không đoán.
+        console.log('[KTL-DEBUG] apiSaleList raw sale.MaKH list =', JSON.stringify((res.data || []).map(p => ({ soPhieu: p.soPhieu, maKhach: p.maKhach, tenKhach: p.tenKhach }))));
+        // KTL-BUG-002 (2026-08-12): dedupe theo soPhieu NGAY TẠI POPUP này —
+        // KHÔNG sửa apiSaleList/SaleRepositoryBackend.getAll() (dùng chung
+        // với mod_dsphieuxuat.html, không được đổi behavior). getAll() hiện
+        // tại (đã đọc lại code) map 1-dòng-1-ticket từ PB_PHIEUBAN (không
+        // lặp theo PB_CHITIET) — nên nếu response thật có nhiều dòng cùng
+        // soPhieu, đó là nhiều ROW THẬT trong chính Sheet PB_PHIEUBAN cùng
+        // SoPhieu (không phải lỗi "trả theo chi tiết phiếu"). Dedup ở đây
+        // giữ dòng ĐẦU TIÊN cho mỗi soPhieu — an toàn cho mục đích hiển thị
+        // danh sách chọn phiếu (không ảnh hưởng dữ liệu gốc, không đụng
+        // Danh sách Phiếu Xuất/Sale Module).
+        const seenSoPhieu = new Set();
+        const dedupedData = (res.data || []).filter(p => {
+          if (seenSoPhieu.has(p.soPhieu)) return false;
+          seenSoPhieu.add(p.soPhieu);
+          return true;
+        });
+        if (dedupedData.length !== (res.data || []).length) {
+          console.log('[KTL-DEBUG] dedup: ' + (res.data || []).length + ' -> ' + dedupedData.length + ' (loại ' + ((res.data || []).length - dedupedData.length) + ' dòng trùng soPhieu)');
+        }
+        // BR-RETURN-02: chỉ hiện phiếu xuất CỦA khách hàng đang chọn.
+        this.state.allPhieu = dedupedData.filter(p => String(p.maKhach || '') === String(this.state.maKhach || ''));
+        console.log('[KTL-DEBUG] matched count =', this.state.allPhieu.length, '| target maKhach =', this.state.maKhach);
+        this.applyFilter_();
+      })
+      .catch(err => {
+        this.dom.tbl1Body.innerHTML = `<tr><td colspan="7" class="ktlc-empty">Lỗi hệ thống: ${err.message}</td></tr>`;
+      });
+  },
+
+  close() {
+    const ov = document.getElementById('nh-ov-khachtra-chonphieu');
+    if (ov) ov.classList.remove('open');
+  },
+
+  _ovClick(e) {
+    if (e.target.id === 'nh-ov-khachtra-chonphieu') this.close();
+  },
+
+  switchTab_(n) {
+    this.dom.tab1.classList.toggle('on', n === 1);
+    this.dom.tab2.classList.toggle('on', n === 2);
+    this.dom.panel1.style.display = n === 1 ? 'block' : 'none';
+    this.dom.panel2.style.display = n === 2 ? 'block' : 'none';
+  },
+
+  applyFilter_() {
+    const soPhieu = (this.dom.fSearch.value || '').toLowerCase().trim();
+    const sp = (this.dom.fSp.value || '').toLowerCase().trim();
+    const thang = this.dom.fThang.value;
+    const nam = this.dom.fNam.value;
+
+    this.state.filteredPhieu = this.state.allPhieu.filter(p => {
+      if (soPhieu && !(p.soPhieu || '').toLowerCase().includes(soPhieu)) return false;
+      if (sp && !(p.sanPham || '').toLowerCase().includes(sp)) return false;
+      if (nam && !String(p.ngayBan || '').includes(nam)) return false;
+      if (thang) {
+        const m = this.parseMonth_(p.ngayBan);
+        if (m === null || m !== parseInt(thang)) return false;
+      }
+      return true;
+    });
+    this.renderTab1_();
+  },
+
+  // Ngày ở apiSaleList trả về dd/MM/yyyy (fmtDate()) — không dùng Date() vì
+  // Safari/GAS parse "dd/MM/yyyy" sai (hiểu nhầm MM/dd).
+  parseMonth_(s) {
+    const m = String(s || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return m ? parseInt(m[2]) : null;
+  },
+
+  renderTab1_() {
+    const list = this.state.filteredPhieu;
+    if (!list.length) {
+      this.dom.tbl1Body.innerHTML = `<tr><td colspan="7" class="ktlc-empty">Không có phiếu xuất phù hợp</td></tr>`;
+      return;
+    }
+    this.dom.tbl1Body.innerHTML = list.map((p, idx) => `
+      <tr>
+        <td><button class="btn btn-green btn-sm" onclick="KhachTraChonPhieuDialog.chonPhieu_('${p.soPhieu}')">Chọn</button></td>
+        <td>${idx + 1}</td>
+        <td>${p.soPhieu}</td>
+        <td>${p.ngayBan || '—'}</td>
+        <td style="text-align:right">${this.fmt(p.tongTien)}</td>
+        <td style="text-align:right">${this.fmt(p.chietKhau)}</td>
+        <td>${p.sanPham || ''}</td>
+      </tr>`).join('');
+  },
+
+  // KTL-BUG-004: tải song song chi tiết phiếu gốc + SL đã trả trước đó
+  // (apiKhachTraReturnedQty) để tính "SL còn trả" hiển thị (UX only —
+  // backend vẫn tự validate lại độc lập khi Lưu phiếu, xem
+  // backend_khachtra_service.gs::enrichAndValidateLines_()). Lưu lại
+  // `kho` của phiếu gốc (BR-RETURN-16) để truyền xuống khi Áp dụng.
+  chonPhieu_(soPhieu) {
+    this.state.currentSoPhieu = soPhieu;
+    this.switchTab_(2);
+    this.dom.tbl2Body.innerHTML = `<tr><td colspan="11" class="ktlc-empty"><span class="spin"></span> Đang tải...</td></tr>`;
+    Promise.all([
+      ApiClient.call('apiSaleGetDetail', soPhieu),
+      ApiClient.call('apiKhachTraReturnedQty', soPhieu).catch(() => ({ success: false, data: {} }))
+    ])
+      .then(([res, returnedRes]) => {
+        if (!res || !res.success) {
+          this.dom.tbl2Body.innerHTML = `<tr><td colspan="11" class="ktlc-empty">Lỗi tải chi tiết: ${(res && res.message) || 'Không xác định'}</td></tr>`;
+          return;
+        }
+        const returnedMap = (returnedRes && returnedRes.success) ? (returnedRes.data || {}) : {};
+        this.state.currentKho = res.data.kho || 'Kho chính';
+        // slTraLai bắt đầu rỗng — user phải tự nhập (BR-RETURN-04/05), không
+        // suy đoán mặc định = SL gốc (chưa có evidence "trả toàn bộ mặc định").
+        // slConLai = SL bán - SL đã trả trước đó (BR-RETURN-13) — chỉ để UX
+        // (cap input + hiển thị), KHÔNG phải nguồn xác nhận cuối cùng.
+        this.state.currentLines = (res.data.lines || []).map(l => {
+          const key = String(l.maSP) + '|' + String(l.soLo || '') + '|' + String(l.hanDung || '');
+          const daTra = Number(returnedMap[key]) || 0;
+          const slConLai = Math.max(0, (Number(l.soLuong) || 0) - daTra);
+          return Object.assign({ slTraLai: null, daTra: daTra, slConLai: slConLai }, l);
+        });
+        this.dom.fSearch2.value = '';
+        this.renderTab2_();
+      })
+      .catch(err => {
+        this.dom.tbl2Body.innerHTML = `<tr><td colspan="11" class="ktlc-empty">Lỗi hệ thống: ${err.message}</td></tr>`;
+      });
+  },
+
+  renderTab2_() {
+    const q = (this.dom.fSearch2.value || '').toLowerCase().trim();
+    let lines = this.state.currentLines;
+    if (q) lines = lines.filter(l => (l.tenSP || '').toLowerCase().includes(q) || (l.maSP || '').toLowerCase().includes(q));
+
+    if (!lines.length) {
+      this.dom.tbl2Body.innerHTML = `<tr><td colspan="11" class="ktlc-empty">Không có sản phẩm</td></tr>`;
+      return;
+    }
+    this.dom.tbl2Body.innerHTML = lines.map(l => {
+      const idx = this.state.currentLines.indexOf(l);
+      const ttck = (Number(l.soLuong) || 0) * (Number(l.giaBan) || 0) * ((Number(l.ck) || 0) / 100);
+      // VAT theo dòng ngoài phạm vi hệ thống hiện tại (Decisions Locked dự
+      // án: line.vat/summary.vat luôn = 0) — giữ nhất quán, không tự đặt %VAT
+      // riêng cho Khách Trả Lại (RETURN-DEC-P... VAT khi hoàn vẫn PENDING).
+      // KTL-BUG-004 (BR-RETURN-13/14): cap input theo slConLai (= SL bán -
+      // SL đã trả trước đó CỦA ĐÚNG dòng này), KHÔNG phải SL bán gốc nữa —
+      // UX only, backend validate lại độc lập khi Lưu phiếu.
+      const daHetHan = l.slConLai <= 0;
+      const hint = daHetHan
+        ? '<span style="color:var(--red)">(đã trả hết)</span>'
+        : (l.daTra > 0 ? `<span style="color:var(--text2)">(còn ${this.fmt(l.slConLai)})</span>` : '');
+      return `
+        <tr>
+          <td>${l.tenSP}</td>
+          <td>${l.dvt || '—'}</td>
+          <td>${l.soLo || '—'}</td>
+          <td>${l.hanDung || '—'}</td>
+          <td style="text-align:right">${this.fmt(l.soLuong)}</td>
+          <td style="text-align:right">
+            <input class="ktlc-sl-inp" type="number" min="0" max="${l.slConLai}" ${daHetHan ? 'disabled' : ''} value="${l.slTraLai === null ? '' : l.slTraLai}" onchange="KhachTraChonPhieuDialog.onSlTraLaiChange_(${idx}, this.value)">
+            <div style="font-size:10px;margin-top:2px">${hint}</div>
+          </td>
+          <td style="text-align:right">${this.fmt(l.giaBan)}</td>
+          <td style="text-align:right">0</td>
+          <td style="text-align:right">0</td>
+          <td style="text-align:right">${this.fmt(l.ck)}</td>
+          <td style="text-align:right">${this.fmt(ttck)}</td>
+        </tr>`;
+    }).join('');
+  },
+
+  onSlTraLaiChange_(idx, val) {
+    const v = val === '' ? null : Number(val);
+    const line = this.state.currentLines[idx];
+    if (v === null || isNaN(v) || v <= 0) {
+      line.slTraLai = null;
+      return;
+    }
+    // BR-RETURN-13/14 (UX cap — backend validate lại độc lập, không tin số
+    // này): không cho nhập vượt slConLai (= SL bán - SL đã trả trước đó
+    // CỦA ĐÚNG dòng này, tính từ apiKhachTraReturnedQty ở chonPhieu_()).
+    line.slTraLai = Math.min(v, Number(line.slConLai) || 0);
+    if (line.slTraLai <= 0) line.slTraLai = null;
+  },
+
+  // BR-RETURN-06/07: Áp dụng đưa CÁC DÒNG ĐÃ NHẬP SL trả lại (>0) về grid
+  // chính qua callback — KHÔNG tự coi là transaction cuối cùng (Lưu phiếu ở
+  // màn chính mới là transaction boundary thật).
+  doApply_() {
+    const chosen = this.state.currentLines.filter(l => l.slTraLai !== null && l.slTraLai > 0);
+    if (!chosen.length) {
+      toast('Chưa nhập SL trả lại cho dòng nào.', 'warn');
+      return;
+    }
+    if (typeof this.state.onApply === 'function') {
+      this.state.onApply(chosen.map(l => ({
+        soPhieuGoc: this.state.currentSoPhieu,
+        kho: this.state.currentKho, // BR-RETURN-16 — hàng phải quay lại đúng kho phiếu gốc
+        maSP: l.maSP, tenSP: l.tenSP, dvt: l.dvt, heSo: l.heSo,
+        soLo: l.soLo, hanDung: l.hanDung,
+        soLuong: l.slTraLai, giaBan: l.giaBan,
+        ck: Number(l.ck) || 0, vat: 0
+      })));
+    }
+    this.close();
+  },
+
+  fmt(v) {
+    if (v === null || v === undefined) return '0';
+    const n = parseFloat(v) || 0;
+    if (n === 0) return '0';
+    return Math.round(n).toLocaleString('vi-VN');
+  }
+};
+</script>

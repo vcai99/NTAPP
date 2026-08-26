@@ -1,0 +1,459 @@
+<style>
+/* =================================================================
+   CSS SCOPED FOR NCC EDITOR DIALOG (.ncc-dlg-)
+   Đồng bộ Design System với dialog_product_editor.html
+   ================================================================= */
+
+/* Overlay reuse class .ov từ core — chỉ cần style riêng cho wrap */
+#nh-ov-ncc {
+  transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+.ncc-dlg-wrap {
+  width: 720px;
+  max-width: 94%;
+  background: #16213e;
+  border-radius: 8px;
+  border: 1px solid #0d3377;
+  padding: 0;
+  box-shadow: 0 10px 30px rgba(0,0,0,.6);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.ncc-dlg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid #0d3377;
+  background: #0d2144;
+  flex-shrink: 0;
+}
+.ncc-dlg-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #90caf9;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.ncc-dlg-close {
+  background: none;
+  border: none;
+  color: #ff5252;
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+  transition: color .15s;
+  padding: 0;
+}
+.ncc-dlg-close:hover { color: #ff1744; }
+
+.ncc-dlg-body {
+  padding: 18px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 12px 14px;
+  background: #16213e;
+}
+.ncc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ncc-field.span2 { grid-column: span 2; }
+.ncc-field.span4 { grid-column: span 4; }
+
+.ncc-lbl {
+  font-size: 11px;
+  font-weight: 500;
+  color: #90caf9;
+}
+.ncc-inp {
+  height: 30px;
+  background: #0d2144;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #e0e0e0;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color .15s;
+}
+.ncc-inp::placeholder { color: #546e7a; }
+.ncc-inp:focus { border-color: #42a5f5; }
+.ncc-inp[readonly] { color: #546e7a; cursor: default; }
+
+.ncc-check-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  grid-column: span 2;
+  padding-top: 4px;
+}
+.ncc-check-lbl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e0e0e0;
+  cursor: pointer;
+  user-select: none;
+}
+.ncc-check-lbl input[type=checkbox] {
+  accent-color: #42a5f5;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.ncc-dlg-foot {
+  padding: 12px 18px;
+  border-top: 1px solid #0d3377;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  background: #0d2144;
+  flex-shrink: 0;
+}
+.ncc-btn-save {
+  padding: 6px 16px;
+  background: #1565C0;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .15s;
+}
+.ncc-btn-save:hover { background: #0d47a1; }
+.ncc-btn-save:disabled { background: #263850; color: #78909c; cursor: not-allowed; }
+
+.ncc-btn-cancel {
+  padding: 6px 14px;
+  background: #263850;
+  color: #ccc;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .15s;
+}
+.ncc-btn-cancel:hover { background: #1e3060; }
+</style>
+
+<!-- ══ DIALOG: Thêm / Sửa Nhà Cung Cấp ══ -->
+<div class="ov" id="nh-ov-ncc" onclick="NccEditor._ovClick(event)">
+  <div class="ncc-dlg-wrap">
+    <!-- Header -->
+    <div class="ncc-dlg-head">
+      <span class="ncc-dlg-title" id="ncc-dlg-title-text">➕ Thêm mới nhà cung cấp</span>
+      <button class="ncc-dlg-close" onclick="NccEditor.close()">&times;</button>
+    </div>
+
+    <!-- Body: 4-column grid theo TheLight. Các ID đổi sang ncc-editor- để tránh trùng lặp DOM -->
+    <div class="ncc-dlg-body">
+      <!-- Hàng 1: Mã NCC | Tên NCC | Địa chỉ | Mã số thuế -->
+      <div class="ncc-field">
+        <label class="ncc-lbl">Mã nhà cung cấp</label>
+        <input id="ncc-editor-ma" class="ncc-inp" placeholder="Tự động" readonly>
+      </div>
+      <div class="ncc-field">
+        <label class="ncc-lbl">Tên nhà cung cấp *</label>
+        <input id="ncc-editor-ten" class="ncc-inp" placeholder="Tên nhà cung cấp">
+      </div>
+      <div class="ncc-field">
+        <label class="ncc-lbl">Địa chỉ</label>
+        <input id="ncc-editor-dc" class="ncc-inp" placeholder="Địa chỉ">
+      </div>
+      <div class="ncc-field">
+        <label class="ncc-lbl">Mã số thuế</label>
+        <input id="ncc-editor-mst" class="ncc-inp" placeholder="Mã số thuế">
+      </div>
+
+      <!-- Hàng 2: Điện thoại | Email | Người liên hệ | Số ĐKKDD -->
+      <div class="ncc-field">
+        <label class="ncc-lbl">Điện thoại</label>
+        <input id="ncc-editor-sdt" class="ncc-inp" placeholder="SĐT">
+      </div>
+      <div class="ncc-field">
+        <label class="ncc-lbl">Email</label>
+        <input id="ncc-editor-email" class="ncc-inp" placeholder="Email" type="email">
+      </div>
+      <div class="ncc-field">
+        <label class="ncc-lbl">Người liên hệ</label>
+        <input id="ncc-editor-nguoilh" class="ncc-inp" placeholder="Người liên hệ">
+      </div>
+      <div class="ncc-field">
+        <label class="ncc-lbl">Số ĐKKDD</label>
+        <input id="ncc-editor-dkkdd" class="ncc-inp" placeholder="Số ĐKKDD">
+      </div>
+
+      <!-- Hàng 3: Ghi chú (span 2) + Checkboxes -->
+      <div class="ncc-field span2">
+        <label class="ncc-lbl">Ghi chú</label>
+        <input id="ncc-editor-ghichu" class="ncc-inp" placeholder="Ghi chú">
+      </div>
+      <div class="ncc-check-row">
+        <label class="ncc-check-lbl">
+          <!-- Sprint 8.0: nhãn hiển thị đổi theo đúng TheLight thật ("DQC"),
+               KHÔNG đổi id/field/DB (vẫn noiBo/noiBoStr) — DQC LABEL =
+               CONFIRMED, DQC BUSINESS MEANING = PENDING PO DECISION. -->
+          <input type="checkbox" id="ncc-editor-noibo" checked>
+          DQC
+        </label>
+        <label class="ncc-check-lbl">
+          <input type="checkbox" id="ncc-editor-macdinh">
+          Mặc định nhập
+        </label>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="ncc-dlg-foot">
+      <button class="ncc-btn-save" id="ncc-editor-btn-save" onclick="NccEditor.save()">&#10003; Lưu lại</button>
+      <button class="ncc-btn-cancel" onclick="NccEditor.close()">&times; Thoát</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  NCC EDITOR DIALOG  (NccEditor)
+//  File: dialog_ncc_editor.html
+//  Tương tự ProductEditor — hoạt động độc lập, giao tiếp qua callback
+// ════════════════════════════════════════════════════════════════
+const NccEditor = {
+
+  state: {
+    mode:    'create',   // 'create' | 'edit'
+    nccId:   null,
+    onSaved: null        // callback({ id, name }) sau khi lưu
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  //  PUBLIC API
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Mở dialog.
+   * @param {object} config
+   *   mode     : 'create' | 'edit'
+   *   nccId    : string  — chỉ cần khi mode='edit'
+   *   onSaved  : function({ id, name }) — callback sau lưu thành công
+   */
+  open(config = {}) {
+    this.state.mode    = config.mode    || 'create';
+    this.state.nccId   = config.nccId   || null;
+    this.state.onSaved = config.onSaved || null;
+
+    // Cập nhật tiêu đề
+    const titleEl = document.getElementById('ncc-dlg-title-text');
+    if (titleEl) {
+      titleEl.textContent = this.state.mode === 'edit'
+        ? '✏️ Chỉnh sửa nhà cung cấp'
+        : '➕ Thêm mới nhà cung cấp';
+    }
+
+    this._resetForm();
+    this._bindKeys();
+
+    if (this.state.mode === 'edit' && this.state.nccId) {
+      this._loadForEdit(this.state.nccId);
+    }
+
+    const ov = document.getElementById('nh-ov-ncc');
+    if (ov) ov.classList.add('open');
+
+    // Focus ô Tên NCC
+    setTimeout(() => {
+      const inp = document.getElementById('ncc-editor-ten');
+      if (inp) inp.focus();
+    }, 160);
+  },
+
+  /** Đóng dialog */
+  close() {
+    const ov = document.getElementById('nh-ov-ncc');
+    if (ov) ov.classList.remove('open');
+    this._unbindKeys();
+  },
+
+  /** Lưu — được gọi từ onclick nút Lưu lại */
+  save() {
+    // ── Validate client-side ──────────────────────────────────
+    const tenEl = document.getElementById('ncc-editor-ten');
+    const ten = tenEl ? tenEl.value.trim() : '';
+    if (!ten) {
+      toast('Tên nhà cung cấp không được để trống!', 'warn');
+      if (tenEl) {
+        tenEl.focus();
+        tenEl.style.borderColor = '#ef5350';
+        setTimeout(() => { tenEl.style.borderColor = ''; }, 2000);
+      }
+      return;
+    }
+
+    // ── Khoá nút tránh double-click ───────────────────────────
+    const btn = document.getElementById('ncc-editor-btn-save');
+    if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Đang lưu...'; }
+
+    // ── Build payload ─────────────────────────────────────────
+    const g = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+    const payload = {
+      name:            ten,
+      sdt:             g('ncc-editor-sdt'),
+      mst:             g('ncc-editor-mst'),
+      diaChi:          g('ncc-editor-dc'),
+      email:           g('ncc-editor-email'),
+      nguoiLienHe:     g('ncc-editor-nguoilh'),
+      soDKKDD:         g('ncc-editor-dkkdd'),
+      ghiChu:          g('ncc-editor-ghichu'),
+      noiBoStr:        (document.getElementById('ncc-editor-noibo')   || {}).checked ? 'x' : '',
+      macDinhNhapStr:  (document.getElementById('ncc-editor-macdinh') || {}).checked ? 'x' : ''
+    };
+
+    // ── Chọn API đúng mode ────────────────────────────────────
+    const isEdit = (this.state.mode === 'edit' && this.state.nccId);
+    const apiName   = isEdit ? 'apiNccUpdate'  : 'apiNccCreate';
+    const apiPayload = isEdit ? { ...payload, id: this.state.nccId } : payload;
+
+    ApiClient.call(apiName, apiPayload)
+      .then(res => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '&#10003; Lưu lại'; }
+
+        // ── Xử lý lỗi từ backend ─────────────────────────────
+        if (!res || !res.success) {
+          const msg = (res && res.message) ? res.message : 'Lỗi lưu nhà cung cấp';
+          toast(msg, 'warn');
+          return;
+        }
+
+        // ── Thành công ────────────────────────────────────────
+        const savedNcc = {
+          id:   res.data.id   || this.state.nccId,
+          name: res.data.name || ten
+        };
+
+        toast(isEdit
+          ? `Đã cập nhật: ${savedNcc.name}`
+          : `Đã thêm mới: ${savedNcc.name}`,
+          'ok'
+        );
+
+        this.close();
+
+        // Callback về module cha (NhaphangModule) để refresh + auto-select
+        if (typeof this.state.onSaved === 'function') {
+          this.state.onSaved(savedNcc);
+        }
+      })
+      .catch(err => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '&#10003; Lưu lại'; }
+        toast('Lỗi hệ thống: ' + (err.message || err), 'err');
+      });
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  //  PRIVATE HELPERS
+  // ─────────────────────────────────────────────────────────────
+
+  _resetForm() {
+    const ids = ['ncc-editor-ma','ncc-editor-ten','ncc-editor-dc','ncc-editor-mst',
+                 'ncc-editor-sdt','ncc-editor-email','ncc-editor-nguoilh',
+                 'ncc-editor-dkkdd','ncc-editor-ghichu'];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.value = ''; el.style.borderColor = ''; }
+    });
+    const cbNoiBo   = document.getElementById('ncc-editor-noibo');
+    const cbMacDinh = document.getElementById('ncc-editor-macdinh');
+    if (cbNoiBo)   cbNoiBo.checked   = true;
+    if (cbMacDinh) cbMacDinh.checked = false;
+
+    const btn = document.getElementById('ncc-editor-btn-save');
+    if (btn) { btn.disabled = false; btn.innerHTML = '&#10003; Lưu lại'; }
+  },
+
+  _loadForEdit(nccId) {
+    // Hiện placeholder trong ô Mã để biết đang tải
+    const maEl = document.getElementById('ncc-editor-ma');
+    if (maEl) maEl.value = nccId;
+
+    ApiClient.call('apiNccLoad')
+      .then(res => {
+        let list = [];
+        if (res && res.success && Array.isArray(res.data)) {
+          list = res.data;
+        } else if (Array.isArray(res)) {
+          list = res;
+        }
+
+        const ncc = list.find(n => String(n.maNCC || n.id) === String(nccId));
+        if (!ncc) {
+          toast('Không tìm thấy nhà cung cấp: ' + nccId, 'warn');
+          return;
+        }
+
+        const set = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.value = val || '';
+        };
+        set('ncc-editor-ma',      ncc.maNCC);
+        set('ncc-editor-ten',     ncc.tenNCC);
+        set('ncc-editor-dc',      ncc.diaChi);
+        set('ncc-editor-mst',     ncc.mst);
+        set('ncc-editor-sdt',     ncc.sdt);
+        set('ncc-editor-email',   ncc.email);
+        set('ncc-editor-nguoilh', ncc.nguoiLienHe);
+        set('ncc-editor-dkkdd',   ncc.soDKKDD);
+        set('ncc-editor-ghichu',  ncc.ghiChu);
+
+        const cbNoiBo   = document.getElementById('ncc-editor-noibo');
+        const cbMacDinh = document.getElementById('ncc-editor-macdinh');
+        if (cbNoiBo)   cbNoiBo.checked   = !!ncc.noiBo;
+        if (cbMacDinh) cbMacDinh.checked = !!ncc.macDinhNhap;
+      })
+      .catch(err => {
+        console.error('NccEditor._loadForEdit error:', err);
+        toast('Lỗi tải dữ liệu NCC: ' + (err.message || err), 'err');
+      });
+  },
+
+  // Enter trong form → Lưu (trừ khi đang trong textarea)
+  _onKeydown(e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      NccEditor.save();
+    }
+    if (e.key === 'Escape') {
+      NccEditor.close();
+    }
+  },
+
+  _bindKeys() {
+    const ov = document.getElementById('nh-ov-ncc');
+    if (ov) ov.addEventListener('keydown', this._onKeydown);
+  },
+
+  _unbindKeys() {
+    const ov = document.getElementById('nh-ov-ncc');
+    if (ov) ov.removeEventListener('keydown', this._onKeydown);
+  },
+
+  // Đóng khi click nền
+  _ovClick(e) {
+    if (e.target.id === 'nh-ov-ncc') this.close();
+  }
+};
+</script>

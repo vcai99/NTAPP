@@ -1,0 +1,15 @@
+<script>
+// =================================================================
+//  CLIENT INVENTORY REPOSITORY (inventory_repository.html)
+//  Active Database Access Layer communicating with ApiClient
+// =================================================================
+const InventoryRepository = {
+  load() {
+    return ApiClient.call('apiInventoryLoad');
+  },
+
+  loadLots(maSP, kho) {
+    return ApiClient.call('apiInventoryLots', { maSP, kho });
+  }
+};
+</script>

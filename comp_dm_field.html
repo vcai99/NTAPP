@@ -1,0 +1,171 @@
+<style>
+.dm-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs, 4px);
+  margin-bottom: var(--space-md, 16px);
+  width: 100%;
+}
+.dm-field-label {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-sm, 12px);
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--color-text-muted, #94a3b8);
+}
+.dm-field-label .required-marker {
+  color: var(--color-danger, #ef4444);
+  margin-left: 2px;
+}
+.dm-field-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.dm-field-input {
+  width: 100%;
+  height: var(--height-input, 38px);
+  padding: var(--padding-input, 8px 12px);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-base, 13px);
+  background-color: var(--color-bg-card, #111a2e);
+  color: var(--color-text-main, #f8fafc);
+  border: 1px solid var(--color-border-main, #1e293b);
+  border-radius: var(--radius-md, 6px);
+  transition: var(--transition-fast, all 0.15s ease);
+}
+.dm-field-input:focus {
+  outline: none;
+  border-color: var(--color-border-focus, #3b82f6);
+  box-shadow: var(--shadow-focus, 0 0 0 3px rgba(59, 130, 246, 0.25));
+}
+.dm-field-input[readonly], .dm-field-input:disabled {
+  background-color: var(--color-bg-dialog, #0c1524);
+  color: var(--color-text-dark, #475569);
+  cursor: not-allowed;
+  border-color: var(--color-border-main, #1e293b);
+}
+.dm-field-hint {
+  font-size: var(--font-xs, 11px);
+  color: var(--color-text-dark, #475569);
+  margin-top: 2px;
+}
+.dm-field-error-msg {
+  display: none;
+  font-size: var(--font-xs, 11px);
+  color: var(--color-danger, #ef4444);
+  margin-top: 2px;
+}
+.dm-field.has-error .dm-field-input {
+  border-color: var(--color-danger, #ef4444);
+  box-shadow: var(--shadow-error, 0 0 0 3px rgba(239, 68, 68, 0.25));
+}
+.dm-field.has-error .dm-field-error-msg {
+  display: block;
+}
+</style>
+<script>
+class DMField {
+  constructor(container, config = {}) {
+    this.container = typeof container === 'string' ? document.getElementById(container) : container;
+    this.config = Object.assign({
+      id: '',
+      label: '',
+      type: 'text',
+      required: false,
+      placeholder: '',
+      readonly: false,
+      disabled: false,
+      hint: '',
+      value: '',
+      onChange: null
+    }, config);
+    this.dom = {};
+    this.state = { isDirty: false, status: 'CREATED' };
+    this.init();
+  }
+
+  init() {
+    this.render();
+    this.bindEvents();
+    this.state.status = 'INITIALIZED';
+  }
+
+  render() {
+    if (!this.container) return;
+    const req = this.config.required ? '<span class="required-marker">*</span>' : '';
+    const inputHtml = this.config.type === 'textarea' 
+      ? `<textarea id="${this.config.id}" class="dm-field-input" placeholder="${this.config.placeholder}" ${this.config.readonly ? 'readonly' : ''} ${this.config.disabled ? 'disabled' : ''}>${this.config.value}</textarea>`
+      : `<input type="${this.config.type}" id="${this.config.id}" class="dm-field-input" value="${this.config.value}" placeholder="${this.config.placeholder}" ${this.config.readonly ? 'readonly' : ''} ${this.config.disabled ? 'disabled' : ''}>`;
+
+    this.container.innerHTML = `
+      <div class="dm-field" id="field-wrapper-${this.config.id}">
+        <label class="dm-field-label" for="${this.config.id}">${this.config.label}${req}</label>
+        <div class="dm-field-input-wrapper">
+          ${inputHtml}
+        </div>
+        ${this.config.hint ? `<div class="dm-field-hint">${this.config.hint}</div>` : ''}
+        <div class="dm-field-error-msg"></div>
+      </div>
+    `;
+    this.dom.wrapper = this.container.querySelector(`#field-wrapper-${this.config.id}`);
+    this.dom.input = this.container.querySelector(`.dm-field-input`);
+    this.dom.error = this.container.querySelector(`.dm-field-error-msg`);
+    this.state.status = 'READY';
+  }
+
+  bindEvents() {
+    if (!this.dom.input) return;
+    this.dom.input.oninput = (e) => {
+      this.state.isDirty = true;
+      this.state.status = 'DIRTY';
+      if (typeof this.config.onChange === 'function') {
+        this.config.onChange(e.target.value);
+      }
+    };
+  }
+
+  setValue(val) {
+    if (!this.dom.input) return;
+    this.dom.input.value = val;
+    this.state.isDirty = false;
+  }
+
+  getValue() {
+    if (!this.dom.input) return '';
+    return this.dom.input.value.trim();
+  }
+
+  setError(msg) {
+    if (!this.dom.wrapper || !this.dom.error) return;
+    this.dom.wrapper.classList.add('has-error');
+    this.dom.error.textContent = msg;
+    this.state.status = 'ERROR';
+  }
+
+  clearError() {
+    if (!this.dom.wrapper) return;
+    this.dom.wrapper.classList.remove('has-error');
+    this.state.status = 'READY';
+  }
+
+  enable() {
+    if (!this.dom.input) return;
+    this.dom.input.disabled = false;
+  }
+
+  disable() {
+    if (!this.dom.input) return;
+    this.dom.input.disabled = true;
+  }
+
+  destroy() {
+    if (this.dom.input) {
+      this.dom.input.oninput = null;
+    }
+    this.container.innerHTML = '';
+    this.dom = {};
+    this.state.status = 'DESTROYED';
+  }
+}
+</script>

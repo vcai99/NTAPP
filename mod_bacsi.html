@@ -1,0 +1,364 @@
+<!-- ════════════════════════════════════════════════════════════════
+      DOCTOR (BÁC SĨ) LIST MODULE (mod_bacsi.html)
+      Sprint 9.0 — Danh mục Bác sĩ
+      Theo docs/DM_Bacsi/Doctor_BusinessLogic.md (Source of Truth)
+      Cấu trúc UI clone TheLight thật (DM_bac_si_ui_Thelight.pdf): không
+      có sidebar filter, không có cột Mã bác sĩ, không có icon
+      Import/Export (PDF không thể hiện). Toolbar chỉ có Tìm kiếm +
+      Thêm mới. Grid 5 cột nghiệp vụ (đã thêm SĐT — PO Decision bổ sung
+      2026-08-09, xem Doctor_BusinessLogic.md mục 19.6, không có trong
+      PDF gốc nhưng cột đã tồn tại thật trong Sheet) + Sửa/Xóa (Xóa =
+      HARD DELETE theo PO Decision Sprint 9.0, có confirmation).
+     ════════════════════════════════════════════════════════════════ -->
+
+<style>
+#page-bacsi {
+  display: none;
+  height: calc(100vh - 52px);
+  min-height: 0;
+  overflow: hidden;
+  flex-direction: column;
+}
+#page-bacsi.show {
+  display: flex;
+}
+
+.bs-topbar {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.bs-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.bs-topbar-right {
+  font-size: var(--fs-3);
+  font-weight: 700;
+  color: var(--text2);
+}
+
+.bs-inp-search {
+  height: var(--h-4);
+  padding: 0 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: var(--fs-3);
+  width: 260px;
+}
+.bs-inp-search:focus { outline: none; border-color: #1976D2; }
+
+.bs-tbl-wrap {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid var(--border);
+  margin: 10px 12px;
+  border-radius: 6px;
+  background: var(--bg2);
+}
+
+.bs-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1020px;
+  table-layout: fixed;
+}
+
+.bs-tbl th {
+  background: #0a2040;
+  color: var(--text2);
+  padding: 8px 10px;
+  text-align: left;
+  font-size: var(--fs-1);
+  font-weight: 700;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+.bs-tbl th:last-child { border-right: none; }
+
+.bs-tbl tbody tr.bs-row {
+  border-bottom: 1px solid #0d1f3c;
+  transition: background .1s;
+}
+.bs-tbl tbody tr.bs-row:hover { background: #0d2347; }
+
+.bs-tbl td {
+  padding: 8px 10px;
+  font-size: var(--fs-2);
+  color: var(--text);
+  border-right: 1px solid #0d1f3c;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bs-tbl td:last-child { border-right: none; }
+
+.bs-row-actions { display: flex; gap: 4px; justify-content: center; }
+
+.bs-pager {
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.bs-pg-info { font-size: var(--fs-2); color: var(--text2); }
+.bs-pg-btns { display: flex; gap: 4px; }
+.bs-pg-btn {
+  width: var(--h-2);
+  height: var(--h-2);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text2);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: var(--fs-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+}
+.bs-pg-btn:hover { background: var(--border); color: #fff; }
+.bs-pg-btn.on { background: var(--blue); color: #fff; border-color: var(--blue); font-weight: 700; }
+.bs-pg-btn:disabled { opacity: .3; cursor: not-allowed; }
+</style>
+
+<div class="page" id="page-bacsi">
+  <div class="bs-topbar">
+    <div class="bs-topbar-left">
+      <input id="bs-search" class="bs-inp-search" placeholder="Tìm kiếm...">
+      <button class="btn btn-green" id="bs-btn-search">Tìm kiếm</button>
+      <button class="btn btn-green" id="bs-btn-add">＋ Thêm mới</button>
+    </div>
+    <div class="bs-topbar-right">Danh sách bác sĩ</div>
+  </div>
+
+  <div class="bs-tbl-wrap">
+    <table class="bs-tbl" id="bs-main-tbl">
+      <thead>
+        <tr>
+          <th style="width:44px;text-align:center">STT</th>
+          <th style="width:160px">Tên bác sĩ</th>
+          <th style="width:120px">SĐT</th>
+          <th style="width:240px">Tên và địa chỉ cơ sở KCB</th>
+          <th style="width:130px">Tên khoa</th>
+          <th style="width:170px">Ghi chú</th>
+          <th style="width:150px;text-align:center">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody id="bs-tbl-body"></tbody>
+    </table>
+  </div>
+
+  <div class="bs-pager">
+    <div class="bs-pg-info" id="bs-pg-info">—</div>
+    <div class="bs-pg-btns" id="bs-pg-btns"></div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  CONTROLLER LAYER: BacSiModule (mod_bacsi.html)
+//  Sprint 9.0 — Danh mục Bác sĩ
+// ════════════════════════════════════════════════════════════════
+const BacSiModule = {
+  PAGE_SIZE: 20,
+
+  state: {
+    allData: [],
+    filtered: [],
+    currentPage: 1
+  },
+
+  dom: {},
+  initialized: false,
+
+  init() {
+    if (this.initialized) return;
+    this.cacheDOM();
+    this.bindEvents();
+    this.initialized = true;
+  },
+
+  cacheDOM() {
+    this.dom = {
+      search:    document.getElementById('bs-search'),
+      btnSearch: document.getElementById('bs-btn-search'),
+      btnAdd:    document.getElementById('bs-btn-add'),
+      tblBody:   document.getElementById('bs-tbl-body'),
+      pgInfo:    document.getElementById('bs-pg-info'),
+      pgBtns:    document.getElementById('bs-pg-btns')
+    };
+  },
+
+  bindEvents() {
+    this.dom.search.oninput = () => this.applyFilter();
+    this.dom.btnSearch.onclick = () => this.applyFilter();
+    this.dom.btnAdd.onclick = () => this.openAdd();
+  },
+
+  loadData() {
+    this.renderLoading();
+    ApiClient.call('apiDoctorLoad')
+      .then(res => {
+        if (!res || !res.success) {
+          this.renderError((res && res.message) || 'Lỗi không xác định');
+          return;
+        }
+        this.state.allData = res.data || [];
+        this.applyFilter();
+      })
+      .catch(err => {
+        this.renderError(err.message);
+      });
+  },
+
+  // BR-DR-02: reuse scope search đã có sẵn ở DoctorRepositoryBackend.search()
+  // (tenBS/sdt/maBS) — không tự phát minh thêm; ở đây lọc phía client trên
+  // dữ liệu đã tải, theo tenBS/tenKhoa/coSoKCB để khớp UI hiển thị.
+  applyFilter() {
+    const q = (this.dom.search.value || '').toLowerCase().trim();
+    this.state.filtered = this.state.allData.filter(d => {
+      if (!q) return true;
+      return [d.tenBS, d.chuyenKhoa, d.noiCongTac].join(' ').toLowerCase().includes(q);
+    });
+    this.state.currentPage = 1;
+    this.renderTable();
+  },
+
+  colspan_() { return 7; },
+
+  renderLoading() {
+    this.dom.tblBody.innerHTML = `<tr><td colspan="${this.colspan_()}" style="text-align:center;padding:32px;color:var(--text2);font-style:italic">
+      <span class="spin"></span> Đang tải danh mục bác sĩ...
+    </td></tr>`;
+  },
+
+  renderError(msg) {
+    this.dom.tblBody.innerHTML = `<tr><td colspan="${this.colspan_()}" style="text-align:center;padding:32px;color:var(--red);font-weight:bold">
+      Lỗi tải dữ liệu: ${msg}
+    </td></tr>`;
+  },
+
+  renderTable() {
+    if (!this.state.filtered.length) {
+      this.dom.tblBody.innerHTML = `<tr><td colspan="${this.colspan_()}" style="text-align:center;padding:32px;color:var(--text2);font-style:italic">Không tìm thấy bác sĩ nào</td></tr>`;
+      this.renderPager(0);
+      return;
+    }
+
+    const start = (this.state.currentPage - 1) * this.PAGE_SIZE;
+    const pageData = this.state.filtered.slice(start, start + this.PAGE_SIZE);
+
+    this.dom.tblBody.innerHTML = pageData.map((d, idx) => {
+      const stt = start + idx + 1;
+      return `
+        <tr class="bs-row">
+          <td style="text-align:center;color:var(--text2)">${stt}</td>
+          <td title="${d.tenBS || ''}">${d.tenBS || '—'}</td>
+          <td title="${d.sdt || ''}">${d.sdt || '—'}</td>
+          <td title="${d.noiCongTac || ''}">${d.noiCongTac || '—'}</td>
+          <td title="${d.chuyenKhoa || ''}">${d.chuyenKhoa || '—'}</td>
+          <td title="${d.ghiChu || ''}">${d.ghiChu || '—'}</td>
+          <td>
+            <div class="bs-row-actions">
+              <button class="btn btn-green btn-sm" onclick="BacSiModule.openEdit('${d.maBS}')">Sửa</button>
+              <button class="btn btn-red btn-sm" onclick="BacSiModule.confirmDelete('${d.maBS}')">Xóa</button>
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+
+    this.renderPager(this.state.filtered.length);
+  },
+
+  renderPager(total) {
+    const pages = Math.ceil(total / this.PAGE_SIZE);
+    if (!total) {
+      this.dom.pgInfo.textContent = 'Hiển thị 0–0 / 0 bác sĩ';
+      this.dom.pgBtns.innerHTML = '';
+      return;
+    }
+    const start = (this.state.currentPage - 1) * this.PAGE_SIZE + 1;
+    const end = Math.min(this.state.currentPage * this.PAGE_SIZE, total);
+    this.dom.pgInfo.textContent = `Tổng số bản ghi: ${total} - Tổng số trang: ${pages} (Hiển thị ${start}–${end})`;
+
+    let html = `<button class="bs-pg-btn" onclick="BacSiModule.gotoPage(${this.state.currentPage - 1})" ${this.state.currentPage === 1 ? 'disabled' : ''}>‹</button>`;
+    const from = Math.max(1, this.state.currentPage - 2);
+    const to = Math.min(pages, from + 4);
+    for (let i = from; i <= to; i++) {
+      html += `<button class="bs-pg-btn${i === this.state.currentPage ? ' on' : ''}" onclick="BacSiModule.gotoPage(${i})">${i}</button>`;
+    }
+    html += `<button class="bs-pg-btn" onclick="BacSiModule.gotoPage(${this.state.currentPage + 1})" ${this.state.currentPage === pages ? 'disabled' : ''}>›</button>`;
+    this.dom.pgBtns.innerHTML = html;
+  },
+
+  gotoPage(p) {
+    const maxPage = Math.ceil(this.state.filtered.length / this.PAGE_SIZE);
+    if (p < 1 || p > maxPage) return;
+    this.state.currentPage = p;
+    this.renderTable();
+    const wrap = document.querySelector('.bs-tbl-wrap');
+    if (wrap) wrap.scrollTop = 0;
+  },
+
+  openAdd() {
+    DoctorEditor.open({
+      mode: 'create',
+      onSaved: () => this.loadData()
+    });
+  },
+
+  openEdit(maBS) {
+    DoctorEditor.open({
+      mode: 'edit',
+      maBS: maBS,
+      onSaved: () => this.loadData()
+    });
+  },
+
+  // Xóa bác sĩ — HARD DELETE theo PO Decision Sprint 9.0, có confirmation.
+  confirmDelete(maBS) {
+    const d = this.state.allData.find(x => x.maBS === maBS);
+    const ten = d ? d.tenBS : maBS;
+    const msg = `Bạn có chắc chắn muốn xóa bác sĩ "${ten}" không? Hành động này KHÔNG thể hoàn tác.`;
+    if (typeof window.showConfirm === 'function') {
+      window.showConfirm(msg, 'Xác nhận xóa bác sĩ')
+        .then(ok => { if (ok) this.doDelete_(maBS); });
+    } else if (confirm(msg)) {
+      this.doDelete_(maBS);
+    }
+  },
+
+  doDelete_(maBS) {
+    ApiClient.call('apiDoctorDelete', maBS)
+      .then(res => {
+        if (!res || !res.success) {
+          toast((res && res.message) || 'Lỗi xóa bác sĩ', 'err');
+          return;
+        }
+        toast('Đã xóa bác sĩ', 'ok');
+        this.loadData();
+      })
+      .catch(err => {
+        toast(err.message || 'Lỗi xóa bác sĩ', 'err');
+      });
+  }
+};
+</script>

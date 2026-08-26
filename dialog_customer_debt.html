@@ -1,0 +1,245 @@
+<style>
+/* =================================================================
+   CSS SCOPED FOR CUSTOMER OPENING DEBT DIALOG (.cusdebt-)
+   Đồng bộ Design System với dialog_customer_editor.html
+   ================================================================= */
+
+#cusdebt-ov {
+  transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+.cusdebt-dlg-wrap {
+  width: 380px;
+  max-width: 94%;
+  background: #16213e;
+  border-radius: 8px;
+  border: 1px solid #0d3377;
+  padding: 0;
+  box-shadow: 0 10px 30px rgba(0,0,0,.6);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.cusdebt-dlg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid #0d3377;
+  background: #0d2144;
+  flex-shrink: 0;
+}
+.cusdebt-dlg-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #90caf9;
+}
+.cusdebt-dlg-close {
+  background: none;
+  border: none;
+  color: #ff5252;
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+  transition: color .15s;
+  padding: 0;
+}
+.cusdebt-dlg-close:hover { color: #ff1744; }
+
+.cusdebt-dlg-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: #16213e;
+}
+.cusdebt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cusdebt-lbl {
+  font-size: 11px;
+  font-weight: 500;
+  color: #90caf9;
+}
+.cusdebt-inp {
+  height: 32px;
+  background: #0d2144;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  padding: 0 8px;
+  font-size: 13px;
+  color: #e0e0e0;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color .15s;
+}
+.cusdebt-inp::placeholder { color: #546e7a; }
+.cusdebt-inp:focus { border-color: #42a5f5; }
+
+.cusdebt-dlg-foot {
+  padding: 12px 18px;
+  border-top: 1px solid #0d3377;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  background: #0d2144;
+  flex-shrink: 0;
+}
+.cusdebt-btn-save {
+  padding: 6px 16px;
+  background: #1565C0;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .15s;
+}
+.cusdebt-btn-save:hover { background: #0d47a1; }
+.cusdebt-btn-save:disabled { background: #263850; color: #78909c; cursor: not-allowed; }
+
+.cusdebt-btn-cancel {
+  padding: 6px 14px;
+  background: #263850;
+  color: #ccc;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .15s;
+}
+.cusdebt-btn-cancel:hover { background: #1e3060; }
+</style>
+
+<!-- ══ DIALOG: Công nợ tồn đầu (Sprint 7.0) ══
+     SET (ghi đè) CongNo của khách hàng bằng số tiền nhập, kèm Ngày làm mốc.
+     Không cộng dồn vào công nợ hiện có — đúng nghĩa "tồn đầu" (điểm khởi
+     đầu). Layout theo đúng ảnh chụp màn hình thật TheLight (PO cung cấp). ══ -->
+<div class="ov" id="cusdebt-ov" onclick="CustomerDebtEditor._ovClick(event)">
+  <div class="cusdebt-dlg-wrap">
+    <div class="cusdebt-dlg-head">
+      <span class="cusdebt-dlg-title" id="cusdebt-dlg-title-text">Công nợ tồn đầu</span>
+      <button class="cusdebt-dlg-close" onclick="CustomerDebtEditor.close()">&times;</button>
+    </div>
+
+    <div class="cusdebt-dlg-body">
+      <div class="cusdebt-field">
+        <label class="cusdebt-lbl">Ngày</label>
+        <input id="cusdebt-editor-ngay" class="cusdebt-inp" type="date">
+      </div>
+      <div class="cusdebt-field">
+        <label class="cusdebt-lbl">Số tiền</label>
+        <input id="cusdebt-editor-sotien" class="cusdebt-inp" type="text" inputmode="numeric" placeholder="0">
+      </div>
+    </div>
+
+    <div class="cusdebt-dlg-foot">
+      <button class="cusdebt-btn-save" id="cusdebt-editor-btn-save" onclick="CustomerDebtEditor.save()">✔ Lưu lại</button>
+      <button class="cusdebt-btn-cancel" onclick="CustomerDebtEditor.close()">✕ Thoát</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  CUSTOMER OPENING DEBT DIALOG (CustomerDebtEditor)
+//  File: dialog_customer_debt.html — Sprint 7.0
+// ════════════════════════════════════════════════════════════════
+const CustomerDebtEditor = {
+
+  state: {
+    maKH: null,
+    onSaved: null   // callback(customer) sau khi lưu
+  },
+
+  // config: { maKH, tenKH, congNoHienTai, onSaved(customer) }
+  open(config = {}) {
+    this.state.maKH = config.maKH || null;
+    this.state.onSaved = config.onSaved || null;
+
+    const titleEl = document.getElementById('cusdebt-dlg-title-text');
+    if (titleEl) titleEl.textContent = `Công nợ tồn đầu (KH: ${config.tenKH || ''})`;
+
+    const ngayEl = document.getElementById('cusdebt-editor-ngay');
+    const tienEl = document.getElementById('cusdebt-editor-sotien');
+    if (ngayEl) ngayEl.value = new Date().toISOString().slice(0, 10);
+    if (tienEl) tienEl.value = config.congNoHienTai ? formatMoney(config.congNoHienTai) : '';
+
+    const btn = document.getElementById('cusdebt-editor-btn-save');
+    if (btn) { btn.disabled = false; btn.innerHTML = '✔ Lưu lại'; }
+
+    this._bindKeys();
+
+    const ov = document.getElementById('cusdebt-ov');
+    if (ov) ov.classList.add('open');
+
+    setTimeout(() => { if (tienEl) tienEl.focus(); }, 160);
+  },
+
+  close() {
+    const ov = document.getElementById('cusdebt-ov');
+    if (ov) ov.classList.remove('open');
+    this._unbindKeys();
+  },
+
+  save() {
+    const ngayEl = document.getElementById('cusdebt-editor-ngay');
+    const tienEl = document.getElementById('cusdebt-editor-sotien');
+    const soTien = parseMoney(tienEl ? tienEl.value : '0');
+
+    if (!Number.isFinite(soTien) || soTien < 0) {
+      toast('Số tiền không hợp lệ!', 'warn');
+      if (tienEl) tienEl.focus();
+      return;
+    }
+
+    const btn = document.getElementById('cusdebt-editor-btn-save');
+    if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Đang lưu...'; }
+
+    CustomerService.setOpeningDebt({
+      maKH: this.state.maKH,
+      ngay: ngayEl ? ngayEl.value : '',
+      soTien: soTien
+    })
+      .then(customer => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '✔ Lưu lại'; }
+        toast('Đã lưu công nợ tồn đầu', 'ok');
+        this.close();
+        if (typeof this.state.onSaved === 'function') this.state.onSaved(customer);
+      })
+      .catch(err => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '✔ Lưu lại'; }
+        toast(err.message || 'Lỗi lưu công nợ tồn đầu', 'err');
+      });
+  },
+
+  _onKeydown(e) {
+    if (e.key === 'Enter') { e.preventDefault(); CustomerDebtEditor.save(); }
+    if (e.key === 'Escape') { CustomerDebtEditor.close(); }
+  },
+
+  _bindKeys() {
+    const ov = document.getElementById('cusdebt-ov');
+    if (ov) ov.addEventListener('keydown', this._onKeydown);
+  },
+
+  _unbindKeys() {
+    const ov = document.getElementById('cusdebt-ov');
+    if (ov) ov.removeEventListener('keydown', this._onKeydown);
+  },
+
+  _ovClick(e) {
+    if (e.target.id === 'cusdebt-ov') this.close();
+  }
+};
+</script>

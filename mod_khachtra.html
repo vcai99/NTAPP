@@ -1,0 +1,499 @@
+<!-- ════════════════════════════════════════════════════════════════
+      KHÁCH TRẢ LẠI MODULE (mod_khachtra.html)
+      Sprint 12 — Theo docs/12. Khach_tra_hang/01_KhachTraLai_BusinessLogic.md
+      Clone workflow TheLight (12. Khach_tra_hang.pdf):
+      Chọn khách hàng → Chọn phiếu trả lại → chọn phiếu xuất gốc → nhập SL
+      trả lại → Áp dụng → dòng về grid chính → Lưu phiếu / Lưu & In.
+
+      CẬP NHẬT (KTL-BUG-004, 2026-08-12 — PO UNBLOCK RETURN-DEC-P003):
+      "Lưu phiếu" nay CÓ post Inventory (REUSE InventoryServiceBackend.post(),
+      hàng quay lại đúng kho+lô phiếu gốc — BR-RETURN-12/16), validate SL
+      trả lũy kế không vượt SL đã bán của đúng dòng bán gốc (BR-RETURN-13/
+      14/15, backend tự tính lại, không tin số liệu frontend). Vẫn KHÔNG
+      cập nhật công nợ/hoàn tiền khách hàng (RETURN-DEC-P004 còn PENDING),
+      KHÔNG tính giá vốn/lợi nhuận (RETURN-DEC-P005 vẫn STOP).
+     ════════════════════════════════════════════════════════════════ -->
+
+<style>
+#page-khachtra { display: none; height: calc(100vh - 52px); min-height: 0; overflow: hidden; flex-direction: column; }
+#page-khachtra.show { display: flex; }
+
+.ktl-header {
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  padding: 8px 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0;
+}
+.ktl-field { display: flex; flex-direction: column; gap: 3px; }
+.ktl-lbl { font-size: var(--fs-1); color: var(--text2); font-weight: 700; }
+.ktl-inp {
+  height: var(--h-4); padding: 0 8px; background: var(--input-bg);
+  border: 1px solid var(--input-border); border-radius: 4px; color: var(--text); font-size: var(--fs-3);
+}
+.ktl-inp:focus { outline: none; border-color: #1976D2; }
+.ktl-search-wrap { position: relative; width: 200px; }
+.ktl-dd {
+  position: absolute; top: calc(100% + 2px); left: 0; right: 0; background: #0d2347;
+  border: 1px solid var(--border); border-radius: 5px; z-index: 999; max-height: 240px;
+  overflow-y: auto; display: none; box-shadow: 0 6px 20px rgba(0,0,0,.5);
+}
+.ktl-dd.open { display: block; }
+.ktl-dd-item { padding: 7px 10px; cursor: pointer; border-bottom: 1px solid #0d1f3c; display: flex; justify-content: space-between; }
+.ktl-dd-item:hover { background: #112244; }
+.ktl-dd-empty { padding: 10px; text-align: center; color: var(--text2); font-style: italic; font-size: var(--fs-2); }
+
+.ktl-grid-wrap { flex: 1; overflow: auto; margin: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg2); }
+.ktl-tbl { width: 100%; border-collapse: collapse; min-width: 1200px; }
+.ktl-tbl th {
+  background: #0a2040; color: var(--text2); padding: 7px 8px; text-align: left;
+  font-size: var(--fs-1); font-weight: 700; white-space: nowrap; border-bottom: 1px solid var(--border); border-right: 1px solid #0d1f3c;
+}
+.ktl-tbl th:last-child { border-right: none; }
+.ktl-tbl td {
+  padding: 6px 8px; font-size: var(--fs-2); color: var(--text);
+  border-right: 1px solid #0d1f3c; border-bottom: 1px solid #0d1f3c; vertical-align: middle;
+}
+.ktl-tbl td:last-child { border-right: none; }
+
+.ktl-footer { background: var(--bg2); border-top: 1px solid var(--border); padding: 8px 10px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+.ktl-footer-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.ktl-footer-actions { display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+</style>
+
+<div class="page" id="page-khachtra">
+  <div class="ktl-header">
+    <div class="ktl-field">
+      <div class="ktl-lbl">Chọn khách hàng</div>
+      <div class="ktl-search-wrap">
+        <input id="ktl-kh-search" class="ktl-inp" placeholder="Khách hàng Lẻ" style="width:200px">
+        <div class="ktl-dd" id="ktl-kh-dd"></div>
+      </div>
+    </div>
+    <div class="ktl-field">
+      <div class="ktl-lbl">Số hóa đơn</div>
+      <input id="ktl-so-hoadon" class="ktl-inp" placeholder="Số hóa đơn" style="width:140px">
+    </div>
+    <div class="ktl-field">
+      <div class="ktl-lbl">Ngày nhập</div>
+      <input id="ktl-ngay-nhap" type="datetime-local" class="ktl-inp" style="width:180px">
+    </div>
+    <div class="ktl-field">
+      <div class="ktl-lbl">HTTT</div>
+      <select id="ktl-httt" class="ktl-inp" style="width:120px"><option>Tiền mặt</option></select>
+    </div>
+    <div class="ktl-field" style="margin-left:auto">
+      <div class="ktl-lbl">&nbsp;</div>
+      <button class="btn btn-green" id="ktl-btn-chonphieu" disabled title="Chọn khách hàng trước">Chọn phiếu trả lại</button>
+    </div>
+  </div>
+
+  <div class="ktl-grid-wrap">
+    <table class="ktl-tbl">
+      <thead>
+        <tr>
+          <th style="width:90px">Mã SP</th>
+          <th>Tên sản phẩm</th>
+          <th style="width:70px">ĐVT</th>
+          <th style="width:90px">Số lô</th>
+          <th style="width:100px">Hạn dùng</th>
+          <th style="width:80px;text-align:right">Số lượng</th>
+          <th style="width:90px;text-align:right">Giá bán</th>
+          <th style="width:90px;text-align:right">Giá bán lẻ</th>
+          <th style="width:90px;text-align:right">Giá bán buôn</th>
+          <th style="width:100px;text-align:right">Tổng tiền</th>
+          <th style="width:70px;text-align:right">%CK</th>
+          <th style="width:90px;text-align:right">Chiết khấu</th>
+          <th style="width:70px;text-align:right">%VAT</th>
+          <th style="width:50px;text-align:center">Xóa</th>
+        </tr>
+      </thead>
+      <tbody id="ktl-tbl-body"></tbody>
+    </table>
+  </div>
+
+  <div class="ktl-footer">
+    <div class="ktl-footer-row">
+      <div class="ktl-field" style="flex:1;min-width:200px">
+        <div class="ktl-lbl">Ghi chú</div>
+        <input id="ktl-ghichu" class="ktl-inp" placeholder="Ghi chú" style="width:100%">
+      </div>
+      <div class="ktl-field">
+        <div class="ktl-lbl">Tổng tiền</div>
+        <input id="ktl-tongtien" class="ktl-inp" style="width:110px;text-align:right" disabled>
+      </div>
+      <div class="ktl-field">
+        <div class="ktl-lbl">Chiết khấu</div>
+        <input id="ktl-chietkhau" class="ktl-inp" style="width:100px;text-align:right" disabled>
+      </div>
+      <div class="ktl-field">
+        <div class="ktl-lbl">VAT</div>
+        <input id="ktl-vat" class="ktl-inp" style="width:90px;text-align:right" disabled>
+      </div>
+      <div class="ktl-field">
+        <div class="ktl-lbl">Số tiền phải trả</div>
+        <input id="ktl-phaitra" class="ktl-inp" style="width:110px;text-align:right" disabled>
+      </div>
+      <div class="ktl-field">
+        <div class="ktl-lbl">Số tiền thanh toán</div>
+        <input id="ktl-thanhtoan" class="ktl-inp" style="width:110px;text-align:right" placeholder="0">
+      </div>
+    </div>
+    <div class="ktl-footer-row" style="justify-content:space-between">
+      <label style="display:flex;align-items:center;gap:6px;font-size:var(--fs-2);color:var(--text2)">
+        <input type="checkbox" id="ktl-giacovat"> Giá đã có VAT
+      </label>
+      <div class="ktl-footer-actions">
+        <button class="btn btn-gray btn-sm" id="ktl-btn-timkiem">Tìm kiếm phiếu</button>
+        <button class="btn btn-gray btn-sm" id="ktl-btn-inphieu">In phiếu</button>
+        <button class="btn btn-green btn-sm" id="ktl-btn-luu">Lưu phiếu (F9)</button>
+        <button class="btn btn-orange btn-sm" id="ktl-btn-luuvain">Lưu &amp; In (F7)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  CONTROLLER LAYER: KhachTraModule (mod_khachtra.html)
+//  Sprint 12 — Khách Trả Lại
+// ════════════════════════════════════════════════════════════════
+const KhachTraModule = {
+  state: {
+    currentKhach: null,   // { id, ten } — null = Khách hàng Lẻ
+    khList: [],
+    lines: [],             // grid chính — dòng đã Áp dụng từ dialog
+    savedSoPhieu: null      // set sau khi Lưu phiếu thành công (đánh dấu đã lưu)
+  },
+
+  dom: {},
+  initialized: false,
+
+  init() {
+    if (this.initialized) return;
+    this.cacheDOM();
+    this.bindEvents();
+    this.initialized = true;
+  },
+
+  cacheDOM() {
+    this.dom = {
+      khSearch: document.getElementById('ktl-kh-search'),
+      khDd: document.getElementById('ktl-kh-dd'),
+      soHoaDon: document.getElementById('ktl-so-hoadon'),
+      ngayNhap: document.getElementById('ktl-ngay-nhap'),
+      httt: document.getElementById('ktl-httt'),
+      btnChonPhieu: document.getElementById('ktl-btn-chonphieu'),
+      tblBody: document.getElementById('ktl-tbl-body'),
+      ghiChu: document.getElementById('ktl-ghichu'),
+      tongTien: document.getElementById('ktl-tongtien'),
+      chietKhau: document.getElementById('ktl-chietkhau'),
+      vat: document.getElementById('ktl-vat'),
+      phaiTra: document.getElementById('ktl-phaitra'),
+      thanhToan: document.getElementById('ktl-thanhtoan'),
+      giaCoVat: document.getElementById('ktl-giacovat'),
+      btnTimKiem: document.getElementById('ktl-btn-timkiem'),
+      btnInPhieu: document.getElementById('ktl-btn-inphieu'),
+      btnLuu: document.getElementById('ktl-btn-luu'),
+      btnLuuVaIn: document.getElementById('ktl-btn-luuvain')
+    };
+  },
+
+  bindEvents() {
+    this.dom.khSearch.oninput = (e) => this.filterKhach_(e.target.value);
+    this.dom.khSearch.onfocus = (e) => this.filterKhach_(e.target.value);
+    document.addEventListener('click', e => {
+      if (this.dom.khDd && !e.target.closest('.ktl-search-wrap')) this.dom.khDd.classList.remove('open');
+    });
+
+    this.dom.btnChonPhieu.onclick = () => this.openChonPhieu_();
+    this.dom.thanhToan.oninput = () => this.recalcFooter_();
+    this.dom.btnTimKiem.onclick = () => this.timKiemPhieu_();
+    this.dom.btnInPhieu.onclick = () => toast('In phiếu — chưa triển khai (đúng hiện trạng chung của dự án, xem mod_banhang.html::inPhieuNhanh()).', 'warn');
+    this.dom.btnLuu.onclick = () => this.luuPhieu_(false);
+    this.dom.btnLuuVaIn.onclick = () => this.luuPhieu_(true);
+
+    document.addEventListener('keydown', e => {
+      const page = document.getElementById('page-khachtra');
+      if (!page || !page.classList.contains('show')) return;
+      if (e.key === 'F9') { e.preventDefault(); this.luuPhieu_(false); }
+      if (e.key === 'F7') { e.preventDefault(); this.luuPhieu_(true); }
+    });
+  },
+
+  loadData() {
+    this.resetForm_();
+    // Tải catalog 1 lần để tra "Giá bán lẻ"/"Giá bán buôn" hiển thị ở grid
+    // chính (BR-RETURN reference — 2 cột này không có trên phiếu xuất gốc,
+    // chỉ tồn tại trên DM_SANPHAM). Không phải nguồn tính toán, chỉ hiển thị.
+    if (typeof ProductService !== 'undefined' && !this.state._catalog) {
+      ProductService.load()
+        .then(catalog => { this.state._catalog = catalog || []; this.renderGrid_(); })
+        .catch(() => { this.state._catalog = []; });
+    }
+  },
+
+  resetForm_() {
+    this.state.currentKhach = null;
+    this.state.lines = [];
+    this.state.savedSoPhieu = null;
+    this.dom.khSearch.value = '';
+    this.dom.soHoaDon.value = '';
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    this.dom.ngayNhap.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    this.dom.ghiChu.value = '';
+    this.dom.thanhToan.value = '0';
+    this.dom.giaCoVat.checked = false;
+    this.dom.btnChonPhieu.disabled = true;
+    this.dom.btnChonPhieu.title = 'Chọn khách hàng trước';
+    this.renderGrid_();
+    this.recalcFooter_();
+  },
+
+  // ── Chọn khách hàng — REUSE api_searchCustomers (Sprint 5.2), cùng
+  //    pattern mod_banhang.html::filterKhach()/selectKhach(). Không tạo
+  //    endpoint tìm khách hàng mới. ─────────────────────────────────
+  filterKhach_(q) {
+    const kw = (q || '').toLowerCase().trim();
+    const dd = this.dom.khDd;
+    dd.innerHTML = '<div class="ktl-dd-item" style="color:var(--text2)">Đang tìm kiếm...</div>';
+    dd.classList.add('open');
+    ApiClient.call('api_searchCustomers', kw)
+      .then(res => {
+        if (!res || !res.success) { dd.innerHTML = '<div class="ktl-dd-empty">Lỗi tìm kiếm</div>'; return; }
+        const found = res.data || [];
+        this.state.khList = found;
+        if (!found.length) {
+          dd.innerHTML = '<div class="ktl-dd-empty">Không tìm thấy khách hàng</div>';
+        } else {
+          dd.innerHTML = found.map(k => `
+            <div class="ktl-dd-item" onclick="KhachTraModule.selectKhach_('${k.maKH}')">
+              <span style="font-weight:600">${k.tenKH}</span>
+              <span style="color:var(--text2);font-size:var(--fs-1)">${k.sdt || ''}</span>
+            </div>`).join('');
+        }
+      })
+      .catch(() => { dd.innerHTML = '<div class="ktl-dd-empty">Lỗi hệ thống</div>'; });
+  },
+
+  selectKhach_(maKH) {
+    const k = (this.state.khList || []).find(x => x.maKH === maKH);
+    if (!k) return;
+    this.state.currentKhach = { id: k.maKH, ten: k.tenKH };
+    // [KTL-DEBUG] tạm thời — xem KTL-BUG-001 audit (2026-08-12), xoá sau khi
+    // xác nhận root cause qua dữ liệu thật.
+    console.log('[KTL-DEBUG] selectedCustomer =', JSON.stringify(k), '| selectedCustomerId =', k.maKH);
+    this.dom.khSearch.value = k.tenKH;
+    this.dom.khDd.classList.remove('open');
+    this.dom.btnChonPhieu.disabled = false;
+    this.dom.btnChonPhieu.title = '';
+  },
+
+  // BR-RETURN-11: khách hàng là điều kiện bắt buộc (kiểm tra CUSTOMER ID
+  // thật — this.state.currentKhach.id — không phải chỉ tên hiển thị) trước
+  // khi cho mở popup "Chọn phiếu trả lại". Nút này vốn đã disabled sẵn khi
+  // chưa chọn khách (xem selectKhach_()), guard ở đây là lớp bảo vệ thứ 2 —
+  // không tạo fallback "Khách lẻ"/tất cả khách hàng/tất cả Phiếu Xuất.
+  openChonPhieu_() {
+    if (!this.state.currentKhach || !this.state.currentKhach.id) {
+      toast('Vui lòng chọn khách hàng trước khi chọn phiếu trả lại.', 'warn');
+      return;
+    }
+    // [KTL-DEBUG] tạm thời — xem KTL-BUG-001.
+    console.log('[KTL-DEBUG] openChonPhieu_ -> popupCustomerId =', this.state.currentKhach.id);
+    KhachTraChonPhieuDialog.open({
+      maKhach: this.state.currentKhach.id,
+      tenKhach: this.state.currentKhach.ten,
+      onApply: (chosenLines) => this.applyChosenLines_(chosenLines)
+    });
+  },
+
+  // BR-RETURN-06: đưa dòng đã Apply về grid chính — không tạo dòng trùng
+  // (cùng phiếu gốc + cùng SP + cùng lô/hạn dùng thì cộng dồn SL thay vì
+  // tạo 2 dòng, tránh nhầm lẫn khi Lưu).
+  applyChosenLines_(chosenLines) {
+    chosenLines.forEach(nl => {
+      const existing = this.state.lines.find(l =>
+        l.soPhieuGoc === nl.soPhieuGoc && l.maSP === nl.maSP &&
+        String(l.soLo || '') === String(nl.soLo || '') && String(l.hanDung || '') === String(nl.hanDung || '')
+      );
+      if (existing) {
+        existing.soLuong += nl.soLuong;
+      } else {
+        this.state.lines.push(nl);
+      }
+    });
+    this.renderGrid_();
+    this.recalcFooter_();
+    toast(`Đã áp dụng ${chosenLines.length} dòng trả lại`, 'ok');
+  },
+
+  removeLine_(idx) {
+    this.state.lines.splice(idx, 1);
+    this.renderGrid_();
+    this.recalcFooter_();
+  },
+
+  lineCalc_(l) {
+    const gross = (Number(l.soLuong) || 0) * (Number(l.giaBan) || 0);
+    const ttck = gross * ((Number(l.ck) || 0) / 100);
+    const thanhTien = gross - ttck;
+    return { gross, ttck, thanhTien };
+  },
+
+  renderGrid_() {
+    if (!this.state.lines.length) {
+      this.dom.tblBody.innerHTML = `<tr><td colspan="14" style="text-align:center;padding:32px;color:var(--text2);font-style:italic">Chưa có sản phẩm — bấm "Chọn phiếu trả lại" để thêm</td></tr>`;
+      return;
+    }
+    this.dom.tblBody.innerHTML = this.state.lines.map((l, idx) => {
+      const c = this.lineCalc_(l);
+      const prod = (typeof ProductService !== 'undefined' && this.state._catalog) ? this.state._catalog.find(p => p.maSP === l.maSP) : null;
+      return `
+        <tr>
+          <td>${l.maSP}</td>
+          <td>${l.tenSP}</td>
+          <td>${l.dvt || '—'}</td>
+          <td>${l.soLo || '—'}</td>
+          <td>${l.hanDung || '—'}</td>
+          <td style="text-align:right">${this.fmt(l.soLuong)}</td>
+          <td style="text-align:right">${this.fmt(l.giaBan)}</td>
+          <td style="text-align:right">${this.fmt(prod ? prod.giaBanLe : l.giaBan)}</td>
+          <td style="text-align:right">${this.fmt(prod ? prod.giaBanBuon : 0)}</td>
+          <td style="text-align:right">${this.fmt(c.thanhTien)}</td>
+          <td style="text-align:right">${this.fmt(l.ck)}</td>
+          <td style="text-align:right">${this.fmt(c.ttck)}</td>
+          <td style="text-align:right">${this.fmt(l.vat)}</td>
+          <td style="text-align:center"><button class="btn btn-red btn-sm" onclick="KhachTraModule.removeLine_(${idx})">Xóa</button></td>
+        </tr>`;
+    }).join('');
+  },
+
+  // Tổng tiền/Chiết khấu/VAT/Số tiền phải trả tính động từ grid — cùng công
+  // thức calculateSummary_() bên backend_sale_service.gs (gross - discount +
+  // vat), giữ nhất quán với Sale. Số tiền thanh toán do user tự nhập (không
+  // suy đoán hoàn tiền tự động — RETURN-DEC-P004 PENDING).
+  recalcFooter_() {
+    let tongTien = 0, chietKhau = 0, vat = 0;
+    this.state.lines.forEach(l => {
+      const c = this.lineCalc_(l);
+      tongTien += c.gross;
+      chietKhau += c.ttck;
+      vat += c.thanhTien * ((Number(l.vat) || 0) / 100);
+    });
+    const phaiTra = Math.max(0, tongTien - chietKhau + vat);
+    this.dom.tongTien.value = this.fmt(tongTien);
+    this.dom.chietKhau.value = this.fmt(chietKhau);
+    this.dom.vat.value = this.fmt(vat);
+    this.dom.phaiTra.value = this.fmt(phaiTra);
+  },
+
+  // ── "Tìm kiếm phiếu" — mở lại 1 phiếu Khách Trả Lại đã lưu (TEST 11).
+  //    Prompt đơn giản, dùng khi user đang ở NGAY màn Khách Trả Lại. Xem
+  //    lại "chính thức" (theo evidence PDF mục XVIII) nằm ở màn "Danh sách
+  //    phiếu nhập" (mod_dsphieu.html, dropdown "Loại chứng từ" → "Khách trả
+  //    lại" → nút "Xem") — cả 2 đường đều gọi chung openExisting(). ────────
+  timKiemPhieu_() {
+    const soPhieu = (prompt('Nhập Số phiếu Khách trả lại cần mở lại (VD: PTL000001):') || '').trim();
+    if (!soPhieu) return;
+    this.openExisting(soPhieu);
+  },
+
+  // Gọi từ timKiemPhieu_() (prompt tại chỗ) và từ
+  // DsPhieuModule.xemPhieu() (nút "Xem" ở Danh sách phiếu nhập, sau khi đã
+  // goPage('khachtra')). READ-ONLY: sửa/xóa phiếu đã lưu là RETURN-DEC-P006,
+  // còn PENDING — không có nút Sửa/Xóa nào ở đây.
+  openExisting(soPhieu) {
+    ApiClient.call('apiKhachTraDetail', soPhieu)
+      .then(res => {
+        if (!res || !res.success) {
+          toast((res && res.message) || 'Không tìm thấy phiếu', 'err');
+          return;
+        }
+        const { phieu, lines } = res.data;
+        this.state.currentKhach = phieu.maKhach ? { id: phieu.maKhach, ten: phieu.tenKhach } : null;
+        this.dom.khSearch.value = phieu.tenKhach || 'Khách hàng Lẻ';
+        this.dom.soHoaDon.value = phieu.soHoaDon || '';
+        this.dom.ghiChu.value = phieu.ghiChu || '';
+        this.dom.thanhToan.value = phieu.tienThanhToan || 0;
+        this.dom.giaCoVat.checked = !!phieu.giaDaCoVAT;
+        this.state.lines = lines.map(l => ({
+          soPhieuGoc: l.soPhieuGoc, maSP: l.maSP, tenSP: l.tenSP, dvt: l.dvt,
+          soLo: l.soLo, hanDung: l.hanDung, soLuong: l.soLuong, giaBan: l.giaBan,
+          ck: l.ck, vat: l.vat
+        }));
+        this.state.savedSoPhieu = phieu.soPhieu;
+        this.renderGrid_();
+        this.recalcFooter_();
+        toast(`Đã mở phiếu ${phieu.soPhieu} (chỉ xem — sửa/xóa phiếu đã lưu chưa được PO quyết định)`, 'ok');
+      })
+      .catch(err => toast('Lỗi hệ thống: ' + err.message, 'err'));
+  },
+
+  // ── Lưu phiếu (F9) / Lưu & In (F7) — nay CÓ post Inventory (backend
+  //    validate cumulative return + post trước khi ghi document, xem
+  //    backend_khachtra_service.gs::saveReturn()). VẪN KHÔNG cập nhật công
+  //    nợ khách hàng (RETURN-DEC-P004 còn PENDING). Double-click guard: 2
+  //    nút Lưu bị disable NGAY khi bấm, chỉ enable lại khi có lỗi/xong. ──
+  luuPhieu_(thenPrint) {
+    if (!this.state.lines.length) {
+      toast('Chưa có sản phẩm trả lại — hãy "Chọn phiếu trả lại" và Áp dụng trước.', 'warn');
+      return;
+    }
+    let tongTien = 0, chietKhau = 0, vat = 0;
+    this.state.lines.forEach(l => {
+      const c = this.lineCalc_(l);
+      tongTien += c.gross; chietKhau += c.ttck; vat += c.thanhTien * ((Number(l.vat) || 0) / 100);
+    });
+    const phaiTra = Math.max(0, tongTien - chietKhau + vat);
+
+    const payload = {
+      khachHang: this.state.currentKhach,
+      soHoaDon: this.dom.soHoaDon.value.trim(),
+      ngayNhap: this.dom.ngayNhap.value,
+      httt: this.dom.httt.value,
+      ghiChu: this.dom.ghiChu.value.trim(),
+      giaDaCoVAT: !!this.dom.giaCoVat.checked,
+      summary: {
+        tongTien: tongTien, chietKhau: chietKhau, vat: vat,
+        tienPhaiTra: phaiTra, tienThanhToan: Number(this.dom.thanhToan.value) || 0
+      },
+      lines: this.state.lines.map(l => {
+        const c = this.lineCalc_(l);
+        return {
+          soPhieuGoc: l.soPhieuGoc, kho: l.kho, maSP: l.maSP, tenSP: l.tenSP, dvt: l.dvt, heSo: l.heSo || 1,
+          soLo: l.soLo, hanDung: l.hanDung, soLuong: l.soLuong, giaBan: l.giaBan,
+          thanhTien: c.thanhTien, ck: l.ck, ttck: c.ttck, vat: l.vat, ttvat: c.thanhTien * ((Number(l.vat) || 0) / 100)
+        };
+      })
+    };
+
+    this.dom.btnLuu.disabled = true;
+    this.dom.btnLuuVaIn.disabled = true;
+    ApiClient.call('apiKhachTraSave', payload)
+      .then(res => {
+        this.dom.btnLuu.disabled = false;
+        this.dom.btnLuuVaIn.disabled = false;
+        if (!res || !res.success) {
+          toast((res && res.message) || 'Lỗi lưu phiếu', 'err');
+          return;
+        }
+        this.state.savedSoPhieu = res.data.soPhieu;
+        toast(`Đã lưu phiếu khách trả lại: ${res.data.soPhieu}`, 'ok');
+        if (thenPrint) {
+          toast('In phiếu — chưa triển khai (đúng hiện trạng chung của dự án).', 'warn');
+        }
+      })
+      .catch(err => {
+        this.dom.btnLuu.disabled = false;
+        this.dom.btnLuuVaIn.disabled = false;
+        toast('Lỗi hệ thống: ' + err.message, 'err');
+      });
+  },
+
+  fmt(v) {
+    if (v === null || v === undefined) return '0';
+    const n = parseFloat(v) || 0;
+    if (n === 0) return '0';
+    return Math.round(n).toLocaleString('vi-VN');
+  }
+};
+</script>

@@ -1,0 +1,1052 @@
+<script>
+// =================================================================
+//  CENTRAL API CLIENT: API CLIENT (ApiClient)
+//  The ONLY gateway to access google.script.run.
+// =================================================================
+const ApiClient = {
+  // Configuration
+  config: {
+    timeoutMs: 15000,
+    offlineMode: typeof google === 'undefined' || typeof google.script === 'undefined' || typeof google.script.run === 'undefined'
+  },
+
+  // dd-MM-yyyy HH:mm:ss — khớp định dạng backend KiemKeRepositoryBackend.fmtDateTime_()
+  fmtDateTime_(d) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  },
+
+  // Mock server-side store to simulate actual server roundtrips in offline stub mode
+  mockServerStore: [
+    { maSP: 'SP0001', tenSP: 'Paracetamol 500mg', dvtGoc: 'Viên', hangSX: 'Dược Hậu Giang', giaNhapMacDinh: 120, giaBanLe: 200, giaBanBuon: 180, active: true, nhomSP: '1. Dược phẩm', ncc: 'Công ty DHG', tonToiThieu: 100, appTichDiem: true, sdk: 'VD-25123-16', tenVietTat: 'Hapacol', viTri: 'Kệ A', uoms: [{ tenDV: 'Viên', heSo: 1, giaNhap: 120, giaBanLe: 200, giaBanBuon: 180, barcode: '', macDinh: true, active: true }, { tenDV: 'Hộp', heSo: 10, giaNhap: 1200, giaBanLe: 2000, giaBanBuon: 1800, barcode: '', macDinh: false, active: true }] },
+    { maSP: 'SP0002', tenSP: 'Amoxicillin 500mg', dvtGoc: 'Viên', hangSX: 'Mekophar', giaNhapMacDinh: 450, giaBanLe: 600, giaBanBuon: 550, active: true, nhomSP: '1. Dược phẩm', ncc: 'Mekophar Co', tonToiThieu: 50, appTichDiem: false, sdk: 'VD-18234-12', tenVietTat: 'Amo', viTri: 'Kệ B', uoms: [{ tenDV: 'Viên', heSo: 1, giaNhap: 450, giaBanLe: 600, giaBanBuon: 550, barcode: '', macDinh: true, active: true }] },
+    { maSP: 'SP0003', tenSP: 'Decolgen Forte', dvtGoc: 'Viên', hangSX: 'United Pharma', giaNhapMacDinh: 900, giaBanLe: 1200, giaBanBuon: 1100, active: true, nhomSP: '1. Dược phẩm', ncc: 'United', tonToiThieu: 200, appTichDiem: true, sdk: 'VN-12934-11', tenVietTat: 'Decolgen', viTri: 'Kệ A', uoms: [{ tenDV: 'Viên', heSo: 1, giaNhap: 900, giaBanLe: 1200, giaBanBuon: 1100, barcode: '', macDinh: true, active: true }, { tenDV: 'Hộp', heSo: 4, giaNhap: 3600, giaBanLe: 4800, giaBanBuon: 4400, barcode: '', macDinh: false, active: true }] },
+    { maSP: 'SP0004', tenSP: 'Panadol Extra', dvtGoc: 'Viên', hangSX: 'GSK', giaNhapMacDinh: 1100, giaBanLe: 1500, giaBanBuon: 1350, active: true, nhomSP: '1. Dược phẩm', ncc: 'DKSH', tonToiThieu: 150, appTichDiem: true, sdk: 'VN-12934-11', tenVietTat: 'Panadol đỏ', viTri: 'Kệ C', uoms: [{ tenDV: 'Viên', heSo: 1, giaNhap: 1100, giaBanLe: 1500, giaBanBuon: 1350, barcode: '', macDinh: true, active: true }, { tenDV: 'Vỉ', heSo: 10, giaNhap: 11000, giaBanLe: 15000, giaBanBuon: 13500, barcode: '', macDinh: false, active: true }, { tenDV: 'Hộp', heSo: 100, giaNhap: 110000, giaBanLe: 150000, giaBanBuon: 135000, barcode: '', macDinh: false, active: true }] },
+    { maSP: 'SP0005', tenSP: 'Vitamin C 500mg', dvtGoc: 'Viên', hangSX: 'Traphaco', giaNhapMacDinh: 300, giaBanLe: 500, giaBanBuon: 450, active: false, nhomSP: '2. Thực phẩm chức năng', ncc: 'Traphaco', tonToiThieu: 80, appTichDiem: false, sdk: 'VD-11111-20', tenVietTat: 'Vit C', viTri: 'Kệ D', uoms: [{ tenDV: 'Viên', heSo: 1, giaNhap: 300, giaBanLe: 500, giaBanBuon: 450, barcode: '', macDinh: true, active: true }] }
+  ],
+
+  mockPurchaseStore: [
+    {
+      soPhieu: 'PN000001',
+      ngayNhap: '2026-07-09T10:00',
+      tenNCC: 'Công ty Dược phẩm Trung ương 1',
+      maNCC: 'NCC001',
+      khoNhap: 'Kho chính',
+      soMatHang: 2,
+      tongTien: 3266250,
+      trangThai: 'Đã nhập',
+      nguoiTao: 'admin',
+      ghiChu: 'Nhập hàng định kỳ',
+      summary: {
+        tongTienHang: 3300000,
+        chietKhau: 150000,
+        vat: 116250,
+        tienPhaiTra: 3266250,
+        tienThanhToan: 3266250,
+        conNo: 0
+      },
+      lines: [
+        { barcode: '8930000000011', maSP: 'SP0001', tenSP: 'Paracetamol 500mg', dvt: 'Viên', heSo: 1, lo: 'L0126', hsd: '2028-12-31', sl: 10, donGia: 150000, ck: 0, vat: 5, thanhTien: 1575000, ghiChu: '' },
+        { barcode: '8930000000022', maSP: 'SP0002', tenSP: 'Amoxicillin 500mg', dvt: 'Viên', heSo: 1, lo: 'L0226', hsd: '2028-06-30', sl: 20, donGia: 90000, ck: 5, vat: 10, thanhTien: 1881000, ghiChu: '' }
+      ]
+    }
+  ],
+
+  // Mock NCC store — dùng khi chạy offline (không có Google Sheets)
+  mockNccStore: [
+    { maNCC: 'NCC001', tenNCC: 'Công ty Dược phẩm Trung ương 1', sdt: '02438123456', mst: '0100110637', diaChi: 'Hà Nội' },
+    { maNCC: 'NCC002', tenNCC: 'Nhà phân phối An Bình', sdt: '02838456789', mst: '0301234567', diaChi: 'TP. HCM' },
+    { maNCC: 'NCC003', tenNCC: 'Thiết bị Y tế Hoa Kỳ', sdt: '02438987654', mst: '0100987654', diaChi: 'Hà Nội' },
+    { maNCC: 'NCC004', tenNCC: 'Dược phẩm Sao Vàng', sdt: '02438111222', mst: '0100111222', diaChi: 'Hà Nội' },
+    { maNCC: 'NCC005', tenNCC: 'Dược phẩm Hậu Giang', sdt: '07103456789', mst: '1800234567', diaChi: 'Cần Thơ' },
+    { maNCC: 'NCC006', tenNCC: 'Mekophar Co., Ltd', sdt: '02838765432', mst: '0301765432', diaChi: 'TP. HCM' }
+  ],
+
+  // Mock Doctor store (Sprint 9.0) — dùng khi chạy offline. Chỉ phục vụ
+  // apiDoctorLoad/Create/Update/Delete (endpoint mới), không đụng
+  // api_searchDoctors/api_createDoctor cũ (không có mock riêng cho 2 cái đó).
+  mockDoctorStore: [
+    { maBS: 'BS000001', tenBS: 'Bác sĩ Trương Gia Bảo', sdt: '', chuyenKhoa: '', noiCongTac: 'ĐĂNG THIÊN PHÚC', ghiChu: '' },
+    { maBS: 'BS000002', tenBS: 'Bác sĩ Tuấn', sdt: '', chuyenKhoa: '', noiCongTac: '469 Trương Định, Hoàng Mai, Hà Nội', ghiChu: '' },
+    { maBS: 'BS000003', tenBS: 'BS Bùi Thị Bích Ngọc', sdt: '', chuyenKhoa: 'pk tai mũi họng', noiCongTac: 'Bệnh viện Đa Khoa Đồng Nai', ghiChu: '' }
+  ],
+
+  // Mock Nhóm Sản Phẩm store (Sprint 1) — dùng khi chạy offline. Phục vụ
+  // apiNhomSPLoad/Create/Update/Delete.
+  mockNhomSPStore: [
+    { maNhom: 'NSP01', tenNhom: '1. Dược phẩm', loaiSanPham: 'Sản phẩm', ghiChu: '' },
+    { maNhom: 'NSP03', tenNhom: 'DƯỢC MỸ PHẨM', loaiSanPham: 'Sản phẩm', ghiChu: '' },
+    { maNhom: 'NSP12', tenNhom: 'Thuốc cảm lạnh', loaiSanPham: 'Sản phẩm', ghiChu: '' }
+  ],
+
+  // Mock Kiểm kê Tồn kho (Sprint 11) — dùng khi chạy offline. Phục vụ
+  // apiKiemKeList/Create/Detail/SaveDraft/Apply.
+  mockKiemKePhieuStore: [],
+  mockKiemKeChiTietStore: [], // { kiemKeID, maSP, tenSP, kho, dvt, soLo, hanDung, tonKho, slThucTe, chenhLech, donGiaBan, thanhTienBan, clTheoGiaBan }
+
+  mockDvtStore: [
+    { maDVT: 'DVT001', tenDVT: 'Viên', ghiChu: '', active: true, ngayTao: '15/07/2026', ngayCapNhat: '15/07/2026' },
+    { maDVT: 'DVT002', tenDVT: 'Vỉ', ghiChu: '', active: true, ngayTao: '15/07/2026', ngayCapNhat: '15/07/2026' },
+    { maDVT: 'DVT003', tenDVT: 'Hộp', ghiChu: '', active: true, ngayTao: '15/07/2026', ngayCapNhat: '15/07/2026' }
+  ],
+
+  // Mock Customer store (Sprint 7.0) — dùng khi chạy offline. Chỉ phục vụ
+  // apiCustomerLoad/Create/Update/Find (endpoint mới), không đụng
+  // api_searchCustomers/api_createCustomer cũ (không có mock riêng cho 2 cái đó).
+  mockCustomerStore: [
+    { maKH: 'KH000001', tenKH: 'Nguyễn Văn A', sdt: '0901234567', diaChi: 'Hà Nội', ngaySinh: '1990-05-10', gioiTinh: 'Nam', canNang: '', maSoThue: '', email: '', tichDiem: true, macDinhBan: false, khachNoiBo: false, diemTL: 120, congNo: 0, ghiChu: '', active: true },
+    { maKH: 'KH000002', tenKH: 'Trần Thị B', sdt: '0912345678', diaChi: 'TP. HCM', ngaySinh: '', gioiTinh: 'Nữ', canNang: '', maSoThue: '', email: '', tichDiem: true, macDinhBan: false, khachNoiBo: false, diemTL: 45, congNo: 0, ghiChu: '', active: true },
+    { maKH: 'KH000003', tenKH: 'Khách lẻ', sdt: '', diaChi: '', ngaySinh: '', gioiTinh: '', canNang: '', maSoThue: '', email: '', tichDiem: false, macDinhBan: true, khachNoiBo: false, diemTL: 0, congNo: 0, ghiChu: '', active: true }
+  ],
+
+  // Mock Khách Trả Lại (Sprint 12) — dùng khi chạy offline. Phục vụ
+  // apiKhachTraList/Detail/Save. LƯU Ý: popup "Chọn phiếu trả lại" còn phụ
+  // thuộc apiSaleList/apiSaleGetDetail và api_searchCustomers — cả 3 hàm
+  // này CHƯA có mock offline từ trước (pre-existing gap, ngoài phạm vi
+  // Sprint 12), nên popup chỉ test được trên deployment Apps Script thật.
+  mockKhachTraPhieuStore: [],
+  mockKhachTraChiTietStore: [],
+
+  // Mock Trả hàng NCC (Sprint 13) — dùng khi chạy offline. Phục vụ
+  // apiTranCCList/Detail/ReturnedQty/Save. Popup "Chọn phiếu" phụ thuộc
+  // apiPurchaseLoad/apiPurchaseFind (đã có mock từ trước, mockPurchaseStore)
+  // và apiNccLoad (chưa có mock offline — pre-existing gap, ngoài phạm vi
+  // Sprint 13), nên chọn NCC chỉ test được trên deployment Apps Script thật.
+  mockTranCCPhieuStore: [],
+  mockTranCCChiTietStore: [],
+
+  // ======================
+  // Public Interface
+  // ======================
+  call(functionName, payload) {
+    if (this.config.offlineMode) {
+      return this.offlineCall_(functionName, payload);
+    }
+
+    const tStart = performance.now();
+    return new Promise((resolve, reject) => {
+      // Setup timeout safety
+      const timer = setTimeout(() => {
+        reject({
+          success: false,
+          code: 'TIMEOUT',
+          message: 'Kết nối máy chủ quá thời gian quy định (' + (this.config.timeoutMs/1000) + 's)'
+        });
+      }, this.config.timeoutMs);
+
+      google.script.run
+        .withSuccessHandler(res => {
+          clearTimeout(timer);
+          const duration = (performance.now() - tStart).toFixed(2);
+          console.log(`--- PERF: ApiClient.call(${functionName}) took ${duration}ms`);
+          if (res && typeof res === 'object') {
+            resolve(res);
+          } else {
+            resolve({
+              success: false,
+              code: 'UNKNOWN_ERROR',
+              message: 'Phản hồi từ máy chủ không hợp lệ'
+            });
+          }
+        })
+        .withFailureHandler(err => {
+          clearTimeout(timer);
+          const duration = (performance.now() - tStart).toFixed(2);
+          console.log(`--- PERF: ApiClient.call(${functionName}) FAILED after ${duration}ms`);
+          reject({
+            success: false,
+            code: 'SYSTEM_ERROR',
+            message: err.message || 'Lỗi hệ thống Apps Script'
+          });
+        })
+        [functionName](payload);
+    });
+  },
+
+  // Private Helper: Simulates server response in offline stub mode
+  offlineCall_(functionName, payload) {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        switch (functionName) {
+          case 'apiProductLoad':
+            resolve({
+              success: true,
+              code: 'OK',
+              data: JSON.parse(JSON.stringify(this.mockServerStore))
+            });
+            break;
+
+          case 'apiProductCreate':
+            const newP = JSON.parse(JSON.stringify(payload.product));
+            if (!newP.maSP) {
+              newP.maSP = 'SP' + String(this.mockServerStore.length + 1).padStart(4, '0');
+            }
+            if (this.mockServerStore.some(i => i.maSP.toLowerCase() === newP.maSP.toLowerCase())) {
+              resolve({
+                success: false,
+                code: 'DUPLICATE_PRODUCT',
+                message: 'Mã hàng ' + newP.maSP + ' đã bị trùng lặp!'
+              });
+            } else {
+              this.mockServerStore.push(newP);
+              resolve({
+                success: true,
+                code: 'OK',
+                data: newP
+              });
+            }
+            break;
+
+          case 'apiProductUpdate':
+            const updP = JSON.parse(JSON.stringify(payload.product));
+            const idx = this.mockServerStore.findIndex(i => i.maSP.toLowerCase() === updP.maSP.toLowerCase());
+            if (idx === -1) {
+              resolve({
+                success: false,
+                code: 'NOT_FOUND',
+                message: 'Không tìm thấy mã sản phẩm ' + updP.maSP
+              });
+            } else {
+              this.mockServerStore[idx] = updP;
+              resolve({
+                success: true,
+                code: 'OK',
+                data: updP
+              });
+            }
+            break;
+
+          case 'apiProductDelete':
+            const idToDel = payload;
+            const delIdx = this.mockServerStore.findIndex(i => i.maSP.toLowerCase() === idToDel.toLowerCase());
+            if (delIdx === -1) {
+              resolve({
+                success: false,
+                code: 'NOT_FOUND',
+                message: 'Không tìm thấy sản phẩm'
+              });
+            } else {
+              this.mockServerStore.splice(delIdx, 1);
+              resolve({
+                success: true,
+                code: 'OK',
+                data: { maSP: idToDel }
+              });
+            }
+            break;
+
+          case 'apiProductFind':
+            const idToFind = payload;
+            const item = this.mockServerStore.find(i => i.maSP.toLowerCase() === idToFind.toLowerCase());
+            if (!item) {
+              resolve({
+                success: false,
+                code: 'NOT_FOUND',
+                message: 'Không tìm thấy sản phẩm'
+              });
+            } else {
+              resolve({
+                success: true,
+                code: 'OK',
+                data: {
+                  product: item,
+                  uoms: [{ tenDV: item.dvtGoc, heSo: 1, giaNhap: item.giaNhapMacDinh, giaBanLe: item.giaBanLe, giaBanBuon: item.giaBanBuon, barcode: '', macDinh: true, active: true }]
+                }
+              });
+            }
+            break;
+
+          case 'apiProductSearch':
+            const q = (payload || '').toLowerCase().trim();
+            const res = this.mockServerStore.filter(i => 
+              [i.tenSP, i.maSP, i.sdk].join(' ').toLowerCase().includes(q)
+            );
+            resolve({
+              success: true,
+              code: 'OK',
+              data: res
+            });
+            break;
+
+          case 'apiProductExists':
+            const codeToChk = payload;
+            const chk = this.mockServerStore.some(i => i.maSP.toLowerCase() === codeToChk.toLowerCase());
+            resolve({
+              success: true,
+              code: 'OK',
+              data: chk
+            });
+            break;
+
+          case 'apiProductGenerateCode':
+            const codeGen = 'SP' + String(this.mockServerStore.length + 1).padStart(4, '0');
+            resolve({
+              success: true,
+              code: 'OK',
+              data: codeGen
+            });
+            break;
+
+          case 'apiPurchaseLoad':
+            resolve({
+              success: true,
+              code: 'OK',
+              data: JSON.parse(JSON.stringify(this.mockPurchaseStore || []))
+            });
+            break;
+
+          case 'apiPurchaseFind':
+            const pnId = payload;
+            const t = (this.mockPurchaseStore || []).find(x => x.soPhieu.toLowerCase() === pnId.toLowerCase());
+            resolve({
+              success: !!t,
+              code: t ? 'OK' : 'NOT_FOUND',
+              data: t ? JSON.parse(JSON.stringify(t)) : null
+            });
+            break;
+
+          case 'apiPurchaseCreate':
+            const newT = JSON.parse(JSON.stringify(payload));
+            newT.soPhieu = newT.soPhieu || ('PN' + String((this.mockPurchaseStore || []).length + 1).padStart(6, '0'));
+            newT.nguoiTao = 'admin';
+            newT.trangThai = 'Đã nhập';
+            newT.soMatHang = newT.lines.length;
+            newT.tongTien = newT.summary.tienPhaiTra;
+            if (!this.mockPurchaseStore) this.mockPurchaseStore = [];
+            this.mockPurchaseStore.unshift(newT);
+            resolve({
+              success: true,
+              code: 'OK',
+              data: newT
+            });
+            break;
+
+          case 'apiPurchaseUpdate':
+            const updT = JSON.parse(JSON.stringify(payload));
+            const uIdx = (this.mockPurchaseStore || []).findIndex(x => x.soPhieu.toLowerCase() === updT.soPhieu.toLowerCase());
+            if (uIdx !== -1) {
+              const updated = Object.assign({}, this.mockPurchaseStore[uIdx], updT, {
+                soMatHang: updT.lines.length,
+                tongTien: updT.summary.tienPhaiTra
+              });
+              this.mockPurchaseStore[uIdx] = updated;
+              resolve({
+                success: true,
+                code: 'OK',
+                data: updated
+              });
+            } else {
+              resolve({
+                success: false,
+                code: 'NOT_FOUND',
+                message: 'Không tìm thấy phiếu nhập cần sửa!'
+              });
+            }
+            break;
+
+          case 'apiPurchaseDelete':
+            const delPn = payload;
+            this.mockPurchaseStore = (this.mockPurchaseStore || []).filter(x => x.soPhieu.toLowerCase() !== delPn.toLowerCase());
+            resolve({
+              success: true,
+              code: 'OK',
+              data: true
+            });
+            break;
+
+          case 'apiNccLoad':
+            resolve({
+              success: true,
+              code: 'OK',
+              data: JSON.parse(JSON.stringify(this.mockNccStore || []))
+            });
+            break;
+
+          // PERF FIX (2026-08-17) — mock offline đơn giản: chỉ mod_nhacungcap.html
+          // dùng endpoint này, thêm field currentDebt = congNo thô (mock không
+          // cần dựng lại DebtEngine đầy đủ).
+          case 'apiNccLoadWithDebt':
+            resolve({
+              success: true,
+              code: 'OK',
+              data: JSON.parse(JSON.stringify((this.mockNccStore || []).map(n => Object.assign({}, n, { currentDebt: Number(n.congNo) || 0 }))))
+            });
+            break;
+
+          case 'apiNccCreate': {
+            const nccName = (payload && payload.name) ? String(payload.name).trim() : '';
+            if (!nccName) {
+              resolve({ success: false, code: 'VALIDATION', message: 'Tên nhà cung cấp không được để trống' });
+              break;
+            }
+            // Sinh mã tự động NCC001, NCC002...
+            let maxNccNum = 0;
+            (this.mockNccStore || []).forEach(n => {
+              const m = String(n.maNCC || '').match(/(\d+)$/);
+              if (m) maxNccNum = Math.max(maxNccNum, parseInt(m[1]));
+            });
+            const newNccId = 'NCC' + String(maxNccNum + 1).padStart(3, '0');
+            const newNcc = {
+              maNCC:       newNccId,
+              tenNCC:      nccName,
+              sdt:         payload.sdt         || '',
+              mst:         payload.mst         || '',
+              diaChi:      payload.diaChi      || '',
+              email:       payload.email       || '',
+              nguoiLienHe: payload.nguoiLienHe || '',
+              soDKKDD:     payload.soDKKDD     || '',
+              ghiChu:      payload.ghiChu      || '',
+              noiBo:       payload.noiBoStr    || '',
+              macDinhNhap: payload.macDinhNhapStr || ''
+            };
+            if (!this.mockNccStore) this.mockNccStore = [];
+            this.mockNccStore.push(newNcc);
+            resolve({ success: true, code: 'OK', data: { id: newNccId, name: nccName } });
+            break;
+          }
+
+          case 'apiNccUpdate': {
+            if (!payload || !payload.id) {
+              resolve({ success: false, code: 'VALIDATION', message: 'Thiếu mã NCC cần cập nhật' });
+              break;
+            }
+            const nccIdx = (this.mockNccStore || []).findIndex(n => String(n.maNCC) === String(payload.id));
+            if (nccIdx < 0) {
+              resolve({ success: false, code: 'NOT_FOUND', message: 'Không tìm thấy NCC: ' + payload.id });
+              break;
+            }
+            const updNcc = Object.assign({}, this.mockNccStore[nccIdx], {
+              tenNCC:      payload.name         || this.mockNccStore[nccIdx].tenNCC,
+              sdt:         payload.sdt          || '',
+              mst:         payload.mst          || '',
+              diaChi:      payload.diaChi       || '',
+              email:       payload.email        || '',
+              nguoiLienHe: payload.nguoiLienHe  || '',
+              soDKKDD:     payload.soDKKDD      || '',
+              ghiChu:      payload.ghiChu       || '',
+              noiBo:       payload.noiBoStr     || '',
+              macDinhNhap: payload.macDinhNhapStr || ''
+            });
+            this.mockNccStore[nccIdx] = updNcc;
+            resolve({ success: true, code: 'OK', data: { id: payload.id, name: updNcc.tenNCC } });
+            break;
+          }
+
+          case 'apiDoctorLoad':
+            resolve({
+              success: true,
+              code: 'OK',
+              data: JSON.parse(JSON.stringify(this.mockDoctorStore || []))
+            });
+            break;
+
+          case 'apiDoctorCreate': {
+            const tenBS = (payload && payload.tenBS) ? String(payload.tenBS).trim() : '';
+            if (!tenBS) {
+              resolve({ success: false, code: 'VALIDATION_ERROR', message: 'Tên bác sĩ không được để trống.' });
+              break;
+            }
+            let maxBsNum = 0;
+            (this.mockDoctorStore || []).forEach(d => {
+              const m = String(d.maBS || '').match(/(\d+)$/);
+              if (m) maxBsNum = Math.max(maxBsNum, parseInt(m[1]));
+            });
+            const newMaBS = 'BS' + String(maxBsNum + 1).padStart(6, '0');
+            const newDoctor = {
+              maBS: newMaBS,
+              tenBS: tenBS,
+              sdt: payload.sdt || '',
+              chuyenKhoa: payload.chuyenKhoa || '',
+              noiCongTac: payload.noiCongTac || '',
+              ghiChu: payload.ghiChu || ''
+            };
+            if (!this.mockDoctorStore) this.mockDoctorStore = [];
+            this.mockDoctorStore.push(newDoctor);
+            resolve({ success: true, code: 'OK', data: { maBS: newMaBS, tenBS: tenBS } });
+            break;
+          }
+
+          case 'apiDoctorUpdate': {
+            if (!payload || !payload.maBS) {
+              resolve({ success: false, code: 'VALIDATION_ERROR', message: 'Thiếu mã bác sĩ để cập nhật.' });
+              break;
+            }
+            const tenBS2 = (payload.tenBS || '').trim();
+            if (!tenBS2) {
+              resolve({ success: false, code: 'VALIDATION_ERROR', message: 'Tên bác sĩ không được để trống.' });
+              break;
+            }
+            const bsIdx = (this.mockDoctorStore || []).findIndex(d => String(d.maBS) === String(payload.maBS));
+            if (bsIdx < 0) {
+              resolve({ success: false, code: 'NOT_FOUND', message: 'Không tìm thấy bác sĩ mã ' + payload.maBS });
+              break;
+            }
+            const updDoctor = Object.assign({}, this.mockDoctorStore[bsIdx], {
+              tenBS: tenBS2,
+              sdt: payload.sdt || '',
+              chuyenKhoa: payload.chuyenKhoa || '',
+              noiCongTac: payload.noiCongTac || '',
+              ghiChu: payload.ghiChu || ''
+            });
+            this.mockDoctorStore[bsIdx] = updDoctor;
+            resolve({ success: true, code: 'OK', data: { maBS: payload.maBS, tenBS: updDoctor.tenBS } });
+            break;
+          }
+
+          case 'apiDoctorDelete': {
+            const maBSToDel = payload;
+            const delBsIdx = (this.mockDoctorStore || []).findIndex(d => String(d.maBS) === String(maBSToDel));
+            if (delBsIdx < 0) {
+              resolve({ success: false, code: 'NOT_FOUND', message: 'Không tìm thấy bác sĩ mã ' + maBSToDel });
+              break;
+            }
+            this.mockDoctorStore.splice(delBsIdx, 1);
+            resolve({ success: true, code: 'OK', data: true });
+            break;
+          }
+
+          case 'apiNhomSPLoad':
+            resolve({
+              success: true,
+              code: 'OK',
+              data: JSON.parse(JSON.stringify(this.mockNhomSPStore || []))
+            });
+            break;
+
+          case 'apiNhomSPCreate': {
+            const nspTen = (payload && payload.tenNhom) ? String(payload.tenNhom).trim() : '';
+            if (!nspTen) {
+              resolve({ success: false, code: 'VALIDATION_ERROR', message: 'Tên nhóm không được để trống.' });
+              break;
+            }
+            const newGroup = {
+              maNhom: (payload && payload.maNhom) || '',
+              tenNhom: nspTen,
+              loaiSanPham: (payload && payload.loaiSanPham) || '',
+              ghiChu: (payload && payload.ghiChu) || ''
+            };
+            if (!this.mockNhomSPStore) this.mockNhomSPStore = [];
+            this.mockNhomSPStore.push(newGroup);
+            resolve({ success: true, code: 'OK', data: { maNhom: newGroup.maNhom, tenNhom: newGroup.tenNhom } });
+            break;
+          }
+
+          case 'apiNhomSPUpdate': {
+            if (!payload || payload.maNhomOriginal === undefined || payload.maNhomOriginal === null || payload.maNhomOriginal === '') {
+              resolve({ success: false, code: 'VALIDATION_ERROR', message: 'Thiếu mã nhóm gốc để cập nhật.' });
+              break;
+            }
+            const nspTen2 = (payload.tenNhom || '').trim();
+            if (!nspTen2) {
+              resolve({ success: false, code: 'VALIDATION_ERROR', message: 'Tên nhóm không được để trống.' });
+              break;
+            }
+            const nspIdx = (this.mockNhomSPStore || []).findIndex(g => String(g.maNhom) === String(payload.maNhomOriginal));
+            if (nspIdx < 0) {
+              resolve({ success: false, code: 'NOT_FOUND', message: 'Không tìm thấy nhóm sản phẩm mã ' + payload.maNhomOriginal });
+              break;
+            }
+            const updGroup = Object.assign({}, this.mockNhomSPStore[nspIdx], {
+              maNhom: payload.maNhom || this.mockNhomSPStore[nspIdx].maNhom,
+              tenNhom: nspTen2,
+              loaiSanPham: payload.loaiSanPham || '',
+              ghiChu: payload.ghiChu || ''
+            });
+            this.mockNhomSPStore[nspIdx] = updGroup;
+            resolve({ success: true, code: 'OK', data: { maNhom: updGroup.maNhom, tenNhom: updGroup.tenNhom } });
+            break;
+          }
+
+          case 'apiNhomSPDelete': {
+            const maNhomToDel = payload;
+            const delNspIdx = (this.mockNhomSPStore || []).findIndex(g => String(g.maNhom) === String(maNhomToDel));
+            if (delNspIdx < 0) {
+              resolve({ success: false, code: 'NOT_FOUND', message: 'Không tìm thấy nhóm sản phẩm mã ' + maNhomToDel });
+              break;
+            }
+            this.mockNhomSPStore.splice(delNspIdx, 1);
+            resolve({ success: true, code: 'OK', data: true });
+            break;
+          }
+
+          case 'apiKiemKeList': {
+            const list = (this.mockKiemKePhieuStore || []).map(p => {
+              const lines = (this.mockKiemKeChiTietStore || []).filter(c => c.kiemKeID === p.kiemKeID);
+              const ttBanTruoc = lines.reduce((a, l) => a + (Number(l.thanhTienBan) || 0), 0);
+              const clTienBan = lines.reduce((a, l) => a + (Number(l.clTheoGiaBan) || 0), 0);
+              return Object.assign({}, p, {
+                ttNhapTruoc: null, ttBanTruoc: ttBanTruoc,
+                clTienNhap: null, clTienBan: clTienBan, ttNhapSau: null
+              });
+            });
+            resolve({ success: true, code: 'OK', data: list });
+            break;
+          }
+
+          case 'apiKiemKeCreate': {
+            const dot = (payload && payload.dotKiemKe) ? String(payload.dotKiemKe).trim() : '';
+            if (!dot) {
+              resolve({ success: false, code: 'VALIDATION_ERROR', message: 'Đợt kiểm kê không được để trống.' });
+              break;
+            }
+            const newId = 'KK' + String((this.mockKiemKePhieuStore || []).length + 1).padStart(6, '0');
+            const newPhieu = {
+              kiemKeID: newId, dotKiemKe: dot,
+              ngayKiemKe: payload.ngayKiemKe || '', ghiChu: payload.ghiChu || '',
+              daApDung: false, ngayApDung: ''
+            };
+            if (!this.mockKiemKePhieuStore) this.mockKiemKePhieuStore = [];
+            this.mockKiemKePhieuStore.push(newPhieu);
+            resolve({ success: true, code: 'OK', data: { kiemKeID: newId, dotKiemKe: dot } });
+            break;
+          }
+
+          case 'apiKiemKeDetail': {
+            const phieu = (this.mockKiemKePhieuStore || []).find(p => p.kiemKeID === payload);
+            if (!phieu) {
+              resolve({ success: false, code: 'NOT_FOUND', message: 'Không tìm thấy phiếu kiểm kê: ' + payload });
+              break;
+            }
+            const lines = (this.mockKiemKeChiTietStore || []).filter(c => c.kiemKeID === payload);
+            resolve({ success: true, code: 'OK', data: { phieu: phieu, lines: JSON.parse(JSON.stringify(lines)) } });
+            break;
+          }
+
+          case 'apiKiemKeSaveDraft': {
+            const kkId = payload && payload.kiemKeID;
+            const phieuIdx = (this.mockKiemKePhieuStore || []).findIndex(p => p.kiemKeID === kkId);
+            if (phieuIdx < 0) {
+              resolve({ success: false, code: 'NOT_FOUND', message: 'Không tìm thấy phiếu kiểm kê: ' + kkId });
+              break;
+            }
+            this.mockKiemKeChiTietStore = (this.mockKiemKeChiTietStore || []).filter(c => c.kiemKeID !== kkId);
+            (payload.lines || []).forEach(l => {
+              this.mockKiemKeChiTietStore.push(Object.assign({ kiemKeID: kkId }, l));
+            });
+            resolve({ success: true, code: 'OK', data: true });
+            break;
+          }
+
+          case 'apiKiemKeApply': {
+            const kkIdApply = payload;
+            const phieuApplyIdx = (this.mockKiemKePhieuStore || []).findIndex(p => p.kiemKeID === kkIdApply);
+            if (phieuApplyIdx < 0) {
+              resolve({ success: false, code: 'NOT_FOUND', message: 'Không tìm thấy phiếu kiểm kê: ' + kkIdApply });
+              break;
+            }
+            if (this.mockKiemKePhieuStore[phieuApplyIdx].daApDung) {
+              resolve({ success: false, code: 'VALIDATION_ERROR', message: 'Phiếu này đã được Áp dụng kiểm kê trước đó.' });
+              break;
+            }
+            const linesApply = (this.mockKiemKeChiTietStore || []).filter(c => c.kiemKeID === kkIdApply);
+            const coDongDaNhapApply = linesApply.some(l => l.slThucTe !== null && l.slThucTe !== undefined);
+            if (!linesApply.length || !coDongDaNhapApply) {
+              resolve({ success: false, code: 'VALIDATION_ERROR', message: 'Không có sản phẩm để kiểm kê.' });
+              break;
+            }
+            // PO Decision 2026-08-11: "Thời gian áp dụng" ghi vào TỪNG dòng
+            // KK_CHITIET đã kiểm kê (slThucTe khác null), làm snapshot cho
+            // tab "Sản phẩm đã kiểm kê" — cùng 1 mốc thời gian cho cả phiếu.
+            const applyTs = this.fmtDateTime_(new Date());
+            linesApply.forEach(l => {
+              if (l.slThucTe !== null && l.slThucTe !== undefined) l.thoiGianApDung = applyTs;
+            });
+            const adjustedLines = linesApply.filter(l => l.slThucTe !== null && l.slThucTe !== undefined && (Number(l.chenhLech) || 0) !== 0).length;
+            this.mockKiemKePhieuStore[phieuApplyIdx].daApDung = true;
+            this.mockKiemKePhieuStore[phieuApplyIdx].ngayApDung = applyTs;
+            resolve({ success: true, code: 'OK', data: { kiemKeID: kkIdApply, adjustedLines: adjustedLines } });
+            break;
+          }
+
+          // Tab "Sản phẩm đã kiểm kê" — scope theo đúng phiếu (kiemKeID)
+          // (CORRECTION 2026-08-11, KK-DEC-P006 — không còn GLOBAL).
+          case 'apiKiemKeAppliedResults': {
+            const kkIdApplied = payload;
+            const applied = (this.mockKiemKeChiTietStore || []).filter(c =>
+              c.thoiGianApDung && String(c.kiemKeID) === String(kkIdApplied)
+            );
+            resolve({ success: true, code: 'OK', data: JSON.parse(JSON.stringify(applied)) });
+            break;
+          }
+
+          case 'apiKhachTraList': {
+            resolve({ success: true, code: 'OK', data: JSON.parse(JSON.stringify(this.mockKhachTraPhieuStore || [])) });
+            break;
+          }
+
+          case 'apiKhachTraDetail': {
+            const soPhieuKtl = payload;
+            const p = (this.mockKhachTraPhieuStore || []).find(x => String(x.soPhieu) === String(soPhieuKtl));
+            if (!p) {
+              resolve({ success: false, code: 'NOT_FOUND', message: 'Không tìm thấy phiếu khách trả lại: ' + soPhieuKtl });
+              break;
+            }
+            const lines = (this.mockKhachTraChiTietStore || []).filter(c => String(c.khachTraID) === String(p.khachTraID));
+            resolve({ success: true, code: 'OK', data: { phieu: JSON.parse(JSON.stringify(p)), lines: JSON.parse(JSON.stringify(lines)) } });
+            break;
+          }
+
+          // KTL-BUG-004 — mock đơn giản: tính lại từ mockKhachTraChiTietStore
+          // hiện có, cùng logic key MaSP|SoLo|HanDung như backend thật.
+          case 'apiKhachTraReturnedQty': {
+            const soPhieuGocQty = payload;
+            const map = {};
+            (this.mockKhachTraChiTietStore || []).forEach(c => {
+              if (String(c.soPhieuGoc) !== String(soPhieuGocQty)) return;
+              const key = String(c.maSP || '') + '|' + String(c.soLo || '') + '|' + String(c.hanDung || '');
+              map[key] = (map[key] || 0) + (Number(c.soLuong) || 0);
+            });
+            resolve({ success: true, code: 'OK', data: map });
+            break;
+          }
+
+          case 'apiKhachTraSave': {
+            if (!payload || !Array.isArray(payload.lines) || !payload.lines.length) {
+              resolve({ success: false, code: 'VALIDATION_ERROR', message: 'Phiếu chưa có sản phẩm trả lại.' });
+              break;
+            }
+            const khachTraID = 'KTL' + String((this.mockKhachTraPhieuStore || []).length + 1).padStart(6, '0');
+            const soPhieuKtlNew = 'PTL' + String((this.mockKhachTraPhieuStore || []).length + 1).padStart(6, '0');
+            const newPhieu = {
+              khachTraID: khachTraID, soPhieu: soPhieuKtlNew,
+              soHoaDon: payload.soHoaDon || '', maKhach: (payload.khachHang && payload.khachHang.id) || '',
+              tenKhach: (payload.khachHang && payload.khachHang.ten) || 'Khách lẻ',
+              ngayNhap: payload.ngayNhap || '', httt: payload.httt || 'Tiền mặt',
+              ghiChu: payload.ghiChu || '', giaDaCoVAT: !!payload.giaDaCoVAT,
+              tongTien: (payload.summary && payload.summary.tongTien) || 0,
+              chietKhau: (payload.summary && payload.summary.chietKhau) || 0,
+              vat: (payload.summary && payload.summary.vat) || 0,
+              tienPhaiTra: (payload.summary && payload.summary.tienPhaiTra) || 0,
+              tienThanhToan: (payload.summary && payload.summary.tienThanhToan) || 0
+            };
+            if (!this.mockKhachTraPhieuStore) this.mockKhachTraPhieuStore = [];
+            this.mockKhachTraPhieuStore.push(newPhieu);
+            if (!this.mockKhachTraChiTietStore) this.mockKhachTraChiTietStore = [];
+            payload.lines.forEach(l => this.mockKhachTraChiTietStore.push(Object.assign({ khachTraID: khachTraID }, l)));
+            resolve({ success: true, code: 'OK', data: { khachTraID: khachTraID, soPhieu: soPhieuKtlNew } });
+            break;
+          }
+
+          case 'apiTranCCList': {
+            resolve({ success: true, code: 'OK', data: JSON.parse(JSON.stringify(this.mockTranCCPhieuStore || [])) });
+            break;
+          }
+
+          case 'apiTranCCDetail': {
+            const soPhieuTnCC = payload;
+            const pTn = (this.mockTranCCPhieuStore || []).find(x => String(x.soPhieu) === String(soPhieuTnCC));
+            if (!pTn) {
+              resolve({ success: false, code: 'NOT_FOUND', message: 'Không tìm thấy phiếu trả hàng NCC: ' + soPhieuTnCC });
+              break;
+            }
+            const linesTn = (this.mockTranCCChiTietStore || []).filter(c => String(c.traNCCID) === String(pTn.traNCCID));
+            resolve({ success: true, code: 'OK', data: { phieu: JSON.parse(JSON.stringify(pTn)), lines: JSON.parse(JSON.stringify(linesTn)) } });
+            break;
+          }
+
+          // Mock đơn giản: tính lại từ mockTranCCChiTietStore hiện có, cùng
+          // logic key MaSP|SoLo|HanDung như backend thật.
+          case 'apiTranCCReturnedQty': {
+            const soPhieuNhapGocQty = payload;
+            const mapTn = {};
+            (this.mockTranCCChiTietStore || []).forEach(c => {
+              if (String(c.soPhieuNhapGoc) !== String(soPhieuNhapGocQty)) return;
+              const keyTn = String(c.maSP || '') + '|' + String(c.soLo || '') + '|' + String(c.hanDung || '');
+              mapTn[keyTn] = (mapTn[keyTn] || 0) + (Number(c.soLuong) || 0);
+            });
+            resolve({ success: true, code: 'OK', data: mapTn });
+            break;
+          }
+
+          case 'apiTranCCSave': {
+            if (!payload || !Array.isArray(payload.lines) || !payload.lines.length) {
+              resolve({ success: false, code: 'VALIDATION_ERROR', message: 'Phiếu chưa có sản phẩm trả hàng.' });
+              break;
+            }
+            const traNCCID = 'TNCC' + String((this.mockTranCCPhieuStore || []).length + 1).padStart(6, '0');
+            const soPhieuTnCCNew = 'PTN' + String((this.mockTranCCPhieuStore || []).length + 1).padStart(6, '0');
+            const newPhieuTn = {
+              traNCCID: traNCCID, soPhieu: soPhieuTnCCNew,
+              soHoaDon: payload.soHoaDon || '', maNCC: (payload.ncc && payload.ncc.id) || '',
+              tenNCC: (payload.ncc && payload.ncc.ten) || '',
+              ngayTra: payload.ngayTra || '', httt: payload.httt || 'Tiền mặt',
+              ghiChu: payload.ghiChu || '',
+              tongTien: (payload.summary && payload.summary.tongTien) || 0,
+              chietKhau: (payload.summary && payload.summary.chietKhau) || 0,
+              vat: (payload.summary && payload.summary.vat) || 0,
+              tongThanhToan: (payload.summary && payload.summary.tongThanhToan) || 0
+            };
+            if (!this.mockTranCCPhieuStore) this.mockTranCCPhieuStore = [];
+            this.mockTranCCPhieuStore.push(newPhieuTn);
+            if (!this.mockTranCCChiTietStore) this.mockTranCCChiTietStore = [];
+            payload.lines.forEach(l => this.mockTranCCChiTietStore.push(Object.assign({ traNCCID: traNCCID }, l)));
+            resolve({ success: true, code: 'OK', data: { traNCCID: traNCCID, soPhieu: soPhieuTnCCNew } });
+            break;
+          }
+
+          // Sprint 14 — Thu Chi & Công Nợ. LƯU Ý: apiThuChiCurrentDebt/
+          // apiThuChiDebtReport KHÔNG được mock trung thực ở đây (trả 0/rỗng
+          // thay vì tái hiện DebtEngineBackend bằng JS) — cùng tiền lệ với
+          // các endpoint danh sách Sale/Purchase/NCC vốn cũng chưa có mock
+          // offline đầy đủ. Test thật cho Debt Engine PHẢI làm trên Apps
+          // Script thật, không dựa vào offline stub mode.
+          case 'apiThuChiList':
+            resolve({ success: true, code: 'OK', data: JSON.parse(JSON.stringify(this.mockThuChiStore || [])) });
+            break;
+
+          case 'apiThuChiSave': {
+            if (!this.mockThuChiStore) this.mockThuChiStore = [];
+            const n = this.mockThuChiStore.length + 1;
+            const rec = Object.assign({}, payload, {
+              tccnID: 'TCCNID' + String(n).padStart(6, '0'),
+              soPhieu: 'TCCN' + String(n).padStart(6, '0')
+            });
+            this.mockThuChiStore.push(rec);
+            resolve({ success: true, code: 'OK', data: { tccnID: rec.tccnID, soPhieu: rec.soPhieu } });
+            break;
+          }
+
+          case 'apiThuChiUpdate': {
+            if (!this.mockThuChiStore) this.mockThuChiStore = [];
+            const idx = this.mockThuChiStore.findIndex(r => r.tccnID === payload.tccnID);
+            if (idx === -1) {
+              resolve({ success: false, code: 'NOT_FOUND', message: 'Không tìm thấy giao dịch: ' + payload.tccnID });
+            } else {
+              this.mockThuChiStore[idx] = Object.assign({}, this.mockThuChiStore[idx], payload);
+              resolve({ success: true, code: 'OK', data: { tccnID: payload.tccnID, soPhieu: this.mockThuChiStore[idx].soPhieu } });
+            }
+            break;
+          }
+
+          case 'apiThuChiCurrentDebt':
+            resolve({ success: true, code: 'OK', data: 0 });
+            break;
+
+          case 'apiThuChiDebtReport':
+            resolve({ success: true, code: 'OK', data: { rows: [], tong: { duDauKy: 0, phatSinh: 0, thanhToan: 0, noTrongKy: 0, duCuoiKy: 0 } } });
+            break;
+
+          case 'apiNccSetOpeningDebt':
+            resolve({ success: true, code: 'OK', data: { maNCC: payload && payload.maNCC, congNo: (payload && payload.soTien) || 0 } });
+            break;
+
+          // Sprint 15.7 — Báo cáo Lãi/Lỗ. Mock trả rỗng (không tái hiện
+          // BaoCaoLaiLoBackend bằng JS) — cùng tiền lệ apiThuChiCurrentDebt/
+          // apiThuChiDebtReport Sprint 14. Test thật cho báo cáo PHẢI làm
+          // trên Apps Script thật.
+          case 'apiBaoCaoLaiLoMeta':
+            resolve({ success: true, code: 'OK', data: { nhanVien: [], kho: [] } });
+            break;
+
+          case 'apiBaoCaoLaiLo':
+            resolve({ success: true, code: 'OK', data: { rows: [], tong: { soLuongBan: 0, doanhThu: 0, giaNhap: 0, tienVon: 0, laiLo: 0, tyLeLoiNhuan: null } } });
+            break;
+
+          // Sprint 15.3 — Báo cáo nhập hàng. Mock trả rỗng (không tái hiện
+          // BaoCaoNhapHangBackend bằng JS) — cùng tiền lệ apiBaoCaoLaiLo*
+          // Sprint 15.7. Test thật cho báo cáo PHẢI làm trên Apps Script thật.
+          case 'apiBaoCaoNhapHangMeta':
+            resolve({ success: true, code: 'OK', data: { nhanVien: [], kho: [] } });
+            break;
+
+          case 'apiBaoCaoNhapHang':
+            resolve({ success: true, code: 'OK', data: { rows: [], tong: { vatTien: 0, thanhTien: 0 } } });
+            break;
+
+          // Sprint 15.4 — Báo cáo xuất hàng. Mock trả rỗng, cùng tiền lệ
+          // apiBaoCaoNhapHang* ở trên. Test thật PHẢI làm trên Apps Script thật.
+          case 'apiBaoCaoXuatHangMeta':
+            resolve({ success: true, code: 'OK', data: { nhanVien: [], kho: [] } });
+            break;
+
+          case 'apiBaoCaoXuatHang':
+            resolve({ success: true, code: 'OK', data: { rows: [], tong: { soLuong: 0, thanhTien: 0, vat: 0 } } });
+            break;
+
+          case 'apiPurchaseGenerateCode':
+            let maxN = 0;
+            (this.mockPurchaseStore || []).forEach(x => {
+              const m = x.soPhieu.match(/^PN(\d+)$/);
+              if (m) {
+                const n = parseInt(m[1]);
+                if (n > maxN) maxN = n;
+              }
+            });
+            const newCode = 'PN' + String(maxN + 1).padStart(6, '0');
+            resolve({
+              success: true,
+              code: 'OK',
+              data: newCode
+            });
+            break;
+
+          case 'apiDvtLoad':
+            resolve({
+              success: true,
+              code: 'OK',
+              data: JSON.parse(JSON.stringify(this.mockDvtStore || []))
+            });
+            break;
+
+          case 'apiDvtCreate':
+            const newDvt = JSON.parse(JSON.stringify(payload));
+            newDvt.maDVT = 'DVT' + String(this.mockDvtStore.length + 1).padStart(3, '0');
+            newDvt.ngayTao = '15/07/2026';
+            newDvt.ngayCapNhat = '15/07/2026';
+            this.mockDvtStore.push(newDvt);
+            resolve({
+              success: true,
+              code: 'OK',
+              data: newDvt
+            });
+            break;
+
+          case 'apiDvtUpdate':
+            const updDvt = JSON.parse(JSON.stringify(payload));
+            const dIdx = this.mockDvtStore.findIndex(x => x.maDVT.toLowerCase() === updDvt.maDVT.toLowerCase());
+            if (dIdx !== -1) {
+              this.mockDvtStore[dIdx] = Object.assign({}, this.mockDvtStore[dIdx], updDvt);
+              resolve({
+                success: true,
+                code: 'OK',
+                data: this.mockDvtStore[dIdx]
+              });
+            } else {
+              resolve({
+                success: false,
+                code: 'NOT_FOUND',
+                message: 'Không tìm thấy đơn vị tính!'
+              });
+            }
+            break;
+
+          case 'apiDvtDelete':
+            const dvtIdToDel = payload;
+            this.mockDvtStore = this.mockDvtStore.filter(x => x.maDVT.toLowerCase() !== dvtIdToDel.toLowerCase());
+            resolve({
+              success: true,
+              code: 'OK',
+              data: true
+            });
+            break;
+
+          case 'apiDvtFind':
+            const dvtIdToFind = payload;
+            const foundDvt = this.mockDvtStore.find(x => x.maDVT.toLowerCase() === dvtIdToFind.toLowerCase());
+            resolve({
+              success: !!foundDvt,
+              code: foundDvt ? 'OK' : 'NOT_FOUND',
+              data: foundDvt ? JSON.parse(JSON.stringify(foundDvt)) : null
+            });
+            break;
+
+          case 'apiDvtGenerateCode':
+            resolve({
+              success: true,
+              code: 'OK',
+              data: 'DVT' + String(this.mockDvtStore.length + 1).padStart(3, '0')
+            });
+            break;
+
+          case 'apiCustomerLoad':
+            resolve({
+              success: true,
+              code: 'OK',
+              data: JSON.parse(JSON.stringify((this.mockCustomerStore || []).filter(c => c.active !== false)))
+            });
+            break;
+
+          // PERF FIX (2026-08-17) — mock offline đơn giản: chỉ mod_khachhang.html
+          // dùng endpoint này, thêm field currentDebt = congNo thô (mock không
+          // cần dựng lại DebtEngine đầy đủ).
+          case 'apiCustomerLoadWithDebt':
+            resolve({
+              success: true,
+              code: 'OK',
+              data: JSON.parse(JSON.stringify((this.mockCustomerStore || []).filter(c => c.active !== false).map(c => Object.assign({}, c, { currentDebt: Number(c.congNo) || 0 }))))
+            });
+            break;
+
+          case 'apiCustomerCreate': {
+            const newCus = JSON.parse(JSON.stringify(payload));
+            newCus.maKH = 'KH' + String(1000000 + this.mockCustomerStore.length + 1).slice(1);
+            newCus.diemTL = 0;
+            newCus.congNo = 0;
+            newCus.active = true;
+            this.mockCustomerStore.push(newCus);
+            resolve({
+              success: true,
+              code: 'OK',
+              data: newCus
+            });
+            break;
+          }
+
+          case 'apiCustomerUpdate': {
+            const updCus = JSON.parse(JSON.stringify(payload));
+            const cusIdx = (this.mockCustomerStore || []).findIndex(c => String(c.maKH) === String(updCus.maKH));
+            if (cusIdx === -1) {
+              resolve({ success: false, code: 'NOT_FOUND', message: 'Không tìm thấy khách hàng!' });
+              break;
+            }
+            this.mockCustomerStore[cusIdx] = Object.assign({}, this.mockCustomerStore[cusIdx], updCus);
+            resolve({
+              success: true,
+              code: 'OK',
+              data: JSON.parse(JSON.stringify(this.mockCustomerStore[cusIdx]))
+            });
+            break;
+          }
+
+          case 'apiCustomerFind': {
+            const cusIdToFind = payload;
+            const foundCus = (this.mockCustomerStore || []).find(c => String(c.maKH) === String(cusIdToFind));
+            resolve({
+              success: !!foundCus,
+              code: foundCus ? 'OK' : 'NOT_FOUND',
+              data: foundCus ? JSON.parse(JSON.stringify(foundCus)) : null
+            });
+            break;
+          }
+
+          case 'apiCustomerDelete': {
+            const cusIdToDel = payload;
+            const delIdx = (this.mockCustomerStore || []).findIndex(c => String(c.maKH) === String(cusIdToDel));
+            if (delIdx === -1) {
+              resolve({ success: false, code: 'NOT_FOUND', message: 'Không tìm thấy khách hàng!' });
+              break;
+            }
+            this.mockCustomerStore[delIdx].active = false;
+            resolve({ success: true, code: 'OK', data: true });
+            break;
+          }
+
+          case 'apiCustomerSetOpeningDebt': {
+            const debtIdx = (this.mockCustomerStore || []).findIndex(c => String(c.maKH) === String(payload.maKH));
+            if (debtIdx === -1) {
+              resolve({ success: false, code: 'NOT_FOUND', message: 'Không tìm thấy khách hàng!' });
+              break;
+            }
+            this.mockCustomerStore[debtIdx].congNo = Number(payload.soTien) || 0;
+            this.mockCustomerStore[debtIdx].ngayCongNoTonDau = payload.ngay || '';
+            resolve({
+              success: true,
+              code: 'OK',
+              data: JSON.parse(JSON.stringify(this.mockCustomerStore[debtIdx]))
+            });
+            break;
+          }
+
+          default:
+            resolve({
+              success: false,
+              code: 'UNKNOWN_ERROR',
+              message: 'Lệnh gọi API ' + functionName + ' không được hỗ trợ ở chế độ offline.'
+            });
+        }
+      }, 300); // 300ms simulated latency
+    });
+  }
+};
+</script>
+  

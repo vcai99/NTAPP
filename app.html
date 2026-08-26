@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <base target="_top">
+  <title>Phần mềm Nhà thuốc An Phúc</title>
+  <?!= include('core_styles') ?>
+</head>
+<body>
+
+<?!= include('core_header') ?>
+<?!= include('core_nav') ?>
+
+<main id="app-content">
+  <?!= include('mod_dashboard') ?>
+  <?!= include('mod_danhmuc') ?>
+  <?!= include('mod_dsphieu') ?>
+  <?!= include('mod_dsphieuxuat') ?>
+  <?!= include('mod_nhaphang') ?>
+  <?!= include('mod_donvitinh') ?>
+  <?!= include('mod_tonkho') ?>
+  <?!= include('mod_banhang') ?>
+  <?!= include('mod_khachhang') ?>
+  <?!= include('mod_nhacungcap') ?>
+  <?!= include('mod_bacsi') ?>
+  <?!= include('mod_nhomsanpham') ?>
+  <?!= include('mod_kiemke') ?>
+  <?!= include('mod_khachtra') ?>
+  <?!= include('mod_trancc') ?>
+  <?!= include('mod_thuchi') ?>
+  <?!= include('mod_baocaocongno') ?>
+  <?!= include('mod_baocaolailo') ?>
+  <?!= include('mod_baocaonhaphang') ?>
+  <?!= include('mod_baocaoxuathang') ?>
+</main>
+
+<?!= include('core_footer') ?>
+<?!= include('core_loading') ?>
+<?!= include('core_toast') ?>
+<?!= include('core_modal') ?>
+<?!= include('currency_utils') ?>
+<?!= include('api_client') ?>
+<?!= include('product_repository') ?>
+<?!= include('product_service') ?>
+<?!= include('product_store') ?>
+<?!= include('purchase_repository') ?>
+<?!= include('purchase_service') ?>
+<?!= include('inventory_repository') ?>
+<?!= include('inventory_service') ?>
+<?!= include('dvt_repository') ?>
+<?!= include('dvt_service') ?>
+<?!= include('customer_repository') ?>
+<?!= include('customer_service') ?>
+<?!= include('comp_dm_field') ?>
+<?!= include('comp_dm_section') ?>
+<?!= include('comp_dm_actionbar') ?>
+<?!= include('comp_dm_dialog') ?>
+<?!= include('comp_dm_grid') ?>
+<?!= include('comp_dm_lookup') ?>
+<?!= include('dialog_product_editor') ?>
+<?!= include('dialog_ncc_editor') ?>
+<?!= include('dialog_dvt_editor') ?>
+<?!= include('dialog_product_uom_editor') ?>
+<?!= include('dialog_prescription_lookup') ?>
+<?!= include('dialog_customer_editor') ?>
+<?!= include('dialog_customer_debt') ?>
+<?!= include('dialog_doctor_editor') ?>
+<?!= include('dialog_nhomsp_editor') ?>
+<?!= include('dialog_kiemke_create') ?>
+<?!= include('dialog_khachtra_chonphieu') ?>
+<?!= include('dialog_trancc_chonphieu') ?>
+<?!= include('dialog_thuchi_congno') ?>
+<?!= include('dialog_ncc_debt') ?>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  APP SHELL GLOBAL STATE
+// ════════════════════════════════════════════════════════════════
+const INITIAL_PAGE = '<?= activePage ?>';
+let curPage = INITIAL_PAGE || 'dashboard';
+
+// ════════════════════════════════════════════════════════════════
+//  APP SHELL BOOTSTRAP
+// ════════════════════════════════════════════════════════════════
+window.onload = () => {
+  goPage(curPage);
+
+  // Sprint 17 Phase A — bootstrap ProductStore NGẦM (không block goPage() ở
+  // trên). Nếu bootstrap lỗi, ProductStore.init() tự nuốt lỗi (state → ERROR)
+  // — App vẫn hoạt động bình thường, các module CHƯA migrate (mọi module
+  // hiện tại) tiếp tục tự gọi ProductService.load() như cũ, không phụ thuộc
+  // Store còn sống hay không.
+  if (typeof ProductStore !== 'undefined') {
+    ProductStore.init();
+  }
+
+  // Tải trước danh mục sản phẩm và phiếu nhập ngầm ngay khi load trang để tìm
+  // kiếm tức thì. LƯU Ý (Sprint 17 Phase A): mod_nhaphang.html CHƯA migrate
+  // sang ProductStore trong lượt này (ngoài phạm vi cho phép sửa) — dòng dưới
+  // gọi `NhaphangModule.loadCatalogBg()` vẫn tự tạo 1 lệnh `apiProductLoad()`
+  // ĐỘC LẬP với `ProductStore.init()` ở trên, tức bootstrap có 2 lần gọi
+  // `apiProductLoad()` thay vì 1, CHỈ 1 LẦN DUY NHẤT lúc mở App (không lặp
+  // lại, không tăng dần, không xung đột dữ liệu — cả 2 đường đều đọc cùng 1
+  // API read-only). Đây là đánh đổi TẠM THỜI đã cân nhắc, sẽ hết khi Phase E
+  // migrate Nhập hàng sang ProductStore (không sửa mod_nhaphang.html ở Phase
+  // A theo đúng phạm vi được giao).
+  if (typeof NhaphangModule !== 'undefined') {
+    if (typeof NhaphangModule.loadCatalogBg === 'function') NhaphangModule.loadCatalogBg();
+    if (typeof NhaphangModule.loadTicketsBg === 'function') NhaphangModule.loadTicketsBg();
+  }
+};
+
+// ════════════════════════════════════════════════════════════════
+//  GLOBAL ROUTER
+// ════════════════════════════════════════════════════════════════
+function closeTopMenus() {
+  document.querySelectorAll('.tb-menu-panel.open').forEach(m => m.classList.remove('open'));
+}
+
+function toggleTopMenu(id, e) {
+  e.stopPropagation();
+  const panel = document.querySelector('#' + id + ' .tb-menu-panel');
+  if (!panel) return;
+  const isOpen = panel.classList.contains('open');
+  closeTopMenus();
+  if (!isOpen) panel.classList.add('open');
+}
+
+function menuGo(page, label) {
+  closeTopMenus();
+  if (page === 'dm_sanpham' || page === 'donvitinh' || page === 'dsphieu' || page === 'dsphieuxuat' || page === 'tonkho' || page === 'banhang' || page === 'khachhang' || page === 'nhacungcap' || page === 'bacsi' || page === 'nhomsanpham' || page === 'kiemke' || page === 'khachtra' || page === 'trancc' || page === 'thuchi' || page === 'baocaocongno' || page === 'baocaolailo' || page === 'baocao_nhap' || page === 'baocaoxuathang') {
+    goPage(page);
+  } else {
+    toast(label + ' đang phát triển (Sprint sau)', 'warn');
+  }
+}
+
+function goPage(page) {
+  closeTopMenus();
+
+  // Whitelist pages
+  if (page !== 'dashboard' && page !== 'dm_sanpham' && page !== 'nhaphang' && page !== 'donvitinh' && page !== 'dsphieu' && page !== 'dsphieuxuat' && page !== 'tonkho' && page !== 'banhang' && page !== 'khachhang' && page !== 'nhacungcap' && page !== 'bacsi' && page !== 'nhomsanpham' && page !== 'kiemke' && page !== 'khachtra' && page !== 'trancc' && page !== 'thuchi' && page !== 'baocaocongno' && page !== 'baocaolailo' && page !== 'baocao_nhap' && page !== 'baocaoxuathang') {
+    let pageLabel = '';
+    switch(page) {
+      case 'banhang': pageLabel = 'Bán hàng'; break;
+      case 'baocao': pageLabel = 'Báo cáo'; break;
+      case 'tonkho': pageLabel = 'Tồn kho'; break;
+      case 'tienich': pageLabel = 'Tiện ích'; break;
+      default: pageLabel = page;
+    }
+    toast(pageLabel + ' đang phát triển (Sprint sau)', 'warn');
+    curPage = 'dashboard';
+  } else {
+    curPage = page;
+  }
+
+  // Cập nhật trạng thái active trên thanh menu
+  updateActiveMenu(curPage);
+
+  // Ẩn tất cả các page
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('show'));
+
+  // Hiển thị page mục tiêu
+  const pg = document.getElementById('page-' + curPage);
+  if (pg) {
+    pg.classList.add('show');
+    if (curPage === 'dm_sanpham') {
+      if (typeof DanhMucModule !== 'undefined' && typeof DanhMucModule.init === 'function') {
+        DanhMucModule.init();
+      }
+    } else if (curPage === 'nhaphang') {
+      if (typeof NhaphangModule !== 'undefined' && typeof NhaphangModule.init === 'function') {
+        NhaphangModule.init();
+      }
+    } else if (curPage === 'donvitinh') {
+      if (typeof DvtModule !== 'undefined' && typeof DvtModule.init === 'function') {
+        DvtModule.init();
+      }
+    } else if (curPage === 'dsphieu') {
+      if (typeof DsPhieuModule !== 'undefined' && typeof DsPhieuModule.init === 'function') {
+        DsPhieuModule.init();
+        DsPhieuModule.loadData();
+      }
+    } else if (curPage === 'dsphieuxuat') {
+      if (typeof DsPhieuXuatModule !== 'undefined' && typeof DsPhieuXuatModule.init === 'function') {
+        DsPhieuXuatModule.init();
+        DsPhieuXuatModule.loadData();
+      }
+    } else if (curPage === 'tonkho') {
+      if (typeof TonKhoModule !== 'undefined' && typeof TonKhoModule.init === 'function') {
+        TonKhoModule.init();
+        TonKhoModule.loadData();
+      }
+    } else if (curPage === 'khachhang') {
+      if (typeof KhachHangModule !== 'undefined' && typeof KhachHangModule.init === 'function') {
+        KhachHangModule.init();
+        KhachHangModule.loadData();
+      }
+    } else if (curPage === 'nhacungcap') {
+      if (typeof NhaCungCapModule !== 'undefined' && typeof NhaCungCapModule.init === 'function') {
+        NhaCungCapModule.init();
+        NhaCungCapModule.loadData();
+      }
+    } else if (curPage === 'bacsi') {
+      if (typeof BacSiModule !== 'undefined' && typeof BacSiModule.init === 'function') {
+        BacSiModule.init();
+        BacSiModule.loadData();
+      }
+    } else if (curPage === 'nhomsanpham') {
+      if (typeof NhomSPModule !== 'undefined' && typeof NhomSPModule.init === 'function') {
+        NhomSPModule.init();
+        NhomSPModule.loadData();
+      }
+    } else if (curPage === 'kiemke') {
+      if (typeof KiemKeModule !== 'undefined' && typeof KiemKeModule.init === 'function') {
+        KiemKeModule.init();
+        KiemKeModule.loadData();
+      }
+    } else if (curPage === 'khachtra') {
+      if (typeof KhachTraModule !== 'undefined' && typeof KhachTraModule.init === 'function') {
+        KhachTraModule.init();
+        KhachTraModule.loadData();
+      }
+    } else if (curPage === 'trancc') {
+      if (typeof TranCCModule !== 'undefined' && typeof TranCCModule.init === 'function') {
+        TranCCModule.init();
+        TranCCModule.loadData();
+      }
+    } else if (curPage === 'thuchi') {
+      if (typeof ThuChiModule !== 'undefined' && typeof ThuChiModule.init === 'function') {
+        ThuChiModule.init();
+        ThuChiModule.loadData();
+      }
+    } else if (curPage === 'baocaocongno') {
+      if (typeof BaoCaoCongNoModule !== 'undefined' && typeof BaoCaoCongNoModule.init === 'function') {
+        BaoCaoCongNoModule.init();
+        BaoCaoCongNoModule.loadData();
+      }
+    } else if (curPage === 'baocaolailo') {
+      if (typeof BaoCaoLaiLoModule !== 'undefined' && typeof BaoCaoLaiLoModule.init === 'function') {
+        BaoCaoLaiLoModule.init();
+        BaoCaoLaiLoModule.loadData();
+      }
+    } else if (curPage === 'baocao_nhap') {
+      if (typeof BaoCaoNhapHangModule !== 'undefined' && typeof BaoCaoNhapHangModule.init === 'function') {
+        BaoCaoNhapHangModule.init();
+        BaoCaoNhapHangModule.loadData();
+      }
+    } else if (curPage === 'baocaoxuathang') {
+      if (typeof BaoCaoXuatHangModule !== 'undefined' && typeof BaoCaoXuatHangModule.init === 'function') {
+        BaoCaoXuatHangModule.init();
+        BaoCaoXuatHangModule.loadData();
+      }
+    } else if (curPage === 'banhang') {
+      // Sprint 6.0: nếu Sale Workspace đang ở Overlay Mode (được tái sử dụng
+      // từ Danh sách Phiếu Xuất) và người dùng bấm menu "Bán hàng" thật, phải
+      // gỡ class overlay để trang hiển thị full như điều hướng bình thường.
+      pg.classList.remove('bh-overlay-mode');
+      if (typeof BanhangModule !== 'undefined' && typeof BanhangModule.init === 'function') {
+        BanhangModule.init();
+      }
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ACTIVE MENU — suy ra từ chính core_nav.html, không hardcode mapping
+//  trang↔menu ở đây. Mỗi trang chỉ có đúng 1 nút menu được active:
+//   1. Nút gọi thẳng goPage('<page>') (vd: mn-banhang, mn-tonkho, mn-dsphieu).
+//   2. Nếu không có nút trực tiếp, tìm menu-item menuGo('<page>', ...) trong
+//      1 dropdown, rồi active nút cha (.tb-menu-item) của dropdown đó
+//      (vd: dsphieuxuat → active "() Tạo phiếu").
+//   3. Trang không có nav riêng (chỉ mở từ trang khác, vd: nhaphang) khai báo
+//      qua data-nav-group="<page nav khác>" ngay trên chính div.page của nó.
+//  Thêm trang mới vào core_nav.html là tự động active đúng — không cần sửa gì
+//  ở đây.
+// ════════════════════════════════════════════════════════════════
+function updateActiveMenu(page) {
+  document.querySelectorAll('.tb-btn').forEach(b => b.classList.remove('active'));
+
+  const pageEl = document.getElementById('page-' + page);
+  const lookupPage = (pageEl && pageEl.dataset.navGroup) || page;
+
+  let activeBtn = document.querySelector('.tb-btn[onclick*="goPage(\'' + lookupPage + '\')"]');
+  if (!activeBtn) {
+    const menuItem = document.querySelector('.tb-menu-item[onclick*="menuGo(\'' + lookupPage + '\',"]');
+    if (menuItem) {
+      const parentMenu = menuItem.closest('.tb-menu');
+      activeBtn = parentMenu && parentMenu.querySelector('.tb-btn');
+    }
+  }
+  if (activeBtn) activeBtn.classList.add('active');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  GLOBAL MANAGERS (TOAST, LOADING, MODAL)
+// ════════════════════════════════════════════════════════════════
+function toast(msg, type = 'ok') {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'toast show ' + type;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function showLoading() {
+  const el = document.getElementById('core-loading');
+  if (el) el.classList.add('open');
+}
+
+// Thêm sẵn hàm ẩn loading
+function hideLoading() {
+  const el = document.getElementById('core-loading');
+  if (el) el.classList.remove('open');
+}
+
+function openOv(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.add('open');
+}
+
+function closeOv(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('open');
+}
+
+// Lắng nghe sự kiện click toàn cục để tự động đóng dropdown và overlay
+document.addEventListener('click', e => {
+  if (!e.target.closest('.tb-menu')) closeTopMenus();
+  document.querySelectorAll('.ov.open').forEach(ov => {
+    if (e.target === ov) ov.classList.remove('open');
+  });
+});
+</script>
+</body>
+</html>

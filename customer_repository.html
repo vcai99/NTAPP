@@ -1,0 +1,38 @@
+<script>
+// =================================================================
+//  CUSTOMER REPOSITORY LAYER (CustomerRepository)
+//  Sprint 7.0 — Delegates all calls to ApiClient and returns
+//  standardized responses. Endpoint mới, song song với
+//  api_searchCustomers/api_createCustomer cũ (không đụng vào).
+// =================================================================
+const CustomerRepository = {
+  // PERF FIX (2026-08-17): CustomerRepository.load()/CustomerService.load()
+  // chỉ được dùng bởi mod_khachhang.html (grep xác nhận, xem
+  // backend_customer_service.gs) — nơi DUY NHẤT cần cột "Công nợ", nên gọi
+  // thẳng endpoint có tính debt. Không dùng `apiCustomerLoad` (nhanh, không
+  // debt) ở đây vì sẽ làm mất cột Công nợ trên Danh mục Khách hàng.
+  load() {
+    return ApiClient.call('apiCustomerLoadWithDebt');
+  },
+
+  create(payload) {
+    return ApiClient.call('apiCustomerCreate', payload);
+  },
+
+  update(payload) {
+    return ApiClient.call('apiCustomerUpdate', payload);
+  },
+
+  find(maKH) {
+    return ApiClient.call('apiCustomerFind', maKH);
+  },
+
+  remove(maKH) {
+    return ApiClient.call('apiCustomerDelete', maKH);
+  },
+
+  setOpeningDebt(payload) {
+    return ApiClient.call('apiCustomerSetOpeningDebt', payload);
+  }
+};
+</script>

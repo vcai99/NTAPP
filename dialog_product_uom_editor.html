@@ -1,0 +1,404 @@
+<style>
+/* =================================================================
+   CSS SCOPED FOR PRODUCT UOM EDITOR DIALOG (.uom-)
+   Đồng bộ Design System tối sang trọng của APP_v1.3
+   ================================================================= */
+
+#uom-editor-ov {
+  transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+.uom-dlg-wrap {
+  width: 480px;
+  max-width: 94%;
+  background: #16213e;
+  border-radius: 8px;
+  border: 1px solid #0d3377;
+  padding: 0;
+  box-shadow: 0 10px 30px rgba(0,0,0,.6);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.uom-dlg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid #0d3377;
+  background: #0d2144;
+  flex-shrink: 0;
+}
+.uom-dlg-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #90caf9;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.uom-dlg-close {
+  background: none;
+  border: none;
+  color: #ff5252;
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+  transition: color .15s;
+  padding: 0;
+}
+.uom-dlg-close:hover { color: #ff1744; }
+
+.uom-dlg-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #16213e;
+}
+.uom-info-box {
+  background: #091930;
+  border-radius: 5px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #90caf9;
+  line-height: 1.5;
+}
+.uom-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.uom-lbl {
+  font-size: 11px;
+  font-weight: 500;
+  color: #90caf9;
+}
+.uom-inp, .uom-sel {
+  height: 30px;
+  background: #0d2144;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #e0e0e0;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color .15s;
+}
+.uom-inp::placeholder { color: #546e7a; }
+.uom-inp:focus, .uom-sel:focus { border-color: #42a5f5; }
+
+.uom-radio-row {
+  display: flex;
+  gap: 16px;
+}
+.uom-radio-lbl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e0e0e0;
+  cursor: pointer;
+  user-select: none;
+}
+.uom-radio-lbl input[type=radio] {
+  accent-color: #42a5f5;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.uom-preview {
+  font-size: 11px;
+  color: #66bb6a;
+  min-height: 14px;
+}
+
+.uom-dlg-foot {
+  padding: 12px 18px;
+  border-top: 1px solid #0d3377;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  background: #0d2144;
+  flex-shrink: 0;
+}
+.uom-btn-save {
+  padding: 6px 16px;
+  background: #1565C0;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .15s;
+}
+.uom-btn-save:hover { background: #0d47a1; }
+.uom-btn-save:disabled { background: #263850; color: #78909c; cursor: not-allowed; }
+
+.uom-btn-cancel {
+  padding: 6px 14px;
+  background: #263850;
+  color: #ccc;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .15s;
+}
+.uom-btn-cancel:hover { background: #1e3060; }
+</style>
+
+<!-- ══ DIALOG: Chọn đơn vị tính — thêm 1 ĐVT quy đổi cho 1 sản phẩm cụ thể,
+     dùng chung cho Sale (mod_banhang.html) và Purchase (mod_nhaphang.html).
+     Chỉ trả dữ liệu qua callback onSave — không tự lưu xuống SP_DONVITINH,
+     không biết gì về nghiệp vụ của module gọi nó. ══ -->
+<div class="ov" id="uom-editor-ov" onclick="ProductUomEditor._ovClick(event)">
+  <div class="uom-dlg-wrap">
+    <div class="uom-dlg-head">
+      <span class="uom-dlg-title">Chọn đơn vị tính</span>
+      <button class="uom-dlg-close" onclick="ProductUomEditor.close()">&times;</button>
+    </div>
+
+    <div class="uom-dlg-body">
+      <div class="uom-info-box" id="uom-editor-info"></div>
+
+      <div class="uom-field">
+        <label class="uom-lbl">Chọn đơn vị tính mới *</label>
+        <select id="uom-editor-ten" class="uom-sel" onchange="ProductUomEditor._updPreview()">
+          <option value="">Chọn đơn vị tính mới</option>
+        </select>
+      </div>
+
+      <div class="uom-field">
+        <label class="uom-lbl">Tỉ lệ quy đổi *</label>
+        <input id="uom-editor-heso" class="uom-inp" type="number" min="0.000001" step="any"
+               placeholder="Tỉ lệ quy đổi" oninput="ProductUomEditor._updPreview()">
+      </div>
+
+      <div class="uom-radio-row">
+        <label class="uom-radio-lbl">
+          <input type="radio" name="uom-editor-huong" value="nho" onchange="ProductUomEditor._updPreview()"> Thêm ĐVT nhỏ hơn
+        </label>
+        <label class="uom-radio-lbl">
+          <input type="radio" name="uom-editor-huong" value="lon" checked onchange="ProductUomEditor._updPreview()"> Thêm ĐVT lớn hơn
+        </label>
+      </div>
+
+      <div class="uom-preview" id="uom-editor-preview"></div>
+    </div>
+
+    <div class="uom-dlg-foot">
+      <button class="uom-btn-save" id="uom-editor-btn-save" onclick="ProductUomEditor.save()">✔ Lưu lại</button>
+      <button class="uom-btn-cancel" onclick="ProductUomEditor.close()">✕ Thoát</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  PRODUCT UOM EDITOR DIALOG (ProductUomEditor)
+//  File: dialog_product_uom_editor.html
+//
+//  Dùng chung bởi Sale và Purchase để thêm 1 đơn vị tính quy đổi cho 1 sản
+//  phẩm cụ thể, chỉ trong phiên làm việc hiện tại (không ghi SP_DONVITINH).
+//
+//  Trách nhiệm CHỈ gồm: render UI, nạp danh mục ĐVT gốc (DvtService) để
+//  chọn, validate cơ bản, và trả dữ liệu qua callback onSave. Không chứa
+//  business logic của Sale hay Purchase — module gọi tự quyết định dữ liệu
+//  trả về được dùng/lưu thế nào.
+// ════════════════════════════════════════════════════════════════
+const ProductUomEditor = {
+
+  state: {
+    maSP: '',
+    baseUnit: '',
+    existingUoms: [],   // [{ tenDV, heSo }]
+    onSave: null        // callback({ tenDV, heSo }) sau khi Lưu lại
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  //  PUBLIC API
+  // ─────────────────────────────────────────────────────────────
+
+  // config: { maSP, productName, baseUnit, existingUoms: [{tenDV,heSo}], onSave(uom) }
+  open(config = {}) {
+    this.state.maSP = config.maSP || '';
+    this.state.baseUnit = config.baseUnit || '';
+    this.state.existingUoms = config.existingUoms || [];
+    this.state.onSave = typeof config.onSave === 'function' ? config.onSave : null;
+
+    const infoEl = document.getElementById('uom-editor-info');
+    if (infoEl) {
+      const parts = [`${this.state.baseUnit}(Gốc)`].concat(
+        this.state.existingUoms.map(u => `${u.tenDV} = ${u.heSo} ${this.state.baseUnit}`)
+      );
+      infoEl.innerHTML = `Thông tin sản phẩm: <b style="color:#42a5f5">${config.productName || ''}</b> - ĐVT: ${parts.join(', ')}`;
+    }
+
+    this._resetForm();
+    this._bindKeys();
+    this._loadMasterDvts();
+
+    const ov = document.getElementById('uom-editor-ov');
+    if (ov) ov.classList.add('open');
+
+    setTimeout(() => {
+      const sel = document.getElementById('uom-editor-ten');
+      if (sel) sel.focus();
+    }, 160);
+  },
+
+  close() {
+    const ov = document.getElementById('uom-editor-ov');
+    if (ov) ov.classList.remove('open');
+    this._unbindKeys();
+  },
+
+  save() {
+    const tenEl = document.getElementById('uom-editor-ten');
+    const hesoEl = document.getElementById('uom-editor-heso');
+    const ten = tenEl ? tenEl.value.trim() : '';
+    const n = Number(hesoEl && hesoEl.value) || 0;
+    const huongEl = document.querySelector('input[name="uom-editor-huong"]:checked');
+    const huongLon = !huongEl || huongEl.value === 'lon';
+
+    if (!ten) {
+      toast('Vui lòng chọn đơn vị tính!', 'warn');
+      return;
+    }
+    if (n <= 0) {
+      toast('Vui lòng nhập tỉ lệ quy đổi lớn hơn 0!', 'warn');
+      return;
+    }
+    if (this.state.existingUoms.some(u => (u.tenDV || '').toLowerCase() === ten.toLowerCase())) {
+      toast(`Đơn vị tính '${ten}' đã có sẵn cho sản phẩm này!`, 'warn');
+      return;
+    }
+
+    // TheLight KHÔNG bao giờ lưu hệ số quy đổi < 1 (đã kiểm chứng trực tiếp,
+    // xem PROJECT_HANDOFF.md 2026-08-05): khi thêm ĐVT nhỏ hơn, ĐVT mới trở
+    // thành gốc mới (heSo=1) và TOÀN BỘ ĐVT cũ được nhân lại hệ số theo tỷ lệ
+    // — không có ngoại lệ, không có phân số. Dialog chỉ tính rebaseFactor;
+    // việc áp dụng nó lên uoms hiện có (đủ field: giaNhap/giaBanLe/...) do
+    // module gọi tự làm, vì dialog chỉ nhận {tenDV, heSo} của existingUoms.
+    const result = huongLon
+      ? { isRebase: false, rebaseFactor: 1, newUom: { tenDV: ten, heSo: n } }
+      : { isRebase: true, rebaseFactor: n, newUom: { tenDV: ten, heSo: 1 } };
+
+    if (!result.isRebase) {
+      // "ĐVT lớn hơn" ghi thẳng SP_DONVITINH ngay (PO quyết định 2026-08-05).
+      // "ĐVT nhỏ hơn" (rebase) vẫn CHỈ tồn tại trong phiên làm việc — chờ xác
+      // minh cách TheLight xử lý giá trước khi cho ghi rebase xuống Sheet.
+      // Gọi ở đây (dùng chung cho cả Sale/Purchase) thay vì lặp lại ở từng
+      // module gọi, để tránh lệch logic ghi Sheet giữa 2 nơi.
+      const btn = document.getElementById('uom-editor-btn-save');
+      if (btn) btn.disabled = true;
+      google.script.run
+        .withSuccessHandler(res => {
+          if (btn) btn.disabled = false;
+          if (!res || !res.success) {
+            toast('Lỗi lưu đơn vị tính: ' + (res ? res.message : 'không rõ nguyên nhân'), 'err');
+            return;
+          }
+          this.close();
+          if (this.state.onSave) this.state.onSave(result);
+        })
+        .withFailureHandler(err => {
+          if (btn) btn.disabled = false;
+          toast('Lỗi kết nối khi lưu đơn vị tính: ' + err.message, 'err');
+        })
+        .apiProductAddUom(this.state.maSP, result.newUom);
+      return;
+    }
+
+    this.close();
+    if (this.state.onSave) this.state.onSave(result);
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  //  PRIVATE HELPERS
+  // ─────────────────────────────────────────────────────────────
+
+  _resetForm() {
+    const sel = document.getElementById('uom-editor-ten');
+    if (sel) sel.innerHTML = '<option value="">Đang tải...</option>';
+    const hesoEl = document.getElementById('uom-editor-heso');
+    if (hesoEl) hesoEl.value = '';
+    const radioLon = document.querySelector('input[name="uom-editor-huong"][value="lon"]');
+    if (radioLon) radioLon.checked = true;
+    const preview = document.getElementById('uom-editor-preview');
+    if (preview) preview.textContent = '';
+  },
+
+  _loadMasterDvts() {
+    const sel = document.getElementById('uom-editor-ten');
+    DvtService.load()
+      .then(masterDvts => {
+        const existingNames = this.state.existingUoms.map(u => (u.tenDV || '').toLowerCase());
+        const avail = (masterDvts || []).filter(u => u.active && !existingNames.includes((u.tenDVT || '').toLowerCase()));
+        if (sel) {
+          sel.innerHTML = '<option value="">Chọn đơn vị tính mới</option>' +
+            avail.map(u => `<option value="${u.tenDVT}">${u.tenDVT}</option>`).join('');
+        }
+      })
+      .catch(e => {
+        if (sel) sel.innerHTML = '<option value="">-- Lỗi tải danh mục ĐVT --</option>';
+        console.error('[ProductUomEditor] Không tải được danh mục ĐVT:', e);
+      });
+  },
+
+  _updPreview() {
+    const ten = document.getElementById('uom-editor-ten').value;
+    const n = Number(document.getElementById('uom-editor-heso').value) || 0;
+    const huongEl = document.querySelector('input[name="uom-editor-huong"]:checked');
+    const huongLon = !huongEl || huongEl.value === 'lon';
+    const preview = document.getElementById('uom-editor-preview');
+    if (!preview) return;
+    if (!ten || n <= 0) { preview.textContent = ''; return; }
+    if (huongLon) {
+      preview.textContent = `→ 1 ${ten} = ${n} ${this.state.baseUnit}`;
+    } else {
+      // Rebase: ĐVT mới thành gốc mới (heSo=1), mọi ĐVT hiện có (kể cả gốc cũ)
+      // nhân hệ số theo n — existingUoms đã bao gồm gốc cũ nếu SP có khai báo.
+      const parts = [`${this.state.baseUnit}(Gốc)=${n}`].concat(
+        this.state.existingUoms.map(u => `${u.tenDV}=${(Number(u.heSo) || 0) * n}`)
+      );
+      preview.textContent = `→ ${ten} trở thành ĐVT gốc mới (=1). Các ĐVT còn lại nhân hệ số ×${n}: ${parts.join(', ')}`;
+    }
+  },
+
+  _onKeydown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      ProductUomEditor.save();
+    }
+    if (e.key === 'Escape') {
+      ProductUomEditor.close();
+    }
+  },
+
+  _bindKeys() {
+    const ov = document.getElementById('uom-editor-ov');
+    if (ov) ov.addEventListener('keydown', this._onKeydown);
+  },
+
+  _unbindKeys() {
+    const ov = document.getElementById('uom-editor-ov');
+    if (ov) ov.removeEventListener('keydown', this._onKeydown);
+  },
+
+  _ovClick(e) {
+    if (e.target.id === 'uom-editor-ov') this.close();
+  }
+};
+</script>

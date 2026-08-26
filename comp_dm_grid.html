@@ -1,0 +1,233 @@
+<style>
+.dm-grid-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border: 1px solid var(--color-border-main, #1e293b);
+  border-radius: var(--radius-md, 6px);
+  overflow: hidden;
+  position: relative;
+}
+.dm-grid-table-wrapper {
+  max-height: 400px;
+  overflow-y: auto;
+}
+.dm-grid-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.dm-grid-table th {
+  position: sticky;
+  top: 0;
+  background-color: var(--color-bg-active, #1d2b45);
+  color: var(--color-text-main, #f8fafc);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-sm, 12px);
+  font-weight: var(--font-weight-medium, 500);
+  padding: var(--space-sm, 8px) 12px;
+  border-bottom: 1px solid var(--color-border-main, #1e293b);
+  z-index: 10;
+}
+.dm-grid-table td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--color-border-main, #1e293b);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-base, 13px);
+  color: var(--color-text-main, #f8fafc);
+}
+.dm-grid-table tr:hover {
+  background-color: rgba(255,255,255,0.01);
+}
+.dm-grid-table tr.empty-row td {
+  text-align: center;
+  padding: 24px;
+  color: var(--color-text-dark, #475569);
+}
+.dm-grid-input {
+  width: 100%;
+  height: 30px;
+  padding: 4px 8px;
+  background-color: var(--color-bg-card, #111a2e);
+  color: var(--color-text-main, #f8fafc);
+  border: 1px solid var(--color-border-main, #1e293b);
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--font-base, 13px);
+}
+.dm-grid-input:focus {
+  outline: none;
+  border-color: var(--color-border-focus, #3b82f6);
+}
+.dm-grid-input:disabled {
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #94a3b8);
+  cursor: not-allowed;
+}
+.dm-btn-mini {
+  height: 24px;
+  padding: 0 8px;
+  background-color: var(--color-danger, #ef4444);
+  color: var(--color-text-main, #f8fafc);
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--font-xs, 11px);
+  cursor: pointer;
+}
+.dm-btn-mini:hover {
+  background-color: var(--color-danger-hover, #dc2626);
+}
+</style>
+<script>
+class DMGrid {
+  constructor(container, config = {}) {
+    this.container = typeof container === 'string' ? document.getElementById(container) : container;
+    this.config = Object.assign({
+      columns: [],
+      data: [],
+      onRowDelete: null,
+      onCellChange: null
+    }, config);
+    this.dom = {};
+    this.state = { columns: this.config.columns, rows: this.config.data };
+    this.init();
+  }
+
+  init() {
+    this.render();
+    this.bindEvents();
+  }
+
+  setColumns(cols) {
+    this.state.columns = cols;
+    this.render();
+  }
+
+  setData(data) {
+    this.state.rows = data;
+    this.render();
+  }
+
+  clear() {
+    this.state.rows = [];
+    this.render();
+  }
+
+  render() {
+    if (!this.container) return;
+    const cols = this.state.columns;
+    const rows = this.state.rows;
+
+    const headersHtml = cols.map(c => `<th style="width:${c.width || 'auto'}">${c.headerText}</th>`).join('');
+    
+    let rowsHtml = '';
+    if (rows.length === 0) {
+      rowsHtml = `<tr class="empty-row"><td colspan="${cols.length}">Không có dữ liệu</td></tr>`;
+    } else {
+      rowsHtml = rows.map((r, rIdx) => {
+        const cellsHtml = cols.map(c => {
+          const isReadOnly = typeof c.readOnly === 'function' ? c.readOnly(r) : !!c.readOnly;
+          let cellContent = '';
+
+          if (c.type === 'checkbox') {
+            const isChecked = r[c.field] ? 'checked' : '';
+            cellContent = `<input type="checkbox" class="dm-grid-chk" data-row-idx="${rIdx}" data-field="${c.field}" ${isChecked} ${isReadOnly ? 'disabled' : ''}>`;
+          } else if (c.type === 'action') {
+            cellContent = isReadOnly ? '<span style="color:var(--color-text-dark)">Khóa</span>' : `<button class="dm-btn-mini dm-grid-del" data-row-idx="${rIdx}">Xóa</button>`;
+          } else {
+            cellContent = `<input type="${c.type || 'text'}" class="dm-grid-input" data-row-idx="${rIdx}" data-field="${c.field}" value="${r[c.field] ?? ''}" ${isReadOnly ? 'disabled' : ''}>`;
+          }
+
+          return `<td>${cellContent}</td>`;
+        }).join('');
+        return `<tr data-row-idx="${rIdx}">${cellsHtml}</tr>`;
+      }).join('');
+    }
+
+    this.container.innerHTML = `
+      <div class="dm-grid-container">
+        <div class="dm-grid-table-wrapper">
+          <table class="dm-grid-table">
+            <thead>
+              <tr>${headersHtml}</tr>
+            </thead>
+            <tbody class="dm-grid-body">
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    this.dom.wrapper = this.container.querySelector('.dm-grid-container');
+    this.dom.body = this.container.querySelector('.dm-grid-body');
+  }
+
+  bindEvents() {
+    if (!this.dom.body) return;
+
+    // Lắng nghe thay đổi giá trị trong ô input/checkbox (Event Delegation)
+    this.dom.body.onchange = (e) => {
+      const el = e.target;
+      const rIdx = parseInt(el.getAttribute('data-row-idx'));
+      const field = el.getAttribute('data-field');
+      if (isNaN(rIdx) || !field) return;
+
+      const row = this.state.rows[rIdx];
+      if (!row) return;
+
+      let oldVal = row[field];
+      let newVal = el.type === 'checkbox' ? el.checked : el.value;
+
+      if (el.type === 'number') {
+        newVal = parseFloat(newVal) || 0;
+      }
+
+      row[field] = newVal;
+
+      if (typeof this.config.onCellChange === 'function') {
+        this.config.onCellChange(rIdx, field, newVal, oldVal);
+      }
+    };
+
+    // Lắng nghe click nút xóa dòng (Event Delegation)
+    this.dom.body.onclick = (e) => {
+      const delBtn = e.target.closest('.dm-grid-del');
+      if (delBtn) {
+        const rIdx = parseInt(delBtn.getAttribute('data-row-idx'));
+        if (!isNaN(rIdx)) {
+          this.deleteRow(rIdx);
+        }
+      }
+    };
+  }
+
+  deleteRow(rIdx) {
+    const row = this.state.rows[rIdx];
+    if (typeof this.config.onRowDelete === 'function') {
+      const canDelete = this.config.onRowDelete(rIdx, row);
+      if (canDelete === false) return; // Chặn xóa từ ngoài
+    }
+    this.state.rows.splice(rIdx, 1);
+    this.render();
+  }
+
+  addRow(defaultVals = {}) {
+    this.state.rows.push(defaultVals);
+    this.render();
+  }
+
+  getData() {
+    return JSON.parse(JSON.stringify(this.state.rows));
+  }
+
+  destroy() {
+    if (this.dom.body) {
+      this.dom.body.onchange = null;
+      this.dom.body.onclick = null;
+    }
+    this.container.innerHTML = '';
+    this.dom = {};
+  }
+}
+</script>

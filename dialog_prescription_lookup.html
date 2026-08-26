@@ -1,0 +1,536 @@
+<style>
+/* =================================================================
+   CSS SCOPED FOR PRESCRIPTION LOOKUP DIALOG (.presc-)
+   Đồng bộ Design System tối sang trọng của APP_v1.3 (theo dialog_product_uom_editor.html)
+   ================================================================= */
+
+#presc-lookup-ov {
+  transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+.presc-dlg-wrap {
+  width: 640px;
+  max-width: 94%;
+  max-height: 82vh;
+  background: #16213e;
+  border-radius: 8px;
+  border: 1px solid #0d3377;
+  padding: 0;
+  box-shadow: 0 10px 30px rgba(0,0,0,.6);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.presc-dlg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid #0d3377;
+  background: #0d2144;
+  flex-shrink: 0;
+}
+.presc-dlg-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #90caf9;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.presc-dlg-close {
+  background: none;
+  border: none;
+  color: #ff5252;
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+  transition: color .15s;
+  padding: 0;
+}
+.presc-dlg-close:hover { color: #ff1744; }
+
+.presc-dlg-body {
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #16213e;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.presc-search-row {
+  display: flex;
+  gap: 8px;
+}
+.presc-search-inp {
+  height: 32px;
+  background: #0d2144;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  padding: 0 10px;
+  font-size: 12px;
+  color: #e0e0e0;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color .15s;
+}
+.presc-search-inp::placeholder { color: #546e7a; }
+.presc-search-inp:focus { border-color: #42a5f5; }
+
+.presc-btn-search {
+  padding: 0 16px;
+  height: 32px;
+  background: #2e7d32;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.presc-btn-search:hover { background: #1b5e20; }
+
+.presc-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid #0d3377;
+}
+.presc-tab-btn {
+  padding: 7px 14px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #78909c;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .15s;
+}
+.presc-tab-btn:hover:not(:disabled) { color: #e0e0e0; }
+.presc-tab-btn.active { color: #42a5f5; border-bottom-color: #42a5f5; }
+.presc-tab-btn:disabled { color: #3a4a5e; cursor: not-allowed; }
+
+.presc-tab-panel { display: none; flex-direction: column; gap: 10px; min-height: 260px; }
+.presc-tab-panel.active { display: flex; }
+
+.presc-tbl-wrap {
+  border: 1px solid #0d3377;
+  border-radius: 5px;
+  overflow: auto;
+  max-height: 320px;
+}
+.presc-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.presc-tbl thead th {
+  position: sticky; top: 0;
+  background: #0a1e3a;
+  color: #90caf9;
+  padding: 7px 9px;
+  text-align: left;
+  font-weight: 700;
+  border-bottom: 1px solid #0d3377;
+  white-space: nowrap;
+}
+.presc-tbl thead th.num { text-align: right; }
+.presc-tbl tbody td {
+  padding: 6px 9px;
+  color: #e0e0e0;
+  border-bottom: 1px solid #0d1f3c;
+  vertical-align: middle;
+}
+.presc-tbl tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.presc-tbl tbody tr:hover td { background: #0d2347; }
+.presc-tbl-empty { text-align: center !important; padding: 24px !important; color: #78909c; font-style: italic; }
+
+.presc-btn-chon {
+  padding: 3px 10px;
+  background: #2e7d32;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.presc-btn-chon:hover { background: #1b5e20; }
+
+.presc-qty-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.presc-qty-row label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #90caf9;
+  white-space: nowrap;
+}
+.presc-qty-inp {
+  width: 70px;
+  height: 30px;
+  background: #0d2144;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #e0e0e0;
+  text-align: right;
+  outline: none;
+}
+.presc-qty-inp:focus { border-color: #42a5f5; }
+
+.presc-detail-name {
+  font-size: 12px;
+  color: #66bb6a;
+  font-weight: 700;
+}
+
+.presc-dlg-foot {
+  padding: 12px 18px;
+  border-top: 1px solid #0d3377;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  background: #0d2144;
+  flex-shrink: 0;
+}
+.presc-btn-apply {
+  padding: 6px 16px;
+  background: #1565C0;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+}
+.presc-btn-apply:hover:not(:disabled) { background: #0d47a1; }
+.presc-btn-apply:disabled { background: #263850; color: #78909c; cursor: not-allowed; }
+
+.presc-btn-cancel {
+  padding: 6px 14px;
+  background: #263850;
+  color: #ccc;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+}
+.presc-btn-cancel:hover { background: #1e3060; }
+</style>
+
+<!-- ══ DIALOG: Chọn đơn mẫu / Combo — lookup-only, dùng chung cho các module
+     bán hàng (hiện tại: mod_banhang.html). Chỉ tìm/xem/áp dụng đơn mẫu có
+     sẵn, KHÔNG quản lý danh mục đơn mẫu (không CRUD, không ghi Sheet). Trả
+     dữ liệu qua callback onApply — không tự thao tác lên Grid hóa đơn của
+     module gọi nó. ══ -->
+<div class="ov" id="presc-lookup-ov" onclick="PrescriptionLookup._ovClick(event)">
+  <div class="presc-dlg-wrap">
+    <div class="presc-dlg-head">
+      <span class="presc-dlg-title">Chọn đơn mẫu / Combo</span>
+      <button class="presc-dlg-close" onclick="PrescriptionLookup.close()">&times;</button>
+    </div>
+
+    <div class="presc-dlg-body">
+      <div class="presc-search-row">
+        <input id="presc-search" class="presc-search-inp" placeholder="Tìm kiếm đơn thuốc"
+               autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();PrescriptionLookup.search(this.value);}">
+        <button class="presc-btn-search" onclick="PrescriptionLookup.search(document.getElementById('presc-search').value)">Tìm kiếm</button>
+      </div>
+
+      <div class="presc-tabs">
+        <button class="presc-tab-btn active" id="presc-tab-btn-list" onclick="PrescriptionLookup._switchTab('list')">1. Danh sách đơn thuốc</button>
+        <button class="presc-tab-btn" id="presc-tab-btn-detail" disabled onclick="PrescriptionLookup._switchTab('detail')">2. Chi tiết đơn thuốc</button>
+      </div>
+
+      <!-- TAB 1: Danh sách đơn thuốc — cột "Chọn" đứng đầu, theo đúng thứ tự
+           thao tác của TheLight (chọn dòng trước, xem chi tiết sau) -->
+      <div class="presc-tab-panel active" id="presc-tab-panel-list">
+        <div class="presc-tbl-wrap">
+          <table class="presc-tbl">
+            <thead>
+              <tr>
+                <th style="width:60px"></th>
+                <th style="width:100px">Mã đơn</th>
+                <th>Tên đơn</th>
+                <th class="num" style="width:100px">Tổng tiền</th>
+                <th>Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody id="presc-tbl-list-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 2: Chi tiết đơn thuốc — "Áp dụng" đặt ngay cạnh ô Số lượng đơn
+           thuốc (không phải footer dùng chung), theo đúng vị trí của TheLight -->
+      <div class="presc-tab-panel" id="presc-tab-panel-detail">
+        <div class="presc-detail-name" id="presc-detail-name"></div>
+        <div class="presc-qty-row">
+          <label>Số lượng đơn thuốc</label>
+          <input id="presc-qty" class="presc-qty-inp" type="number" min="1" value="1"
+                 oninput="PrescriptionLookup._onQtyInput(this.value)">
+          <button class="presc-btn-apply" id="presc-btn-apply" disabled onclick="PrescriptionLookup.apply()">Áp dụng</button>
+        </div>
+        <div class="presc-tbl-wrap">
+          <table class="presc-tbl">
+            <thead>
+              <tr>
+                <th style="width:90px">Mã SP</th>
+                <th>Tên SP</th>
+                <th style="width:60px">ĐVT</th>
+                <th class="num" style="width:80px">Giá bán</th>
+                <th class="num" style="width:70px">Số lượng</th>
+                <th class="num" style="width:100px">Thành tiền</th>
+                <th>Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody id="presc-tbl-detail-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="presc-dlg-foot">
+      <button class="presc-btn-cancel" onclick="PrescriptionLookup.close()">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  PRESCRIPTION LOOKUP DIALOG (PrescriptionLookup)
+//  File: dialog_prescription_lookup.html
+//  Sprint 5.7 — Sale: Chọn đơn mẫu / Combo (Lookup only, không CRUD)
+//
+//  Trách nhiệm CHỈ gồm: tìm kiếm đơn mẫu có sẵn, xem chi tiết, nhân "Số
+//  lượng đơn thuốc", và trả dữ liệu qua callback onApply({ prescription }),
+//  prescription = { maDon, tenDon, soLuongDon, lines }. Bọc trong 1 object
+//  "prescription" (thay vì trả rời từng field) để sau này thêm field mới
+//  (bác sĩ, chẩn đoán, ghi chú, tag...) không phải sửa chữ ký callback.
+//  Dialog không toast/alert/console.log, không tự thao tác lên Grid hóa
+//  đơn — module gọi (hiện tại: BanhangModule) tự quyết định cách merge/
+//  append/replace dòng vào giỏ hàng của nó; đây là nghiệp vụ chưa được PO
+//  chốt (xem TODO ở mod_banhang.html openDonMau()).
+//
+//  DATA SOURCE: dùng mock data tạm thời (_mockData()) vì PrescriptionRepository
+//  thật (đọc Danh mục đơn thuốc từ Sheet) chưa tồn tại — đúng phạm vi Sprint
+//  5.7 (không làm Danh mục đơn mẫu/CRUD/ghi Sheet). Khi có repository thật,
+//  chỉ cần thay nội dung _loadList() bằng lời gọi API tương ứng; toàn bộ UI
+//  dialog không cần đổi vì đã tách riêng theo state.list/state.selected.
+// ════════════════════════════════════════════════════════════════
+const PrescriptionLookup = {
+
+  state: {
+    list: [],       // toàn bộ đơn mẫu đã tải (mock)
+    filtered: [],    // đơn mẫu đang hiển thị ở Tab 1 sau khi lọc theo ô tìm kiếm
+    selected: null,  // đơn mẫu đang xem ở Tab 2
+    qty: 1,          // "Số lượng đơn thuốc" — hệ số nhân cho tất cả dòng
+    onApply: null
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  //  PUBLIC API
+  // ─────────────────────────────────────────────────────────────
+
+  // config: { onApply({ prescription }) }
+  open(config = {}) {
+    this.state.onApply = typeof config.onApply === 'function' ? config.onApply : null;
+    this.state.selected = null;
+    this.state.qty = 1;
+
+    const searchEl = document.getElementById('presc-search');
+    if (searchEl) searchEl.value = '';
+    const qtyEl = document.getElementById('presc-qty');
+    if (qtyEl) qtyEl.value = '1';
+
+    this._switchTab('list');
+    this._loadList();
+
+    const ov = document.getElementById('presc-lookup-ov');
+    if (ov) ov.classList.add('open');
+
+    setTimeout(() => { if (searchEl) searchEl.focus(); }, 160);
+  },
+
+  close() {
+    const ov = document.getElementById('presc-lookup-ov');
+    if (ov) ov.classList.remove('open');
+    this.destroy();
+  },
+
+  // Lọc danh sách đơn mẫu ở Tab 1 theo tên/mã — public API, gọi được từ
+  // ngoài lẫn từ oninput của ô tìm kiếm trong dialog.
+  search(keyword) {
+    const kw = (keyword || '').toLowerCase().trim();
+    const filtered = !kw ? this.state.list : this.state.list.filter(p =>
+      (p.tenDon || '').toLowerCase().includes(kw) || (p.maDon || '').toLowerCase().includes(kw)
+    );
+    this._renderList(filtered);
+  },
+
+  // Reset state nội bộ về trạng thái sạch — gọi từ close() để lần open() kế
+  // tiếp không còn giữ lại lựa chọn/callback của phiên trước.
+  destroy() {
+    this.state.list = [];
+    this.state.filtered = [];
+    this.state.selected = null;
+    this.state.qty = 1;
+    this.state.onApply = null;
+  },
+
+  // Dialog CHỈ đóng dialog + gọi callback — không toast/alert/console.log,
+  // không tự thao tác lên Grid hóa đơn. Sale Module tự quyết định xử lý tiếp
+  // dữ liệu prescription trả về (xem TODO ở mod_banhang.html openDonMau()).
+  apply() {
+    if (!this.state.selected) return; // nút Áp dụng đã disabled khi chưa chọn — chỉ phòng vệ
+    const qty = Math.max(1, Number(this.state.qty) || 1);
+    const prescription = {
+      maDon: this.state.selected.maDon,
+      tenDon: this.state.selected.tenDon,
+      soLuongDon: qty,
+      lines: this.state.selected.lines.map(l => ({
+        maSP: l.maSP,
+        tenSP: l.tenSP,
+        dvt: l.dvt,
+        gia: l.gia,
+        sl: l.sl * qty,
+        thanhTien: l.gia * l.sl * qty,
+        ghiChu: l.ghiChu || ''
+      }))
+    };
+
+    const onApply = this.state.onApply;
+    this.close();
+    if (onApply) onApply({ prescription });
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  //  PRIVATE HELPERS
+  // ─────────────────────────────────────────────────────────────
+
+  // Nguồn dữ liệu tạm thời (Sprint 5.7 chỉ làm Lookup Dialog, không có
+  // Danh mục đơn mẫu/Repository thật — xem ghi chú DATA SOURCE ở đầu file).
+  _loadList() {
+    this.state.list = this._mockData();
+    this._renderList(this.state.list);
+  },
+
+  _mockData() {
+    return [
+      {
+        maDon: '81677188',
+        tenDon: 'Thuốc đau bụng',
+        ghiChu: '',
+        lines: [
+          { maSP: 'HHHH001123', tenSP: 'Smecta h/30g', dvt: 'Gói', gia: 4000, sl: 4, ghiChu: '' },
+          { maSP: 'HHHH001224', tenSP: 'Berberin 100mg DMC h/100v', dvt: 'Viên', gia: 800, sl: 7, ghiChu: '' },
+          { maSP: 'HHHHP000780', tenSP: 'Ferrovit - Mega h/50v', dvt: 'Viên', gia: 1600, sl: 1, ghiChu: '' }
+        ]
+      },
+      {
+        maDon: '31358052',
+        tenDon: 'Thuốc giảm đau đầu',
+        ghiChu: '',
+        lines: [
+          { maSP: 'HHHH002001', tenSP: 'Paracetamol 500mg h/100v', dvt: 'Viên', gia: 500, sl: 10, ghiChu: '' },
+          { maSP: 'HHHH002015', tenSP: 'Cafein 50mg h/10v', dvt: 'Vỉ', gia: 3500, sl: 1, ghiChu: '' }
+        ]
+      }
+    ];
+  },
+
+  _renderList(items) {
+    this.state.filtered = items || [];
+    const body = document.getElementById('presc-tbl-list-body');
+    if (!body) return;
+    if (!this.state.filtered.length) {
+      body.innerHTML = '<tr><td colspan="5" class="presc-tbl-empty">Không tìm thấy đơn mẫu nào</td></tr>';
+      return;
+    }
+    const fmt = n => (n == null || isNaN(n)) ? '0' : Number(n).toLocaleString('vi-VN');
+    body.innerHTML = this.state.filtered.map(p => {
+      const tongTien = (p.lines || []).reduce((s, l) => s + (Number(l.gia) || 0) * (Number(l.sl) || 0), 0);
+      return `
+        <tr ondblclick="PrescriptionLookup.selectPrescription('${p.maDon}')">
+          <td style="text-align:center"><button class="presc-btn-chon" onclick="PrescriptionLookup.selectPrescription('${p.maDon}')">Chọn</button></td>
+          <td>${p.maDon}</td>
+          <td style="font-weight:700">${p.tenDon}</td>
+          <td class="num">${fmt(tongTien)}</td>
+          <td>${p.ghiChu || ''}</td>
+        </tr>`;
+    }).join('');
+  },
+
+  selectPrescription(maDon) {
+    const p = (this.state.list || []).find(x => x.maDon === maDon);
+    if (!p) return;
+    this.state.selected = p;
+    this.state.qty = 1;
+    const qtyEl = document.getElementById('presc-qty');
+    if (qtyEl) qtyEl.value = '1';
+
+    const btnDetail = document.getElementById('presc-tab-btn-detail');
+    if (btnDetail) btnDetail.disabled = false;
+    const btnApply = document.getElementById('presc-btn-apply');
+    if (btnApply) btnApply.disabled = false;
+
+    this._switchTab('detail');
+    this._renderDetail();
+  },
+
+  _onQtyInput(val) {
+    this.state.qty = Math.max(1, Number(val) || 1);
+    this._renderDetail();
+  },
+
+  _renderDetail() {
+    const nameEl = document.getElementById('presc-detail-name');
+    const body = document.getElementById('presc-tbl-detail-body');
+    if (!this.state.selected) {
+      if (nameEl) nameEl.textContent = '';
+      if (body) body.innerHTML = '<tr><td colspan="7" class="presc-tbl-empty">Chưa chọn đơn mẫu</td></tr>';
+      return;
+    }
+    if (nameEl) nameEl.textContent = `${this.state.selected.maDon} — ${this.state.selected.tenDon}`;
+    if (!body) return;
+    const qty = Math.max(1, Number(this.state.qty) || 1);
+    const fmt = n => (n == null || isNaN(n)) ? '0' : Number(n).toLocaleString('vi-VN');
+    if (!this.state.selected.lines || !this.state.selected.lines.length) {
+      body.innerHTML = '<tr><td colspan="7" class="presc-tbl-empty">Không có dữ liệu.</td></tr>';
+      return;
+    }
+    body.innerHTML = this.state.selected.lines.map(l => {
+      const sl = (Number(l.sl) || 0) * qty;
+      const tt = (Number(l.gia) || 0) * sl;
+      return `
+        <tr>
+          <td>${l.maSP}</td>
+          <td>${l.tenSP}</td>
+          <td>${l.dvt}</td>
+          <td class="num">${fmt(l.gia)}</td>
+          <td class="num">${sl}</td>
+          <td class="num">${fmt(tt)}</td>
+          <td>${l.ghiChu || ''}</td>
+        </tr>`;
+    }).join('');
+  },
+
+  _switchTab(tab) {
+    const isList = tab === 'list';
+    document.getElementById('presc-tab-btn-list').classList.toggle('active', isList);
+    document.getElementById('presc-tab-btn-detail').classList.toggle('active', !isList);
+    document.getElementById('presc-tab-panel-list').classList.toggle('active', isList);
+    document.getElementById('presc-tab-panel-detail').classList.toggle('active', !isList);
+  },
+
+  _ovClick(e) {
+    if (e.target.id === 'presc-lookup-ov') this.close();
+  }
+};
+</script>

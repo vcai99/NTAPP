@@ -1,0 +1,135 @@
+<style>
+.dm-section {
+  background-color: var(--color-bg-card, #111a2e);
+  border: 1px solid var(--color-border-main, #1e293b);
+  border-radius: var(--radius-lg, 8px);
+  margin-bottom: var(--space-xl, 32px);
+  overflow: hidden;
+  transition: var(--transition-normal, all 0.25s ease);
+}
+.dm-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: rgba(255,255,255,0.02);
+  border-bottom: 1px solid var(--color-border-main, #1e293b);
+  cursor: pointer;
+  user-select: none;
+}
+.dm-section-header-left {
+  display: flex;
+  flex-direction: column;
+}
+.dm-section-title {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-md, 15px);
+  font-weight: var(--font-weight-bold, 600);
+  color: var(--color-text-main, #f8fafc);
+}
+.dm-section-desc {
+  font-size: var(--font-xs, 11px);
+  color: var(--color-text-muted, #94a3b8);
+  margin-top: 2px;
+}
+.dm-section-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dm-section-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #94a3b8);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  font-size: 14px;
+}
+.dm-section.collapsed .dm-section-toggle-btn {
+  transform: rotate(-90deg);
+}
+.dm-section-body {
+  padding: 16px;
+  transition: max-height 0.3s ease;
+}
+.dm-section.collapsed .dm-section-body {
+  display: none;
+}
+</style>
+<script>
+class DMSection {
+  constructor(container, config = {}) {
+    this.container = typeof container === 'string' ? document.getElementById(container) : container;
+    this.config = Object.assign({
+      title: '',
+      description: '',
+      collapsible: true,
+      defaultOpen: true
+    }, config);
+    this.dom = {};
+    this.state = { collapsed: !this.config.defaultOpen };
+    this.init();
+  }
+
+  init() {
+    this.render();
+    this.bindEvents();
+  }
+
+  render() {
+    if (!this.container) return;
+    const collapseIcon = this.config.collapsible ? `<button class="dm-section-toggle-btn">▼</button>` : '';
+    this.container.innerHTML = `
+      <div class="dm-section ${this.state.collapsed ? 'collapsed' : ''}">
+        <div class="dm-section-header">
+          <div class="dm-section-header-left">
+            <span class="dm-section-title">${this.config.title}</span>
+            ${this.config.description ? `<span class="dm-section-desc">${this.config.description}</span>` : ''}
+          </div>
+          <div class="dm-section-header-right">
+            <div class="dm-section-toolbar"></div>
+            ${collapseIcon}
+          </div>
+        </div>
+        <div class="dm-section-body"></div>
+      </div>
+    `;
+    this.dom.wrapper = this.container.querySelector('.dm-section');
+    this.dom.header = this.container.querySelector('.dm-section-header');
+    this.dom.body = this.container.querySelector('.dm-section-body');
+    this.dom.toolbar = this.container.querySelector('.dm-section-toolbar');
+  }
+
+  bindEvents() {
+    if (this.config.collapsible && this.dom.header) {
+      this.dom.header.onclick = () => this.toggle();
+    }
+  }
+
+  toggle() {
+    if (this.state.collapsed) {
+      this.expand();
+    } else {
+      this.collapse();
+    }
+  }
+
+  collapse() {
+    if (!this.dom.wrapper) return;
+    this.dom.wrapper.classList.add('collapsed');
+    this.state.collapsed = true;
+  }
+
+  expand() {
+    if (!this.dom.wrapper) return;
+    this.dom.wrapper.classList.remove('collapsed');
+    this.state.collapsed = false;
+  }
+
+  destroy() {
+    if (this.dom.header) this.dom.header.onclick = null;
+    this.container.innerHTML = '';
+    this.dom = {};
+  }
+}
+</script>

@@ -1,0 +1,162 @@
+<script>
+// =================================================================
+//  PURCHASE CALCULATOR (purchase_service.html)
+//  Encapsulates all financial calculations for Goods Receipt
+// =================================================================
+const PurchaseCalculator = {
+  calcLine(line) {
+    const qty = parseFloat(line.sl) || 0;
+    const price = parseFloat(line.donGia) || 0;
+    const ckPercent = parseFloat(line.ck) || 0;
+    const vatPercent = parseFloat(line.vat) || 0;
+
+    const lineTotal = qty * price;
+    const discountAmount = lineTotal * (ckPercent / 100);
+    const vatAmount = (lineTotal - discountAmount) * (vatPercent / 100);
+
+    line.thanhTien = Math.round(lineTotal - discountAmount + vatAmount);
+    return line;
+  },
+
+  calcSummary(lines, globalDiscountVal = 0, paymentVal = null) {
+    let tongTienHang = 0;
+    let tongChietKhau = parseFloat(globalDiscountVal) || 0;
+    let tongVAT = 0;
+
+    lines.forEach(l => {
+      const qty = parseFloat(l.sl) || 0;
+      const price = parseFloat(l.donGia) || 0;
+      const ckPercent = parseFloat(l.ck) || 0;
+      const vatPercent = parseFloat(l.vat) || 0;
+
+      const lineTotal = qty * price;
+      const rowDiscount = lineTotal * (ckPercent / 100);
+      const rowVat = (lineTotal - rowDiscount) * (vatPercent / 100);
+
+      tongTienHang += lineTotal;
+      tongChietKhau += rowDiscount;
+      tongVAT += rowVat;
+    });
+
+    const tienPhaiTra = Math.round(tongTienHang - tongChietKhau + tongVAT);
+    const tienThanhToan = paymentVal !== null ? Math.round(parseFloat(paymentVal) || 0) : tienPhaiTra;
+    const conNo = Math.max(0, tienPhaiTra - tienThanhToan);
+
+    return {
+      tongTienHang: Math.round(tongTienHang),
+      chietKhau: Math.round(tongChietKhau),
+      vat: Math.round(tongVAT),
+      tienPhaiTra: tienPhaiTra,
+      tienThanhToan: tienThanhToan,
+      conNo: conNo
+    };
+  }
+};
+
+// =================================================================
+//  PURCHASE VALIDATOR (purchase_service.html)
+//  Encapsulates validation logic for Goods Receipt
+// =================================================================
+const PurchaseValidator = {
+  validate(payload) {
+    const lines = payload.lines || [];
+
+    if (!payload.maNCC || !payload.tenNCC) {
+      return { success: false, message: 'Vui lòng chọn Nhà cung cấp hợp lệ!', field: 'ncc' };
+    }
+    if (!payload.khoNhap) {
+      return { success: false, message: 'Vui lòng chọn Kho nhập hàng!', field: 'khoNhap' };
+    }
+    if (!payload.loaiNhap) {
+      return { success: false, message: 'Vui lòng chọn Loại nhập hàng!', field: 'loaiNhap' };
+    }
+    if (!payload.ngayNhap) {
+      return { success: false, message: 'Vui lòng chọn Ngày nhập hàng!', field: 'ngayNhap' };
+    }
+    if (lines.length === 0) {
+      return { success: false, message: 'Vui lòng thêm ít nhất một sản phẩm vào danh sách nhập!', field: 'lines' };
+    }
+
+    const keys = [];
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i];
+      if (!l.maSP || !l.tenSP) {
+        return { success: false, message: `Dòng số ${i + 1}: Thông tin sản phẩm không hợp lệ!`, field: 'lines' };
+      }
+      if (!l.dvt) {
+        return { success: false, message: `Dòng số ${i + 1} (${l.tenSP}): Chưa chọn Đơn vị tính!`, field: 'lines' };
+      }
+      if (Number(l.sl) <= 0) {
+        return { success: false, message: `Dòng số ${i + 1} (${l.tenSP}): Số lượng phải lớn hơn 0!`, field: 'lines' };
+      }
+      if (Number(l.donGia) <= 0) {
+        return { success: false, message: `Dòng số ${i + 1} (${l.tenSP}): Đơn giá nhập phải lớn hơn 0!`, field: 'lines' };
+      }
+      if (Number(l.ck) < 0 || Number(l.ck) > 100) {
+        return { success: false, message: `Dòng số ${i + 1} (${l.tenSP}): Chiết khấu % phải từ 0% đến 100%!`, field: 'lines' };
+      }
+      if (Number(l.vat) < 0 || Number(l.vat) > 100) {
+        return { success: false, message: `Dòng số ${i + 1} (${l.tenSP}): Thuế VAT % phải từ 0% đến 100%!`, field: 'lines' };
+      }
+
+      // Check duplicate identical line
+      const key = `${l.maSP}_${l.dvt}_${l.lo || ''}_${l.hsd || ''}`;
+      if (keys.indexOf(key) !== -1) {
+        return { success: false, message: `Dòng số ${i + 1} (${l.tenSP}): Bị trùng lặp sản phẩm, đơn vị, lô và hạn dùng với dòng khác!`, field: 'lines' };
+      }
+      keys.push(key);
+    }
+
+    return { success: true };
+  }
+};
+
+// =================================================================
+//  PURCHASE SERVICE (purchase_service.html)
+//  Business Service Layer on Frontend
+// =================================================================
+const PurchaseService = {
+  load() {
+    return PurchaseService.handleResponse_(PurchaseRepository.load());
+  },
+
+  find(soPhieu) {
+    return PurchaseService.handleResponse_(PurchaseRepository.find(soPhieu));
+  },
+
+  save(payload) {
+    const valRes = PurchaseValidator.validate(payload);
+    if (!valRes.success) {
+      return Promise.reject(new Error(valRes.message));
+    }
+    return PurchaseService.handleResponse_(PurchaseRepository.create(payload));
+  },
+
+  update(payload) {
+    const valRes = PurchaseValidator.validate(payload);
+    if (!valRes.success) {
+      return Promise.reject(new Error(valRes.message));
+    }
+    return PurchaseService.handleResponse_(PurchaseRepository.update(payload));
+  },
+
+  remove(soPhieu) {
+    return PurchaseService.handleResponse_(PurchaseRepository.remove(soPhieu));
+  },
+
+  generateCode() {
+    return PurchaseService.handleResponse_(PurchaseRepository.generateCode());
+  },
+
+  // Private Helper to standardize response/error formats
+  handleResponse_(promise) {
+    return promise.then(res => {
+      if (res && res.success) {
+        return res.data;
+      } else {
+        throw new Error((res && res.message) || 'Lỗi không xác định ở tầng dữ liệu');
+      }
+    });
+  }
+};
+</script>

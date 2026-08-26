@@ -1,0 +1,53 @@
+<div class="topbar">
+  <div class="tb-menu" id="menu-khaibao">
+    <button class="tb-btn" id="mn-khaibao" onclick="toggleTopMenu('menu-khaibao',event)">☰ Khai báo</button>
+    <div class="tb-menu-panel">
+      <button class="tb-menu-item" onclick="menuGo('nhacungcap','Danh mục nhà cung cấp')"><span class="tb-menu-mark">≡</span> Danh mục nhà cung cấp</button>
+      <button class="tb-menu-item" onclick="menuGo('khachhang','Danh mục khách hàng')"><span class="tb-menu-mark">≡</span> Danh mục khách hàng</button>
+      <button class="tb-menu-item" onclick="menuGo('bacsi','Danh mục bác sĩ')"><span class="tb-menu-mark">≡</span> Danh mục bác sĩ</button>
+      <button class="tb-menu-item" onclick="menuGo('dm_sanpham','Danh mục sản phẩm')"><span class="tb-menu-mark">≡</span> Danh mục sản phẩm</button>
+      <button class="tb-menu-item" onclick="menuGo('inmavach','In mã vạch')"><span class="tb-menu-mark">≡</span> In mã vạch</button>
+      <button class="tb-menu-item" onclick="menuGo('nhomsanpham','Danh mục nhóm sản phẩm')"><span class="tb-menu-mark">≡</span> Danh mục nhóm sản phẩm</button>
+      <button class="tb-menu-item" onclick="menuGo('nhomthuchi','Danh mục nhóm thu chi')"><span class="tb-menu-mark">≡</span> Danh mục nhóm thu chi</button>
+      <button class="tb-menu-item" onclick="menuGo('vitrisanpham','Danh mục vị trí sản phẩm')"><span class="tb-menu-mark">≡</span> Danh mục vị trí sản phẩm</button>
+      <button class="tb-menu-item" onclick="menuGo('donthuoc','Danh mục đơn thuốc')"><span class="tb-menu-mark">≡</span> Danh mục đơn thuốc</button>
+      <button class="tb-menu-item" onclick="menuGo('donvitinh','Danh mục đơn vị tính')"><span class="tb-menu-mark">≡</span> Danh mục đơn vị tính</button>
+      <button class="tb-menu-item" onclick="menuGo('hinhthuctt','Danh mục hình thức thanh toán')"><span class="tb-menu-mark">≡</span> Danh mục hình thức thanh toán</button>
+    </div>
+  </div>
+  <div class="tb-menu" id="menu-taophieu">
+    <button class="tb-btn" id="mn-taophieu" onclick="toggleTopMenu('menu-taophieu',event)">() Tạo phiếu</button>
+    <div class="tb-menu-panel">
+      <button class="tb-menu-item" onclick="menuGo('nhaptondau','Nhập tồn đầu kỳ')"><span class="tb-menu-mark">≡</span> Nhập tồn đầu kỳ</button>
+      <button class="tb-menu-item" onclick="menuGo('dsphieu','Danh sách phiếu nhập')"><span class="tb-menu-mark">≡</span> Danh sách phiếu nhập</button>
+      <button class="tb-menu-item" onclick="menuGo('dsphieuxuat','Danh sách phiếu xuất')"><span class="tb-menu-mark">≡</span> Danh sách phiếu xuất</button>
+      <button class="tb-menu-item" onclick="menuGo('khachtra','Khách trả lại')"><span class="tb-menu-mark">≡</span> Khách trả lại</button>
+      <button class="tb-menu-item" onclick="menuGo('trancc','Trả hàng nhà cung cấp')"><span class="tb-menu-mark">≡</span> Trả hàng nhà cung cấp</button>
+      <button class="tb-menu-item" onclick="menuGo('kiemke','Kiểm kê tồn kho')"><span class="tb-menu-mark">≡</span> Kiểm kê tồn kho</button>
+      <button class="tb-menu-item" onclick="menuGo('thuchi','Quản lý thu chi')"><span class="tb-menu-mark">≡</span> Quản lý thu chi</button>
+      <button class="tb-menu-item" onclick="menuGo('dieuchuyen','Điều chuyển hàng hóa')"><span class="tb-menu-mark">≡</span> Điều chuyển hàng hóa</button>
+      <button class="tb-menu-item" onclick="menuGo('dutru','Dự trù hàng hóa')"><span class="tb-menu-mark">≡</span> Dự trù hàng hóa</button>
+    </div>
+  </div>
+  <button class="tb-btn" id="mn-dsphieu" onclick="goPage('dsphieu')">→ Nhập hàng</button>
+  <button class="tb-btn" id="mn-banhang" onclick="goPage('banhang')">🛒 Bán hàng</button>
+  <div class="tb-menu" id="menu-baocao">
+    <button class="tb-btn" id="mn-baocao" onclick="toggleTopMenu('menu-baocao',event)">📊 Báo cáo</button>
+    <div class="tb-menu-panel">
+      <button class="tb-menu-item" onclick="menuGo('tonkho','Báo cáo tồn kho')"><span class="tb-menu-mark">≡</span> Báo cáo tồn kho</button>
+      <button class="tb-menu-item" onclick="menuGo('baocao_nhap','Báo cáo nhập hàng')"><span class="tb-menu-mark">≡</span> Báo cáo nhập hàng</button>
+      <button class="tb-menu-item" onclick="menuGo('baocaoxuathang','Báo cáo xuất hàng')"><span class="tb-menu-mark">≡</span> Báo cáo xuất hàng</button>
+      <button class="tb-menu-item" onclick="menuGo('baocao_ban','Báo cáo bán hàng')"><span class="tb-menu-mark">≡</span> Báo cáo bán hàng</button>
+      <button class="tb-menu-item" onclick="menuGo('baocaocongno','Báo cáo tổng hợp doanh thu - công nợ')"><span class="tb-menu-mark">≡</span> Báo cáo tổng hợp doanh thu - công nợ</button>
+      <button class="tb-menu-item" onclick="menuGo('baocaolailo','Báo cáo lãi lỗ')"><span class="tb-menu-mark">≡</span> Báo cáo lãi lỗ</button>
+    </div>
+  </div>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="mn-tonkho" onclick="goPage('tonkho')">📦 Tồn kho</button>
+  <button class="tb-btn" id="mn-tienich" onclick="goPage('tienich')">⚙ Tiện ích</button>
+  <div class="tb-right">
+    <button class="tb-icon" title="Email">✉</button>
+    <button class="tb-icon" title="Thông báo">🔔</button>
+    <button class="tb-icon" title="Cài đặt">⚙</button>
+  </div>
+</div>

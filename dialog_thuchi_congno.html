@@ -1,0 +1,303 @@
+<style>
+/* =================================================================
+   CSS SCOPED FOR "THU CHI CÔNG NỢ" DIALOG (.tccn-)
+   Sprint 14 — theo evidence PDF "...Khách hàng trả nợ thì làm thế
+   nào.pdf" / "...trả nợ tiền hóa đơn nhập hàng cho NCC.pdf".
+   ================================================================= */
+#tccn-ov { transition: opacity .2s ease-in-out, visibility .2s ease-in-out; }
+.tccn-dlg-wrap {
+  width: 460px; max-width: 94%; background: #16213e; border-radius: 8px;
+  border: 1px solid #0d3377; box-shadow: 0 10px 30px rgba(0,0,0,.6);
+  overflow: hidden; display: flex; flex-direction: column;
+}
+.tccn-dlg-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 18px; border-bottom: 1px solid #0d3377; background: #0d2144; flex-shrink: 0;
+}
+.tccn-dlg-title { font-size: 14px; font-weight: 700; color: #90caf9; }
+.tccn-dlg-close { background: none; border: none; color: #ff5252; font-size: 22px; cursor: pointer; line-height: 1; padding: 0; }
+.tccn-dlg-close:hover { color: #ff1744; }
+.tccn-dlg-body { padding: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; background: #16213e; }
+.tccn-field { display: flex; flex-direction: column; gap: 4px; }
+.tccn-field.span2 { grid-column: span 2; }
+.tccn-lbl { font-size: 11px; font-weight: 500; color: #90caf9; }
+.tccn-inp, .tccn-sel {
+  height: 32px; background: #0d2144; border: 1px solid #1e4080; border-radius: 4px;
+  padding: 0 8px; font-size: 13px; color: #e0e0e0; outline: none; width: 100%; box-sizing: border-box;
+}
+.tccn-inp:focus, .tccn-sel:focus { border-color: #42a5f5; }
+.tccn-inp:disabled { opacity: .6; }
+.tccn-debt-hint { font-size: 11px; color: #ffb74d; margin-top: 2px; }
+.tccn-dlg-foot { padding: 12px 18px; border-top: 1px solid #0d3377; display: flex; justify-content: flex-end; gap: 8px; background: #0d2144; flex-shrink: 0; }
+.tccn-btn-save { padding: 6px 16px; background: #1565C0; color: #fff; border: none; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.tccn-btn-save:hover { background: #0d47a1; }
+.tccn-btn-save:disabled { background: #263850; color: #78909c; cursor: not-allowed; }
+.tccn-btn-cancel { padding: 6px 14px; background: #263850; color: #ccc; border: 1px solid #1e4080; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.tccn-btn-cancel:hover { background: #1e3060; }
+</style>
+
+<div class="ov" id="tccn-ov" onclick="ThuChiCongNoEditor._ovClick(event)">
+  <div class="tccn-dlg-wrap">
+    <div class="tccn-dlg-head">
+      <span class="tccn-dlg-title" id="tccn-title">+ Thu chi công nợ</span>
+      <button class="tccn-dlg-close" onclick="ThuChiCongNoEditor.close()">&times;</button>
+    </div>
+
+    <div class="tccn-dlg-body">
+      <div class="tccn-field">
+        <label class="tccn-lbl">Thu/Chi</label>
+        <select id="tccn-thuchi" class="tccn-sel">
+          <option value="Thu">Thu</option>
+          <option value="Chi">Chi</option>
+        </select>
+      </div>
+      <div class="tccn-field">
+        <label class="tccn-lbl">Ngày</label>
+        <input id="tccn-ngay" class="tccn-inp" type="date">
+      </div>
+      <div class="tccn-field">
+        <label class="tccn-lbl">Số phiếu</label>
+        <input id="tccn-sophieu" class="tccn-inp" disabled placeholder="Tự động">
+      </div>
+      <div class="tccn-field">
+        <label class="tccn-lbl" id="tccn-lbl-doituong">Đối tượng thu chi</label>
+        <select id="tccn-doituong" class="tccn-sel">
+          <option value="">Chọn đối tượng thu chi</option>
+        </select>
+        <div class="tccn-debt-hint" id="tccn-debt-hint"></div>
+      </div>
+      <div class="tccn-field span2">
+        <label class="tccn-lbl">Địa chỉ</label>
+        <input id="tccn-diachi" class="tccn-inp" disabled>
+      </div>
+      <div class="tccn-field">
+        <label class="tccn-lbl">Chọn HTTT</label>
+        <select id="tccn-httt" class="tccn-sel"><option>Tiền mặt</option></select>
+      </div>
+      <div class="tccn-field">
+        <label class="tccn-lbl">Số tiền</label>
+        <input id="tccn-sotien" class="tccn-inp" type="text" inputmode="numeric" placeholder="0">
+      </div>
+      <div class="tccn-field span2">
+        <label class="tccn-lbl">Ghi chú</label>
+        <input id="tccn-ghichu" class="tccn-inp" placeholder="Ghi chú">
+      </div>
+    </div>
+
+    <div class="tccn-dlg-foot">
+      <button class="tccn-btn-save" id="tccn-btn-save" onclick="ThuChiCongNoEditor.save(false)">✔ Lưu lại</button>
+      <button class="tccn-btn-save" id="tccn-btn-save-print" onclick="ThuChiCongNoEditor.save(true)">🖨 Lưu lại &amp; In</button>
+      <button class="tccn-btn-cancel" onclick="ThuChiCongNoEditor.close()">✕ Thoát</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  DIALOG: ThuChiCongNoEditor (dialog_thuchi_congno.html)
+//  Sprint 14 — "+ Thu chi công nợ" (evidence 2 PDF Thu/Chi công nợ)
+//  BR-ARAP-02 (LOCKED): Thu → EntityType=CUSTOMER, Chi → EntityType=
+//  SUPPLIER, KHÔNG fallback — đổi Thu/Chi PHẢI reset lại đối tượng đã chọn.
+// ════════════════════════════════════════════════════════════════
+const ThuChiCongNoEditor = {
+  state: {
+    onSaved: null,
+    mode: 'create',   // 'create' | 'edit' — Sprint 14 Phase UI Correction
+    editRecord: null, // bản ghi gốc khi mở ở mode 'edit' (từ list, đã cache client — KHÔNG cần API riêng)
+    customers: [],   // cache apiCustomerLoad — { maKH, tenKH, diaChi }
+    suppliers: []     // cache apiNccLoad — { maNCC, tenNCC, diaChi }
+  },
+
+  dom: {},
+  initialized: false,
+
+  init() {
+    if (this.initialized) return;
+    this.dom = {
+      title: document.getElementById('tccn-title'),
+      thuChi: document.getElementById('tccn-thuchi'),
+      ngay: document.getElementById('tccn-ngay'),
+      soPhieu: document.getElementById('tccn-sophieu'),
+      lblDoiTuong: document.getElementById('tccn-lbl-doituong'),
+      doiTuong: document.getElementById('tccn-doituong'),
+      debtHint: document.getElementById('tccn-debt-hint'),
+      diaChi: document.getElementById('tccn-diachi'),
+      httt: document.getElementById('tccn-httt'),
+      soTien: document.getElementById('tccn-sotien'),
+      ghiChu: document.getElementById('tccn-ghichu'),
+      btnSave: document.getElementById('tccn-btn-save'),
+      btnSavePrint: document.getElementById('tccn-btn-save-print')
+    };
+    this.dom.thuChi.onchange = () => this.onThuChiChange_();
+    this.dom.doiTuong.onchange = () => this.onDoiTuongChange_();
+    this.initialized = true;
+  },
+
+  // config: { mode: 'create'|'edit', record (chỉ cần khi 'edit', lấy từ dòng
+  // list đã cache sẵn ở ThuChiModule — KHÔNG cần thêm API "get by id" riêng),
+  // onSaved, defaultThuChi (chỉ dùng khi 'create') }
+  open(config = {}) {
+    this.init();
+    this.state.onSaved = config.onSaved || null;
+    this.state.mode = config.mode === 'edit' ? 'edit' : 'create';
+    this.state.editRecord = this.state.mode === 'edit' ? (config.record || null) : null;
+    const rec = this.state.editRecord;
+
+    this.dom.title.textContent = rec ? 'Sửa thu chi công nợ' : '+ Thu chi công nợ';
+    this.dom.thuChi.value = rec ? rec.thuChi : (config.defaultThuChi || 'Thu');
+    this.dom.ngay.value = rec ? rec.ngay : new Date().toISOString().slice(0, 10);
+    // Số phiếu là identifier chứng từ — luôn disabled, KHÔNG cho sửa dù ở
+    // mode nào (đúng evidence + nguyên tắc immutable ID của kiến trúc hiện tại).
+    this.dom.soPhieu.value = rec ? rec.soPhieu : 'Tự động';
+    this.dom.diaChi.value = '';
+    this.dom.soTien.value = rec ? String(rec.soTien) : '';
+    this.dom.ghiChu.value = rec ? (rec.ghiChu || '') : '';
+    this.dom.debtHint.textContent = '';
+    this.dom.btnSave.disabled = false;
+    this.dom.btnSavePrint.disabled = false;
+
+    const ov = document.getElementById('tccn-ov');
+    if (ov) ov.classList.add('open');
+
+    // Tải song song Customer + NCC 1 lần khi mở (đủ nhỏ để load hết, không
+    // cần search server-side riêng — REUSE apiCustomerLoad/apiNccLoad có sẵn).
+    Promise.all([
+      ApiClient.call('apiCustomerLoad'),
+      ApiClient.call('apiNccLoad')
+    ]).then(([cusRes, nccRes]) => {
+      this.state.customers = (cusRes && cusRes.success) ? (cusRes.data || []) : [];
+      this.state.suppliers = (nccRes && nccRes.success) ? (nccRes.data || []) : [];
+      this.onThuChiChange_();
+      if (rec) {
+        // onThuChiChange_() vừa reset lựa chọn đối tượng — set lại đúng
+        // đối tượng gốc của giao dịch đang sửa rồi tải lại Còn nợ/Địa chỉ.
+        this.dom.doiTuong.value = rec.entityID;
+        this.onDoiTuongChange_();
+      }
+    });
+  },
+
+  close() {
+    const ov = document.getElementById('tccn-ov');
+    if (ov) ov.classList.remove('open');
+  },
+
+  _ovClick(e) {
+    if (e.target.id === 'tccn-ov') this.close();
+  },
+
+  // BR-ARAP-02: Thu → CUSTOMER, Chi → SUPPLIER — đổi Thu/Chi phải nạp lại
+  // ĐÚNG danh sách đối tượng tương ứng, reset lựa chọn cũ (không giữ đối
+  // tượng của loại kia).
+  onThuChiChange_() {
+    const isThu = this.dom.thuChi.value === 'Thu';
+    this.dom.lblDoiTuong.textContent = 'Đối tượng thu chi';
+    const list = isThu ? this.state.customers : this.state.suppliers;
+    const idKey = isThu ? 'maKH' : 'maNCC';
+    const nameKey = isThu ? 'tenKH' : 'tenNCC';
+    this.dom.doiTuong.innerHTML = '<option value="">Chọn đối tượng thu chi</option>' +
+      list.map(x => `<option value="${x[idKey]}">${x[nameKey]}</option>`).join('');
+    this.dom.diaChi.value = '';
+    this.dom.debtHint.textContent = '';
+  },
+
+  onDoiTuongChange_() {
+    const isThu = this.dom.thuChi.value === 'Thu';
+    const entityID = this.dom.doiTuong.value;
+    if (!entityID) { this.dom.diaChi.value = ''; this.dom.debtHint.textContent = ''; return; }
+
+    const list = isThu ? this.state.customers : this.state.suppliers;
+    const idKey = isThu ? 'maKH' : 'maNCC';
+    const found = list.find(x => x[idKey] === entityID);
+    this.dom.diaChi.value = (found && found.diaChi) || '';
+
+    const entityType = isThu ? 'CUSTOMER' : 'SUPPLIER';
+    this.dom.debtHint.textContent = 'Đang tải công nợ...';
+    ApiClient.call('apiThuChiCurrentDebt', { entityType: entityType, entityID: entityID })
+      .then(res => {
+        if (this.dom.doiTuong.value !== entityID) return; // đã đổi lựa chọn khác trong lúc chờ
+        let debt = (res && res.success) ? (res.data || 0) : 0;
+        // EDIT mode, cùng đối tượng gốc: số tiền của CHÍNH giao dịch đang sửa
+        // đã bị trừ sẵn trong "Công nợ hiện tại" đọc được — cộng lại để hint
+        // phản ánh đúng hạn mức còn lại khi sửa (đúng logic backend dùng để
+        // validate, xem `ThuChiServiceBackend.updateTransaction()`).
+        const rec = this.state.editRecord;
+        if (rec && rec.entityType === entityType && String(rec.entityID) === String(entityID)) {
+          debt += Number(rec.soTien) || 0;
+        }
+        this.dom.debtHint.textContent = `Còn nợ: ${this.fmt_(debt)}đ`;
+        this.dom.debtHint.dataset.debt = debt;
+      });
+  },
+
+  save(thenPrint) {
+    const thuChi = this.dom.thuChi.value;
+    const isThu = thuChi === 'Thu';
+    const entityID = this.dom.doiTuong.value;
+    if (!entityID) {
+      toast('Vui lòng chọn đối tượng thu chi.', 'warn');
+      return;
+    }
+    const list = isThu ? this.state.customers : this.state.suppliers;
+    const idKey = isThu ? 'maKH' : 'maNCC';
+    const nameKey = isThu ? 'tenKH' : 'tenNCC';
+    const found = list.find(x => x[idKey] === entityID);
+
+    const soTien = parseMoney(this.dom.soTien.value || '0');
+    if (!Number.isFinite(soTien) || soTien <= 0) {
+      toast('Số tiền phải lớn hơn 0.', 'warn');
+      return;
+    }
+
+    // PO Decision #4: chặn ngay ở UX nếu vượt công nợ hiện tại đã tải —
+    // backend vẫn validate lại độc lập, đây chỉ là UX, không thay thế.
+    const knownDebt = Number(this.dom.debtHint.dataset.debt || 0);
+    if (soTien > knownDebt) {
+      toast(`Số tiền ${isThu ? 'thu' : 'chi trả'} vượt quá công nợ hiện tại (${this.fmt_(knownDebt)}đ).`, 'warn');
+      return;
+    }
+
+    const isEdit = this.state.mode === 'edit' && this.state.editRecord;
+    const payload = {
+      thuChi: thuChi,
+      ngay: this.dom.ngay.value,
+      entityType: isThu ? 'CUSTOMER' : 'SUPPLIER',
+      entityID: entityID,
+      entityName: found ? found[nameKey] : '',
+      diaChi: this.dom.diaChi.value,
+      httt: this.dom.httt.value,
+      soTien: soTien,
+      ghiChu: this.dom.ghiChu.value.trim()
+    };
+    if (isEdit) payload.tccnID = this.state.editRecord.tccnID;
+
+    this.dom.btnSave.disabled = true;
+    this.dom.btnSavePrint.disabled = true;
+    ApiClient.call(isEdit ? 'apiThuChiUpdate' : 'apiThuChiSave', payload)
+      .then(res => {
+        this.dom.btnSave.disabled = false;
+        this.dom.btnSavePrint.disabled = false;
+        if (!res || !res.success) {
+          toast((res && res.message) || 'Lỗi lưu giao dịch thu chi', 'err');
+          return;
+        }
+        toast(`Đã lưu phiếu ${res.data.soPhieu}`, 'ok');
+        if (thenPrint) {
+          toast('In phiếu — chưa triển khai (đúng hiện trạng chung của dự án).', 'warn');
+        }
+        this.close();
+        if (typeof this.state.onSaved === 'function') this.state.onSaved(res.data);
+      })
+      .catch(err => {
+        this.dom.btnSave.disabled = false;
+        this.dom.btnSavePrint.disabled = false;
+        toast('Lỗi hệ thống: ' + err.message, 'err');
+      });
+  },
+
+  fmt_(v) {
+    const n = Math.round(Number(v) || 0);
+    return n.toLocaleString('vi-VN');
+  }
+};
+</script>

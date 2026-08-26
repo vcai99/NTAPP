@@ -1,0 +1,347 @@
+<style>
+.dm-lookup-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.dm-lookup-input-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+.dm-lookup-input {
+  width: 100%;
+  height: var(--height-input, 38px);
+  padding: var(--padding-input, 8px 12px);
+  padding-right: 30px;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-base, 13px);
+  background-color: var(--color-bg-card, #111a2e);
+  color: var(--color-text-main, #f8fafc);
+  border: 1px solid var(--color-border-main, #1e293b);
+  border-radius: var(--radius-md, 6px);
+  transition: var(--transition-fast, all 0.15s ease);
+}
+.dm-lookup-input:focus {
+  outline: none;
+  border-color: var(--color-border-focus, #3b82f6);
+}
+.dm-lookup-clear {
+  position: absolute;
+  right: 10px;
+  color: var(--color-text-dark, #475569);
+  cursor: pointer;
+  display: none;
+  font-size: 16px;
+  user-select: none;
+}
+.dm-lookup-clear:hover {
+  color: var(--color-text-main, #f8fafc);
+}
+.dm-lookup-btn-add {
+  height: var(--height-input, 38px);
+  width: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg-active, #1d2b45);
+  color: var(--color-text-main, #f8fafc);
+  border: 1px solid var(--color-border-main, #1e293b);
+  border-left: none;
+  border-radius: 0 var(--radius-md, 6px) var(--radius-md, 6px) 0;
+  cursor: pointer;
+  font-weight: bold;
+}
+.dm-lookup-btn-add:hover {
+  background-color: var(--color-info, #3b82f6);
+}
+.dm-lookup-dropdown {
+  display: none;
+  position: absolute;
+  top: 40px;
+  left: 0;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  background-color: var(--color-bg-dialog, #0c1524);
+  border: 1px solid var(--color-border-main, #1e293b);
+  border-radius: var(--radius-md, 6px);
+  box-shadow: var(--shadow-hover);
+  z-index: var(--z-index-dropdown, 500);
+}
+.dm-lookup-dropdown.show {
+  display: block;
+}
+.dm-lookup-item {
+  padding: 8px 12px;
+  color: var(--color-text-main, #f8fafc);
+  font-size: var(--font-base, 13px);
+  cursor: pointer;
+  transition: var(--transition-fast, all 0.15s ease);
+}
+.dm-lookup-item:hover, .dm-lookup-item.active {
+  background-color: var(--color-bg-active, #1d2b45);
+}
+.dm-lookup-item.empty-item {
+  color: var(--color-text-dark, #475569);
+  text-align: center;
+  pointer-events: none;
+}
+</style>
+<script>
+class DMLookup {
+  constructor(container, config = {}) {
+    this.container = typeof container === 'string' ? document.getElementById(container) : container;
+    this.config = Object.assign({
+      placeholder: 'Tìm kiếm danh mục...',
+      items: [],
+      onSelect: null,
+      onAddClick: null
+    }, config);
+    this.dom = {};
+    this.state = { 
+      items: this._prepareItems(this.config.items), 
+      selectedId: null, 
+      searchKeyword: '',
+      activeIndex: -1,
+      filteredItems: []
+    };
+    this.init();
+  }
+
+  _prepareItems(items) {
+    return (items || []).map(item => {
+      if (!item) return { id: '', name: '' };
+      
+      // If item is a JSON string of a response, try to parse it
+      if (typeof item === 'string' && item.trim().startsWith('{')) {
+        try {
+          const parsed = JSON.parse(item);
+          if (parsed) item = parsed;
+        } catch(e) {}
+      }
+
+      // Robustly unwrap success/data wrappers
+      let clean = item;
+      if (item && item.success && item.data !== undefined) {
+        clean = item.data;
+      } else if (item && item.data !== undefined) {
+        clean = item.data;
+      }
+
+      // Standardize id key
+      const id = clean.id !== undefined ? clean.id : (clean.maNCC || clean.MaNCC || clean.maSP || clean.MaSP || '');
+      
+      // Standardize name key
+      let name = clean.name !== undefined ? clean.name : (clean.tenNCC || clean.TenNCC || clean.tenSP || clean.TenSP || '');
+      
+      // If name is still an object or contains success:true, unwrap it further
+      if (name && typeof name === 'object') {
+        if (name.success && name.data !== undefined) name = name.data;
+        else name = name.name || name.tenNCC || name.TenNCC || name.tenSP || name.TenSP || JSON.stringify(name);
+      }
+      
+      // If name is still a JSON string
+      if (typeof name === 'string' && name.trim().startsWith('{')) {
+        try {
+          const parsedName = JSON.parse(name);
+          if (parsedName) {
+            name = parsedName.name || parsedName.tenNCC || parsedName.TenNCC || parsedName.tenSP || parsedName.TenSP || parsedName.data || name;
+          }
+        } catch(e) {}
+      }
+
+      return { id: String(id), name: String(name || '') };
+    });
+  }
+
+  init() {
+    this.render();
+    this.bindEvents();
+  }
+
+  setItems(items) {
+    this.state.items = this._prepareItems(items);
+    this.renderDropdown();
+  }
+
+  render() {
+    if (!this.container) return;
+    this.container.innerHTML = `
+      <div class="dm-lookup-container">
+        <div class="dm-lookup-input-wrapper">
+          <input type="text" class="dm-lookup-input" placeholder="${this.config.placeholder}">
+          <span class="dm-lookup-clear">×</span>
+        </div>
+        ${this.config.onAddClick ? `<button class="dm-lookup-btn-add">+</button>` : ''}
+        <div class="dm-lookup-dropdown"></div>
+      </div>
+    `;
+
+    this.dom.wrapper = this.container.querySelector('.dm-lookup-container');
+    this.dom.input = this.container.querySelector('.dm-lookup-input');
+    this.dom.clear = this.container.querySelector('.dm-lookup-clear');
+    this.dom.addBtn = this.container.querySelector('.dm-lookup-btn-add');
+    this.dom.dropdown = this.container.querySelector('.dm-lookup-dropdown');
+
+    this.renderDropdown();
+  }
+
+  renderDropdown() {
+    if (!this.dom.dropdown) return;
+    const q = this.state.searchKeyword.toLowerCase().trim();
+    const filtered = this.state.items.filter(item => {
+      if (item.searchTerms && Array.isArray(item.searchTerms)) {
+        return item.searchTerms.some(term => String(term || '').toLowerCase().includes(q));
+      }
+      return String(item.name || '').toLowerCase().includes(q);
+    });
+    this.state.filteredItems = filtered;
+
+    let html = '';
+    if (filtered.length === 0) {
+      html = `<div class="dm-lookup-item empty-item">Không tìm thấy kết quả</div>`;
+      this.state.activeIndex = -1;
+    } else {
+      html = filtered.map((item, idx) => `
+        <div class="dm-lookup-item ${idx === this.state.activeIndex ? 'active' : ''}" data-id="${item.id}" data-idx="${idx}">
+          ${item.name || ''}
+        </div>
+      `).join('');
+    }
+    this.dom.dropdown.innerHTML = html;
+  }
+
+  bindEvents() {
+    if (!this.dom.input) return;
+
+    this.dom.input.onfocus = () => {
+      this.dom.dropdown.classList.add('show');
+      this.state.activeIndex = -1;
+      this.renderDropdown();
+    };
+
+    // Close dropdown on click outside
+    document.addEventListener('click', (e) => {
+      if (this.dom.wrapper && !this.dom.wrapper.contains(e.target)) {
+        if (this.dom.dropdown) this.dom.dropdown.classList.remove('show');
+      }
+    });
+
+    this.dom.input.oninput = (e) => {
+      this.state.searchKeyword = e.target.value;
+      if (this.state.searchKeyword) {
+        this.dom.clear.style.display = 'block';
+      } else {
+        this.dom.clear.style.display = 'none';
+      }
+      this.state.activeIndex = -1;
+      this.renderDropdown();
+      this.dom.dropdown.classList.add('show');
+    };
+
+    // Add keyboard interaction (Up, Down, Enter, Esc)
+    this.dom.input.onkeydown = (e) => {
+      if (!this.dom.dropdown.classList.contains('show')) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter') {
+          this.dom.dropdown.classList.add('show');
+          this.renderDropdown();
+          return;
+        }
+      }
+
+      const filtered = this.state.filteredItems || [];
+      if (filtered.length === 0) return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        this.state.activeIndex = (this.state.activeIndex + 1) % filtered.length;
+        this.renderDropdown();
+        this.scrollToActive();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        this.state.activeIndex = (this.state.activeIndex - 1 + filtered.length) % filtered.length;
+        this.renderDropdown();
+        this.scrollToActive();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (this.state.activeIndex >= 0 && this.state.activeIndex < filtered.length) {
+          this.select(filtered[this.state.activeIndex].id);
+        } else if (filtered.length > 0) {
+          this.select(filtered[0].id);
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        this.dom.dropdown.classList.remove('show');
+      }
+    };
+
+    this.dom.clear.onclick = () => {
+      this.clear();
+    };
+
+    if (this.dom.addBtn && typeof this.config.onAddClick === 'function') {
+      this.dom.addBtn.onclick = () => {
+        this.config.onAddClick(this.state.searchKeyword);
+      };
+    }
+
+    // Click selection
+    this.dom.dropdown.onclick = (e) => {
+      const itemEl = e.target.closest('.dm-lookup-item');
+      if (itemEl && !itemEl.classList.contains('empty-item')) {
+        const id = itemEl.getAttribute('data-id');
+        this.select(id);
+      }
+    };
+
+    // Double click selection
+    this.dom.dropdown.ondblclick = (e) => {
+      const itemEl = e.target.closest('.dm-lookup-item');
+      if (itemEl && !itemEl.classList.contains('empty-item')) {
+        const id = itemEl.getAttribute('data-id');
+        this.select(id);
+      }
+    };
+  }
+
+  scrollToActive() {
+    const activeEl = this.dom.dropdown.querySelector('.dm-lookup-item.active');
+    if (activeEl) {
+      activeEl.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  select(id) {
+    const item = this.state.items.find(i => String(i.id) === String(id));
+    if (item) {
+      this.state.selectedId = id;
+      this.dom.input.value = item.name;
+      this.dom.clear.style.display = 'block';
+      this.dom.dropdown.classList.remove('show');
+
+      if (typeof this.config.onSelect === 'function') {
+        this.config.onSelect(item);
+      }
+    }
+  }
+
+  clear() {
+    this.state.selectedId = null;
+    this.state.searchKeyword = '';
+    this.dom.input.value = '';
+    this.dom.clear.style.display = 'none';
+    this.renderDropdown();
+    if (typeof this.config.onSelect === 'function') {
+      this.config.onSelect(null);
+    }
+  }
+
+  destroy() {
+    this.container.innerHTML = '';
+    this.dom = {};
+  }
+}
+</script>

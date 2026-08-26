@@ -1,0 +1,771 @@
+<!-- ════════════════════════════════════════════════════════════════
+      SALE INVOICE LIST MODULE (mod_dsphieuxuat.html)
+      Sprint 6.0 — Danh sách Phiếu Xuất
+      Theo docs/Sprint 6_Phieu_xuat/PX_BusinessLogic.md (Source of Truth)
+      Layout/behavior mirrors mod_dsphieu.html (Danh sách phiếu nhập),
+      styled with App Shell Core Style — không copy CSS/HTML từ TheLight.
+     ════════════════════════════════════════════════════════════════ -->
+
+<style>
+/* CSS scoped cho Danh sách Phiếu Xuất — chỉ dùng biến Core Style */
+#page-dsphieuxuat {
+  display: none;
+  height: calc(100vh - 52px);
+  min-height: 0;
+  overflow: hidden;
+}
+#page-dsphieuxuat.show {
+  display: flex;
+}
+
+.dsx-sidebar {
+  width: 250px;
+  min-width: 250px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.dsx-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.dsx-topbar {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.dsx-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dsx-topbar-right {
+  font-size: var(--fs-3);
+  font-weight: 700;
+  color: var(--text2);
+}
+
+.dsx-sb-lbl {
+  font-size: var(--fs-1);
+  color: var(--text2);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  margin-bottom: 3px;
+}
+
+.dsx-sb-sel,
+.dsx-sb-inp {
+  width: 100%;
+  height: var(--h-4);
+  padding: 0 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: var(--fs-3);
+}
+
+.dsx-sb-sel:focus,
+.dsx-sb-inp:focus {
+  outline: none;
+  border-color: #1976D2;
+}
+
+.dsx-sb-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* Bảng cột hiển thị/ẩn */
+.dsx-colpanel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 10px;
+  background: #0d2347;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  z-index: 500;
+  display: none;
+  min-width: 200px;
+  max-height: 320px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0,0,0,.55);
+}
+.dsx-colpanel.open { display: block; }
+.dsx-colpanel label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  font-size: var(--fs-2);
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 3px;
+}
+.dsx-colpanel label:hover { background: #112244; }
+.dsx-colpanel input[type=checkbox] { accent-color: var(--green); }
+
+/* Data Table Grid */
+.dsx-tbl-wrap {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid var(--border);
+  margin: 10px 12px;
+  border-radius: 6px;
+  background: var(--bg2);
+}
+
+.dsx-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1100px;
+  table-layout: fixed;
+}
+
+.dsx-tbl th {
+  background: #0a2040;
+  color: var(--text2);
+  padding: 8px 10px;
+  text-align: left;
+  font-size: var(--fs-1);
+  font-weight: 700;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.dsx-tbl th:last-child {
+  border-right: none;
+}
+
+.dsx-th-resize {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 6px;
+  cursor: col-resize;
+  user-select: none;
+}
+.dsx-th-resize:hover { background: rgba(66,165,245,.4); }
+
+.dsx-tbl tbody tr.dsx-row {
+  border-bottom: 1px solid #0d1f3c;
+  cursor: pointer;
+  transition: background .1s;
+}
+
+.dsx-tbl tbody tr.dsx-row:hover {
+  background: #0d2347;
+}
+
+.dsx-tbl td {
+  padding: 8px 10px;
+  font-size: var(--fs-2);
+  color: var(--text);
+  border-right: 1px solid #0d1f3c;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dsx-tbl td:last-child {
+  border-right: none;
+}
+
+.dsx-btn-xem {
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  padding: 3px 8px;
+  font-size: var(--fs-1);
+  cursor: pointer;
+  font-weight: 700;
+}
+.dsx-btn-xem:hover { background: var(--blue-dark); }
+
+.dsx-btn-xoa {
+  background: var(--red);
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  padding: 3px 8px;
+  font-size: var(--fs-1);
+  cursor: pointer;
+  font-weight: 700;
+}
+.dsx-btn-xoa:hover { background: #b71c1c; }
+
+/* Pagination */
+.dsx-pager {
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.dsx-pg-info {
+  font-size: var(--fs-2);
+  color: var(--text2);
+}
+
+.dsx-pg-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.dsx-pg-btn {
+  width: var(--h-2);
+  height: var(--h-2);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text2);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: var(--fs-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+}
+.dsx-pg-btn:hover { background: var(--border); color: #fff; }
+.dsx-pg-btn.on { background: var(--blue); color: #fff; border-color: var(--blue); font-weight: 700; }
+.dsx-pg-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+</style>
+
+<div class="page layout" id="page-dsphieuxuat">
+  <!-- SIDEBAR BỘ LỌC (6.5 Search Panel Constitution) -->
+  <div class="dsx-sidebar">
+    <div>
+      <div class="dsx-sb-lbl">Năm</div>
+      <select id="dsx-f-nam" class="dsx-sb-sel"></select>
+    </div>
+
+    <div>
+      <div class="dsx-sb-lbl">Tháng</div>
+      <select id="dsx-f-thang" class="dsx-sb-sel">
+        <option value="">Tất cả</option>
+        <option value="1">Tháng 1</option><option value="2">Tháng 2</option>
+        <option value="3">Tháng 3</option><option value="4">Tháng 4</option>
+        <option value="5">Tháng 5</option><option value="6">Tháng 6</option>
+        <option value="7">Tháng 7</option><option value="8">Tháng 8</option>
+        <option value="9">Tháng 9</option><option value="10">Tháng 10</option>
+        <option value="11">Tháng 11</option><option value="12">Tháng 12</option>
+      </select>
+    </div>
+
+    <div class="dsx-sb-divider"></div>
+
+    <div>
+      <div class="dsx-sb-lbl">Tìm KH – Số phiếu – SĐT – BS</div>
+      <input id="dsx-f-search" class="dsx-sb-inp" placeholder="Nhập từ khóa tìm kiếm...">
+    </div>
+
+    <div>
+      <div class="dsx-sb-lbl">Tên sản phẩm, mã vạch</div>
+      <input id="dsx-f-sp" class="dsx-sb-inp" placeholder="Tìm sản phẩm (F3)...">
+    </div>
+
+    <div>
+      <div class="dsx-sb-lbl">Nhân viên</div>
+      <select id="dsx-f-user" class="dsx-sb-sel">
+        <option value="">Tất cả nhân viên</option>
+      </select>
+    </div>
+
+    <div>
+      <div class="dsx-sb-lbl">Loại phiếu</div>
+      <select id="dsx-f-loai" class="dsx-sb-sel">
+        <option value="">Tất cả</option>
+        <option value="Xuất bán">Xuất bán</option>
+        <option value="Xuất hủy">Xuất hủy</option>
+      </select>
+    </div>
+
+    <div class="dsx-sb-divider"></div>
+    <button class="btn btn-green" id="dsx-btn-reload" style="width:100%">🔄 Tải lại dữ liệu</button>
+  </div>
+
+  <!-- MAIN VIEW -->
+  <div class="dsx-main">
+    <!-- TOOLBAR (6.4 Toolbar Constitution) -->
+    <div class="dsx-topbar">
+      <div class="dsx-topbar-left">
+        <button class="btn btn-green" id="dsx-top-btn-search">Tìm kiếm</button>
+        <button class="btn btn-green" id="dsx-top-btn-add">＋ Bán hàng</button>
+        <button class="btn btn-green btn-sm" id="dsx-top-btn-cols" title="Ẩn/hiện cột" style="padding:0 8px;"><span style="font-size:var(--fs-icon)">☰</span></button>
+        <button class="btn btn-green btn-sm" id="dsx-top-btn-export" title="Xuất Excel" style="padding:0 8px;"><span style="font-size:var(--fs-icon)">📤</span></button>
+        <div class="dsx-colpanel" id="dsx-colpanel"></div>
+      </div>
+      <div class="dsx-topbar-right">Danh sách phiếu xuất</div>
+    </div>
+
+    <!-- DATA GRID (6.6 Data Grid Constitution) -->
+    <div class="dsx-tbl-wrap">
+      <table class="dsx-tbl" id="dsx-main-tbl">
+        <thead>
+          <tr id="dsx-thead-row">
+            <th style="width:160px;text-align:center">Thao tác</th>
+            <th style="width:44px;text-align:center">STT</th>
+            <!-- Cột dữ liệu render động theo COLUMNS -->
+          </tr>
+        </thead>
+        <tbody id="dsx-tbl-body"></tbody>
+      </table>
+    </div>
+
+    <!-- PAGER FOOTER -->
+    <div class="dsx-pager">
+      <div class="dsx-pg-info" id="dsx-pg-info">—</div>
+      <div class="dsx-pg-btns" id="dsx-pg-btns"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  CONTROLLER LAYER: DsPhieuXuatModule (mod_dsphieuxuat.html)
+//  Sprint 6.0 — Danh sách Phiếu Xuất
+// ════════════════════════════════════════════════════════════════
+const DsPhieuXuatModule = {
+  PAGE_SIZE: 20,
+
+  // Định nghĩa cột dữ liệu (không tính STT/Thao tác) — dùng chung cho render
+  // Grid, bảng ẩn/hiện cột, và xuất Excel, để tránh 3 nơi lệch nhau.
+  COLUMNS: [
+    { key: 'soPhieu',        label: 'Số phiếu',        width: 110 },
+    { key: 'ngayBan',        label: 'Ngày xuất',       width: 145 },
+    { key: 'tenKhach',       label: 'Tên khách hàng',  width: 160 },
+    { key: 'sdt',            label: 'SĐT',             width: 110 },
+    { key: 'tongTien',       label: 'Tổng tiền',       width: 110, num: true },
+    { key: 'chietKhau',      label: 'Chiết khấu',      width: 100, num: true },
+    { key: 'conNo',          label: 'Còn lại',         width: 100, num: true },
+    { key: 'ghiChu',         label: 'Ghi chú',         width: 150 },
+    { key: 'tenBacSi',       label: 'BS Kê đơn',       width: 130 },
+    { key: 'nguoiThucHien',  label: 'Người thực hiện', width: 110 },
+    { key: 'hinhThucTT',     label: 'HTTT',            width: 100 },
+    { key: 'trangThai',      label: 'Trạng thái',      width: 110 }
+  ],
+
+  state: {
+    allData: [],
+    filtered: [],
+    currentPage: 1,
+    visibleCols: {},   // key -> true/false, mặc định tất cả true
+    lastFocusEl: null
+  },
+
+  dom: {},
+  initialized: false,
+
+  init() {
+    if (this.initialized) return;
+    this.COLUMNS.forEach(c => { this.state.visibleCols[c.key] = true; });
+    this.cacheDOM();
+    this.bindEvents();
+    this.fillNamFilter();
+    this.renderColPanel();
+    this.renderHeadRow();
+    this.initialized = true;
+  },
+
+  cacheDOM() {
+    this.dom = {
+      fNam:     document.getElementById('dsx-f-nam'),
+      fThang:   document.getElementById('dsx-f-thang'),
+      fSearch:  document.getElementById('dsx-f-search'),
+      fSp:      document.getElementById('dsx-f-sp'),
+      fUser:    document.getElementById('dsx-f-user'),
+      fLoai:    document.getElementById('dsx-f-loai'),
+
+      btnReload:    document.getElementById('dsx-btn-reload'),
+      btnTopSearch: document.getElementById('dsx-top-btn-search'),
+      btnTopAdd:    document.getElementById('dsx-top-btn-add'),
+      btnTopCols:   document.getElementById('dsx-top-btn-cols'),
+      btnTopExport: document.getElementById('dsx-top-btn-export'),
+      colPanel:     document.getElementById('dsx-colpanel'),
+
+      theadRow: document.getElementById('dsx-thead-row'),
+      tblBody:  document.getElementById('dsx-tbl-body'),
+
+      pgInfo: document.getElementById('dsx-pg-info'),
+      pgBtns: document.getElementById('dsx-pg-btns')
+    };
+  },
+
+  bindEvents() {
+    this.dom.btnTopSearch.onclick = () => this.applyFilter();
+    this.dom.btnTopAdd.onclick = () => goPage('banhang');
+    this.dom.btnTopCols.onclick = (e) => { e.stopPropagation(); this.dom.colPanel.classList.toggle('open'); };
+    this.dom.btnTopExport.onclick = () => this.exportCsv();
+
+    this.dom.fNam.onchange = () => this.applyFilter();
+    this.dom.fThang.onchange = () => this.applyFilter();
+    this.dom.fSearch.oninput = () => this.applyFilter();
+    this.dom.fSp.oninput = () => this.applyFilter();
+    this.dom.fUser.onchange = () => this.applyFilter();
+    this.dom.fLoai.onchange = () => this.applyFilter();
+
+    this.dom.btnReload.onclick = () => this.loadData();
+
+    // Đóng bảng ẩn/hiện cột khi click ra ngoài
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.dsx-colpanel') && !e.target.closest('#dsx-top-btn-cols')) {
+        this.dom.colPanel.classList.remove('open');
+      }
+    });
+
+    // 6.9 Keyboard Flow
+    document.addEventListener('keydown', e => {
+      const page = document.getElementById('page-dsphieuxuat');
+      if (!page || !page.classList.contains('show')) return;
+
+      if (e.key === 'F3') { e.preventDefault(); this.dom.fSp.focus(); }
+      if (e.key === 'F5') { e.preventDefault(); this.loadData(); }
+      if (e.key === 'Enter' && document.activeElement && document.activeElement.closest('.dsx-sidebar')) {
+        e.preventDefault();
+        this.applyFilter();
+      }
+    });
+  },
+
+  fillNamFilter() {
+    const sel = this.dom.fNam;
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Tất cả</option>';
+    const y = new Date().getFullYear();
+    for (let i = y; i >= y - 4; i--) {
+      const o = document.createElement('option');
+      o.value = i; o.textContent = i;
+      if (i === y) o.selected = true;
+      sel.appendChild(o);
+    }
+  },
+
+  fillUserFilter() {
+    const sel = this.dom.fUser;
+    if (!sel) return;
+    const current = sel.value;
+    const users = Array.from(new Set(this.state.allData.map(p => p.nguoiThucHien).filter(Boolean))).sort();
+    sel.innerHTML = '<option value="">Tất cả nhân viên</option>' +
+      users.map(u => `<option value="${u}">${u}</option>`).join('');
+    if (users.includes(current)) sel.value = current;
+  },
+
+  // 6.6 Data Grid Constitution — bảng ẩn/hiện cột
+  renderColPanel() {
+    this.dom.colPanel.innerHTML = this.COLUMNS.map(c => `
+      <label>
+        <input type="checkbox" data-col="${c.key}" ${this.state.visibleCols[c.key] ? 'checked' : ''}
+               onchange="DsPhieuXuatModule.toggleColumn('${c.key}', this.checked)">
+        ${c.label}
+      </label>
+    `).join('');
+  },
+
+  toggleColumn(key, visible) {
+    this.state.visibleCols[key] = visible;
+    this.renderHeadRow();
+    this.renderTable();
+  },
+
+  visibleColumns_() {
+    return this.COLUMNS.filter(c => this.state.visibleCols[c.key] !== false);
+  },
+
+  renderHeadRow() {
+    const cols = this.visibleColumns_();
+    this.dom.theadRow.innerHTML = `
+      <th style="width:160px;text-align:center">Thao tác</th>
+      <th style="width:44px;text-align:center">STT</th>
+      ${cols.map(c => `
+        <th style="width:${c.width}px" data-col="${c.key}">
+          ${c.label}
+          <span class="dsx-th-resize" data-col="${c.key}"></span>
+        </th>
+      `).join('')}
+    `;
+    this.bindResizeHandles_();
+  },
+
+  // Kéo dãn độ rộng cột (6.6 — Resize cột)
+  bindResizeHandles_() {
+    this.dom.theadRow.querySelectorAll('.dsx-th-resize').forEach(handle => {
+      handle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const th = handle.closest('th');
+        const startX = e.clientX;
+        const startWidth = th.offsetWidth;
+        const onMove = (ev) => {
+          const newWidth = Math.max(50, startWidth + (ev.clientX - startX));
+          th.style.width = newWidth + 'px';
+        };
+        const onUp = () => {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    });
+  },
+
+  loadData() {
+    this.renderLoading();
+    ApiClient.call('apiSaleList')
+      .then(res => {
+        if (!res || !res.success) {
+          this.renderError((res && res.message) || 'Lỗi không xác định');
+          return;
+        }
+        this.state.allData = res.data || [];
+        this.fillUserFilter();
+        this.applyFilter();
+      })
+      .catch(err => {
+        this.renderError(err.message);
+      });
+  },
+
+  applyFilter() {
+    const nam = this.dom.fNam.value;
+    const thang = this.dom.fThang.value;
+    const search = (this.dom.fSearch.value || '').toLowerCase().trim();
+    const sp = (this.dom.fSp.value || '').toLowerCase().trim();
+    const user = this.dom.fUser.value;
+    const loai = this.dom.fLoai.value;
+
+    this.state.filtered = this.state.allData.filter(p => {
+      if (nam && !String(p.ngayBan).includes(nam)) return false;
+
+      if (thang) {
+        const d = this.parseDate(p.ngayBan);
+        if (!d || (d.getMonth() + 1) !== parseInt(thang)) return false;
+      }
+
+      if (search && !(
+        (p.tenKhach || '').toLowerCase().includes(search) ||
+        (p.soPhieu || '').toLowerCase().includes(search) ||
+        (p.sdt || '').toLowerCase().includes(search) ||
+        (p.tenBacSi || '').toLowerCase().includes(search)
+      )) return false;
+
+      if (sp && !(p.sanPham || '').toLowerCase().includes(sp)) return false;
+
+      if (user && p.nguoiThucHien !== user) return false;
+
+      if (loai && p.loaiXuat !== loai) return false;
+
+      return true;
+    });
+
+    this.state.currentPage = 1;
+    this.renderTable();
+  },
+
+  parseDate(s) {
+    if (!s) return null;
+    const m = String(s).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]));
+    return new Date(s);
+  },
+
+  colspan_() {
+    return this.visibleColumns_().length + 2; // + Thao tác + STT
+  },
+
+  renderLoading() {
+    this.dom.tblBody.innerHTML = `<tr><td colspan="${this.colspan_()}" style="text-align:center;padding:32px;color:var(--text2);font-style:italic">
+      <span class="spin"></span> Đang tải danh sách phiếu xuất...
+    </td></tr>`;
+  },
+
+  renderError(msg) {
+    this.dom.tblBody.innerHTML = `<tr><td colspan="${this.colspan_()}" style="text-align:center;padding:32px;color:var(--red);font-weight:bold">
+      Lỗi tải dữ liệu: ${msg}
+    </td></tr>`;
+  },
+
+  renderTable() {
+    if (!this.state.filtered.length) {
+      this.dom.tblBody.innerHTML = `<tr><td colspan="${this.colspan_()}" style="text-align:center;padding:32px;color:var(--text2);font-style:italic">Không tìm thấy phiếu nào</td></tr>`;
+      this.renderPager(0);
+      return;
+    }
+
+    const cols = this.visibleColumns_();
+    const start = (this.state.currentPage - 1) * this.PAGE_SIZE;
+    const pageData = this.state.filtered.slice(start, start + this.PAGE_SIZE);
+
+    this.dom.tblBody.innerHTML = pageData.map((p, idx) => {
+      const stt = start + idx + 1;
+      return `
+        <tr class="dsx-row" ondblclick="DsPhieuXuatModule.xemPhieu('${p.soPhieu}')">
+          <td onclick="event.stopPropagation()" style="text-align:center;white-space:nowrap">
+            <button class="dsx-btn-xem" onclick="DsPhieuXuatModule.xemPhieu('${p.soPhieu}')">Xem</button>
+            <button class="dsx-btn-xoa" onclick="DsPhieuXuatModule.xoaPhieu('${p.soPhieu}')" style="margin-left:4px">Xóa</button>
+          </td>
+          <td style="text-align:center;color:var(--text2)">${stt}</td>
+          ${cols.map(c => `<td style="${c.num ? 'text-align:right' : ''}" title="${this.cellText_(p, c)}">${this.cellHtml_(p, c)}</td>`).join('')}
+        </tr>`;
+    }).join('');
+
+    this.renderPager(this.state.filtered.length);
+  },
+
+  // Hủy phiếu (BR-SALE-12) nay xóa thật khỏi CSDL (Product Owner quyết định,
+  // đúng theo TheLight) — không còn khái niệm "Đã hủy"/"Hiệu lực" để hiển thị,
+  // vì phiếu đã hủy sẽ biến mất khỏi danh sách này hoàn toàn. Cột "Trạng thái"
+  // giờ chỉ còn phản ánh loại phiếu (Xuất bán/Xuất hủy — BR-PX-11), một phân
+  // loại độc lập, không liên quan gì đến việc phiếu có bị xóa hay không.
+  cellText_(p, c) {
+    if (c.key === 'trangThai') return p.loaiXuat || 'Xuất bán';
+    const v = p[c.key];
+    return c.num ? this.fmt(v) : (v || '');
+  },
+
+  cellHtml_(p, c) {
+    if (c.key === 'trangThai') {
+      return p.loaiXuat === 'Xuất hủy'
+        ? '<span class="tag t-warn">Xuất hủy</span>'
+        : '<span class="tag t-ok">Xuất bán</span>';
+    }
+    if (c.num) return this.fmt(p[c.key]);
+    return p[c.key] || '—';
+  },
+
+  renderPager(total) {
+    const pages = Math.ceil(total / this.PAGE_SIZE);
+    if (!total) {
+      this.dom.pgInfo.textContent = 'Hiển thị 0–0 / 0 phiếu';
+      this.dom.pgBtns.innerHTML = '';
+      return;
+    }
+    const start = (this.state.currentPage - 1) * this.PAGE_SIZE + 1;
+    const end = Math.min(this.state.currentPage * this.PAGE_SIZE, total);
+    this.dom.pgInfo.textContent = `Tổng số bản ghi: ${total} - Tổng số trang: ${pages} (Hiển thị ${start}–${end})`;
+
+    let html = `<button class="dsx-pg-btn" onclick="DsPhieuXuatModule.gotoPage(${this.state.currentPage - 1})" ${this.state.currentPage === 1 ? 'disabled' : ''}>‹</button>`;
+    const from = Math.max(1, this.state.currentPage - 2);
+    const to = Math.min(pages, from + 4);
+    for (let i = from; i <= to; i++) {
+      html += `<button class="dsx-pg-btn${i === this.state.currentPage ? ' on' : ''}" onclick="DsPhieuXuatModule.gotoPage(${i})">${i}</button>`;
+    }
+    html += `<button class="dsx-pg-btn" onclick="DsPhieuXuatModule.gotoPage(${this.state.currentPage + 1})" ${this.state.currentPage === pages ? 'disabled' : ''}>›</button>`;
+    this.dom.pgBtns.innerHTML = html;
+  },
+
+  gotoPage(p) {
+    const maxPage = Math.ceil(this.state.filtered.length / this.PAGE_SIZE);
+    if (p < 1 || p > maxPage) return;
+    this.state.currentPage = p;
+    this.renderTable();
+    const wrap = document.querySelector('.dsx-tbl-wrap');
+    if (wrap) wrap.scrollTop = 0;
+  },
+
+  // ── BR-PX-01: Không có giao diện xem riêng — tái sử dụng Sale Workspace
+  // làm UI Container hiển thị ĐÈ (overlay) lên trên, KHÔNG gọi goPage('banhang')
+  // vì module hiện hành vẫn phải là Danh sách Phiếu Xuất (không đổi Navigation,
+  // không active menu "Bán hàng") — xem BanhangModule.loadInvoiceForView().
+  xemPhieu(soPhieu) {
+    if (typeof BanhangModule !== 'undefined' && typeof BanhangModule.loadInvoiceForView === 'function') {
+      BanhangModule.loadInvoiceForView(soPhieu);
+    }
+  },
+
+  // ── 6.7 Invoice Workflow: Xóa (Hủy phiếu) — tái sử dụng nguyên vẹn
+  // BR-SALE-12 hiện có (apiSaleCancel), không viết lại logic hoàn tồn. Product
+  // Owner quyết định (đúng theo TheLight): Hủy phiếu là XÓA THẬT khỏi CSDL —
+  // hoàn tồn kho xong, phiếu biến mất hoàn toàn khỏi danh sách này, không thể
+  // xem lại. Không còn khái niệm soft-cancel/"Đã hủy".
+  xoaPhieu(soPhieu) {
+    window.showConfirm(`Bạn có chắc chắn muốn xóa phiếu bán "${soPhieu}" không? Hành động này sẽ hoàn lại tồn kho và XÓA VĨNH VIỄN hóa đơn này khỏi hệ thống — không thể xem lại, không thể hoàn tác!`, 'Xác nhận xóa phiếu')
+      .then(ok => {
+        if (!ok) return;
+        showLoading();
+        ApiClient.call('apiSaleCancel', soPhieu)
+          .then(res => {
+            hideLoading();
+            if (!res || !res.success) {
+              toast('Lỗi xóa phiếu: ' + ((res && res.message) || 'không rõ nguyên nhân'), 'err');
+              return;
+            }
+            toast(`Đã xóa phiếu ${soPhieu} thành công!`, 'ok');
+            this.loadData();
+          })
+          .catch(err => {
+            hideLoading();
+            toast('Lỗi kết nối: ' + err.message, 'err');
+          });
+      });
+  },
+
+  // ── 6.4 Toolbar Constitution: Xuất Excel ───────────────────────
+  // Xuất CSV (mở được trực tiếp bằng Excel) đúng theo dữ liệu đang lọc và
+  // đúng các cột đang hiển thị — không có thư viện tạo file .xlsx nhị phân
+  // sẵn có trong dự án nên dùng CSV làm định dạng xuất.
+  exportCsv() {
+    if (!this.state.filtered.length) { toast('Không có dữ liệu để xuất!', 'warn'); return; }
+    const cols = this.visibleColumns_();
+    const esc = v => {
+      v = (v === null || v === undefined) ? '' : String(v);
+      if (v.includes(',') || v.includes('"') || v.includes('\n')) {
+        v = '"' + v.replace(/"/g, '""') + '"';
+      }
+      return v;
+    };
+    const header = ['STT'].concat(cols.map(c => c.label)).map(esc).join(',');
+    const rows = this.state.filtered.map((p, idx) => {
+      const cells = [idx + 1].concat(cols.map(c => this.cellText_(p, c)));
+      return cells.map(esc).join(',');
+    });
+    const BOM = '﻿'; // giúp Excel nhận đúng UTF-8 khi mở file CSV
+    const csv = BOM + header + '\n' + rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `DanhSachPhieuXuat_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
+
+  fmt(v) {
+    const n = parseFloat(v) || 0;
+    if (n === 0) return '0';
+    return Math.round(n).toLocaleString('vi-VN');
+  }
+};
+</script>

@@ -1,0 +1,42 @@
+<script>
+// =================================================================
+//  PRODUCT REPOSITORY LAYER (ProductRepository)
+//  Delegates all calls to ApiClient and returns standardized responses.
+// =================================================================
+const ProductRepository = {
+  // ======================
+  // Public Interface
+  // ======================
+  load() {
+    return ApiClient.call('apiProductLoad');
+  },
+
+  create(payload) {
+    return ApiClient.call('apiProductCreate', payload);
+  },
+
+  update(payload) {
+    return ApiClient.call('apiProductUpdate', payload);
+  },
+
+  remove(productId) {
+    return ApiClient.call('apiProductDelete', productId);
+  },
+
+  find(productId) {
+    return ApiClient.call('apiProductFind', productId);
+  },
+
+  search(keyword) {
+    return ApiClient.call('apiProductSearch', keyword);
+  },
+
+  exists(productCode) {
+    return ApiClient.call('apiProductExists', productCode);
+  },
+
+  generateCode() {
+    return ApiClient.call('apiProductGenerateCode');
+  }
+};
+</script>

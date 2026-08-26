@@ -1,0 +1,384 @@
+<!-- ════════════════════════════════════════════════════════════════
+      NHÓM SẢN PHẨM (PRODUCT GROUP) LIST MODULE (mod_nhomsanpham.html)
+      Sprint 1 — Danh mục Nhóm Sản phẩm
+      Theo docs/DM_Nhom_SP/01_DanhMucNhomSanPham_BusinessLogic.md (SSOT)
+      Cấu trúc UI clone TheLight thật (DM_NSP_Thelight.pdf): không sidebar,
+      toolbar có dropdown lọc (mặc định "Tất cả") + Tìm kiếm + Thêm mới.
+      Grid đúng 4 cột theo BR-NSP-01: Mã nhóm / Tên nhóm / Ghi chú / Thao
+      tác (Sửa/Xóa) — không có cột STT (reference không thể hiện).
+      Dropdown lọc lấy option động từ giá trị Loại sản phẩm đã có trong dữ
+      liệu đã tải (cùng pattern với mod_danhmuc.html's "f-nhom" filter) —
+      không tự chế danh sách option cố định (PO Decision Sprint 1 mục 6).
+     ════════════════════════════════════════════════════════════════ -->
+
+<style>
+#page-nhomsanpham {
+  display: none;
+  height: calc(100vh - 52px);
+  min-height: 0;
+  overflow: hidden;
+  flex-direction: column;
+}
+#page-nhomsanpham.show {
+  display: flex;
+}
+
+.nsp-topbar {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.nsp-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.nsp-topbar-right {
+  font-size: var(--fs-3);
+  font-weight: 700;
+  color: var(--text2);
+}
+
+.nsp-sel-filter {
+  height: var(--h-4);
+  padding: 0 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: var(--fs-3);
+  min-width: 140px;
+}
+.nsp-sel-filter:focus { outline: none; border-color: #1976D2; }
+
+.nsp-inp-search {
+  height: var(--h-4);
+  padding: 0 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: var(--fs-3);
+  width: 260px;
+}
+.nsp-inp-search:focus { outline: none; border-color: #1976D2; }
+
+.nsp-tbl-wrap {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid var(--border);
+  margin: 10px 12px;
+  border-radius: 6px;
+  background: var(--bg2);
+}
+
+.nsp-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+  table-layout: fixed;
+}
+
+.nsp-tbl th {
+  background: #0a2040;
+  color: var(--text2);
+  padding: 8px 10px;
+  text-align: left;
+  font-size: var(--fs-1);
+  font-weight: 700;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+.nsp-tbl th:last-child { border-right: none; }
+
+.nsp-tbl tbody tr.nsp-row {
+  border-bottom: 1px solid #0d1f3c;
+  transition: background .1s;
+}
+.nsp-tbl tbody tr.nsp-row:hover { background: #0d2347; }
+
+.nsp-tbl td {
+  padding: 8px 10px;
+  font-size: var(--fs-2);
+  color: var(--text);
+  border-right: 1px solid #0d1f3c;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nsp-tbl td:last-child { border-right: none; }
+
+.nsp-row-actions { display: flex; gap: 4px; justify-content: center; }
+
+.nsp-pager {
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.nsp-pg-info { font-size: var(--fs-2); color: var(--text2); }
+.nsp-pg-btns { display: flex; gap: 4px; }
+.nsp-pg-btn {
+  width: var(--h-2);
+  height: var(--h-2);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text2);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: var(--fs-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+}
+.nsp-pg-btn:hover { background: var(--border); color: #fff; }
+.nsp-pg-btn.on { background: var(--blue); color: #fff; border-color: var(--blue); font-weight: 700; }
+.nsp-pg-btn:disabled { opacity: .3; cursor: not-allowed; }
+</style>
+
+<div class="page" id="page-nhomsanpham">
+  <div class="nsp-topbar">
+    <div class="nsp-topbar-left">
+      <select id="nsp-sel-filter" class="nsp-sel-filter">
+        <option value="">Tất cả</option>
+      </select>
+      <input id="nsp-search" class="nsp-inp-search" placeholder="Tìm kiếm...">
+      <button class="btn btn-green" id="nsp-btn-search">Tìm kiếm</button>
+      <button class="btn btn-green" id="nsp-btn-add">＋ Thêm mới</button>
+    </div>
+    <div class="nsp-topbar-right">Danh sách nhóm sản phẩm</div>
+  </div>
+
+  <div class="nsp-tbl-wrap">
+    <table class="nsp-tbl" id="nsp-main-tbl">
+      <thead>
+        <tr>
+          <th style="width:140px">Mã nhóm</th>
+          <th style="width:260px">Tên nhóm</th>
+          <th>Ghi chú</th>
+          <th style="width:150px;text-align:center">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody id="nsp-tbl-body"></tbody>
+    </table>
+  </div>
+
+  <div class="nsp-pager">
+    <div class="nsp-pg-info" id="nsp-pg-info">—</div>
+    <div class="nsp-pg-btns" id="nsp-pg-btns"></div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  CONTROLLER LAYER: NhomSPModule (mod_nhomsanpham.html)
+//  Sprint 1 — Danh mục Nhóm Sản phẩm
+// ════════════════════════════════════════════════════════════════
+const NhomSPModule = {
+  PAGE_SIZE: 20,
+
+  state: {
+    allData: [],
+    filtered: [],
+    currentPage: 1
+  },
+
+  dom: {},
+  initialized: false,
+
+  init() {
+    if (this.initialized) return;
+    this.cacheDOM();
+    this.bindEvents();
+    this.initialized = true;
+  },
+
+  cacheDOM() {
+    this.dom = {
+      filter:    document.getElementById('nsp-sel-filter'),
+      search:    document.getElementById('nsp-search'),
+      btnSearch: document.getElementById('nsp-btn-search'),
+      btnAdd:    document.getElementById('nsp-btn-add'),
+      tblBody:   document.getElementById('nsp-tbl-body'),
+      pgInfo:    document.getElementById('nsp-pg-info'),
+      pgBtns:    document.getElementById('nsp-pg-btns')
+    };
+  },
+
+  bindEvents() {
+    this.dom.filter.onchange = () => this.applyFilter();
+    this.dom.search.oninput = () => this.applyFilter();
+    this.dom.btnSearch.onclick = () => this.applyFilter();
+    this.dom.btnAdd.onclick = () => this.openAdd();
+  },
+
+  loadData() {
+    this.renderLoading();
+    ApiClient.call('apiNhomSPLoad')
+      .then(res => {
+        if (!res || !res.success) {
+          this.renderError((res && res.message) || 'Lỗi không xác định');
+          return;
+        }
+        this.state.allData = res.data || [];
+        this.fillFilterOptions_();
+        this.applyFilter();
+      })
+      .catch(err => {
+        this.renderError(err.message);
+      });
+  },
+
+  // Dropdown lọc lấy option động từ Loại sản phẩm đã tồn tại trong dữ liệu
+  // đã tải — không tự chế danh sách cố định (PO Decision Sprint 1 mục 6).
+  fillFilterOptions_() {
+    const cur = this.dom.filter.value;
+    const values = Array.from(new Set(this.state.allData.map(d => d.loaiSanPham).filter(Boolean)));
+    this.dom.filter.innerHTML = '<option value="">Tất cả</option>' +
+      values.map(v => `<option value="${v}">${v}</option>`).join('');
+    if (values.includes(cur)) this.dom.filter.value = cur;
+  },
+
+  applyFilter() {
+    const q = (this.dom.search.value || '').toLowerCase().trim();
+    const loai = this.dom.filter.value;
+    this.state.filtered = this.state.allData.filter(d => {
+      if (loai && d.loaiSanPham !== loai) return false;
+      if (!q) return true;
+      return [d.maNhom, d.tenNhom, d.ghiChu].join(' ').toLowerCase().includes(q);
+    });
+    this.state.currentPage = 1;
+    this.renderTable();
+  },
+
+  colspan_() { return 4; },
+
+  renderLoading() {
+    this.dom.tblBody.innerHTML = `<tr><td colspan="${this.colspan_()}" style="text-align:center;padding:32px;color:var(--text2);font-style:italic">
+      <span class="spin"></span> Đang tải danh mục nhóm sản phẩm...
+    </td></tr>`;
+  },
+
+  renderError(msg) {
+    this.dom.tblBody.innerHTML = `<tr><td colspan="${this.colspan_()}" style="text-align:center;padding:32px;color:var(--red);font-weight:bold">
+      Lỗi tải dữ liệu: ${msg}
+    </td></tr>`;
+  },
+
+  renderTable() {
+    if (!this.state.filtered.length) {
+      this.dom.tblBody.innerHTML = `<tr><td colspan="${this.colspan_()}" style="text-align:center;padding:32px;color:var(--text2);font-style:italic">Không tìm thấy nhóm sản phẩm nào</td></tr>`;
+      this.renderPager(0);
+      return;
+    }
+
+    const start = (this.state.currentPage - 1) * this.PAGE_SIZE;
+    const pageData = this.state.filtered.slice(start, start + this.PAGE_SIZE);
+
+    this.dom.tblBody.innerHTML = pageData.map(d => {
+      return `
+        <tr class="nsp-row">
+          <td title="${d.maNhom || ''}">${d.maNhom || '—'}</td>
+          <td title="${d.tenNhom || ''}">${d.tenNhom || '—'}</td>
+          <td title="${d.ghiChu || ''}">${d.ghiChu || '—'}</td>
+          <td>
+            <div class="nsp-row-actions">
+              <button class="btn btn-green btn-sm" onclick="NhomSPModule.openEdit('${d.maNhom}')">Sửa</button>
+              <button class="btn btn-red btn-sm" onclick="NhomSPModule.confirmDelete('${d.maNhom}')">Xóa</button>
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+
+    this.renderPager(this.state.filtered.length);
+  },
+
+  renderPager(total) {
+    const pages = Math.ceil(total / this.PAGE_SIZE);
+    if (!total) {
+      this.dom.pgInfo.textContent = 'Hiển thị 0–0 / 0 nhóm sản phẩm';
+      this.dom.pgBtns.innerHTML = '';
+      return;
+    }
+    const start = (this.state.currentPage - 1) * this.PAGE_SIZE + 1;
+    const end = Math.min(this.state.currentPage * this.PAGE_SIZE, total);
+    this.dom.pgInfo.textContent = `Tổng số bản ghi: ${total} - Tổng số trang: ${pages} (Hiển thị ${start}–${end})`;
+
+    let html = `<button class="nsp-pg-btn" onclick="NhomSPModule.gotoPage(${this.state.currentPage - 1})" ${this.state.currentPage === 1 ? 'disabled' : ''}>‹</button>`;
+    const from = Math.max(1, this.state.currentPage - 2);
+    const to = Math.min(pages, from + 4);
+    for (let i = from; i <= to; i++) {
+      html += `<button class="nsp-pg-btn${i === this.state.currentPage ? ' on' : ''}" onclick="NhomSPModule.gotoPage(${i})">${i}</button>`;
+    }
+    html += `<button class="nsp-pg-btn" onclick="NhomSPModule.gotoPage(${this.state.currentPage + 1})" ${this.state.currentPage === pages ? 'disabled' : ''}>›</button>`;
+    this.dom.pgBtns.innerHTML = html;
+  },
+
+  gotoPage(p) {
+    const maxPage = Math.ceil(this.state.filtered.length / this.PAGE_SIZE);
+    if (p < 1 || p > maxPage) return;
+    this.state.currentPage = p;
+    this.renderTable();
+    const wrap = document.querySelector('#page-nhomsanpham .nsp-tbl-wrap');
+    if (wrap) wrap.scrollTop = 0;
+  },
+
+  openAdd() {
+    NhomSPEditor.open({
+      mode: 'create',
+      onSaved: () => this.loadData()
+    });
+  },
+
+  openEdit(maNhom) {
+    NhomSPEditor.open({
+      mode: 'edit',
+      maNhom: maNhom,
+      onSaved: () => this.loadData()
+    });
+  },
+
+  // Xóa nhóm sản phẩm — soft delete (xem NhomSPRepositoryBackend.remove).
+  confirmDelete(maNhom) {
+    const d = this.state.allData.find(x => x.maNhom === maNhom);
+    const ten = d ? d.tenNhom : maNhom;
+    const msg = `Bạn có chắc chắn muốn xóa nhóm sản phẩm "${ten}" không?`;
+    if (typeof window.showConfirm === 'function') {
+      window.showConfirm(msg, 'Xác nhận xóa nhóm sản phẩm')
+        .then(ok => { if (ok) this.doDelete_(maNhom); });
+    } else if (confirm(msg)) {
+      this.doDelete_(maNhom);
+    }
+  },
+
+  doDelete_(maNhom) {
+    ApiClient.call('apiNhomSPDelete', maNhom)
+      .then(res => {
+        if (!res || !res.success) {
+          toast((res && res.message) || 'Lỗi xóa nhóm sản phẩm', 'err');
+          return;
+        }
+        toast('Đã xóa nhóm sản phẩm', 'ok');
+        this.loadData();
+      })
+      .catch(err => {
+        toast(err.message || 'Lỗi xóa nhóm sản phẩm', 'err');
+      });
+  }
+};
+</script>

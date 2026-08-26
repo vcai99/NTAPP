@@ -1,0 +1,50 @@
+<script>
+// =================================================================
+//  SHARED BUSINESS SERVICE: UOM SERVICE (DvtService)
+//  Business logic validation layer. Calls DvtRepository.
+// =================================================================
+const DvtService = {
+  load() {
+    return DvtService.handleResponse_(DvtRepository.load());
+  },
+
+  save(payload) {
+    if (!payload.tenDVT || !payload.tenDVT.trim()) {
+      return Promise.reject(new Error('Tên đơn vị tính không được để trống!'));
+    }
+    return DvtService.handleResponse_(DvtRepository.create(payload));
+  },
+
+  update(payload) {
+    if (!payload.maDVT) {
+      return Promise.reject(new Error('Thiếu mã đơn vị tính để cập nhật!'));
+    }
+    if (!payload.tenDVT || !payload.tenDVT.trim()) {
+      return Promise.reject(new Error('Tên đơn vị tính không được để trống!'));
+    }
+    return DvtService.handleResponse_(DvtRepository.update(payload));
+  },
+
+  remove(id) {
+    return DvtService.handleResponse_(DvtRepository.remove(id));
+  },
+
+  find(id) {
+    return DvtService.handleResponse_(DvtRepository.find(id));
+  },
+
+  generateCode() {
+    return DvtService.handleResponse_(DvtRepository.generateCode());
+  },
+
+  handleResponse_(promise) {
+    return promise.then(res => {
+      if (res.success) {
+        return res.data;
+      } else {
+        throw new Error(res.message || 'Lỗi không xác định ở tầng dữ liệu');
+      }
+    });
+  }
+};
+</script>

@@ -1,0 +1,31 @@
+<script>
+// =================================================================
+//  CLIENT PURCHASE REPOSITORY (purchase_repository.html)
+//  Active Database Access Layer communicating with ApiClient
+// =================================================================
+const PurchaseRepository = {
+  load() {
+    return ApiClient.call('apiPurchaseLoad');
+  },
+
+  find(soPhieu) {
+    return ApiClient.call('apiPurchaseFind', soPhieu);
+  },
+
+  create(payload) {
+    return ApiClient.call('apiPurchaseCreate', payload);
+  },
+
+  update(payload) {
+    return ApiClient.call('apiPurchaseUpdate', payload);
+  },
+
+  remove(soPhieu) {
+    return ApiClient.call('apiPurchaseDelete', soPhieu);
+  },
+
+  generateCode() {
+    return ApiClient.call('apiPurchaseGenerateCode');
+  }
+};
+</script>

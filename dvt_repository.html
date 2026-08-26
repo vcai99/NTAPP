@@ -1,0 +1,31 @@
+<script>
+// =================================================================
+//  MASTER UOM REPOSITORY LAYER (DvtRepository)
+//  Delegates all calls to ApiClient and returns standardized responses.
+// =================================================================
+const DvtRepository = {
+  load() {
+    return ApiClient.call('apiDvtLoad');
+  },
+
+  create(payload) {
+    return ApiClient.call('apiDvtCreate', payload);
+  },
+
+  update(payload) {
+    return ApiClient.call('apiDvtUpdate', payload);
+  },
+
+  remove(id) {
+    return ApiClient.call('apiDvtDelete', id);
+  },
+
+  find(id) {
+    return ApiClient.call('apiDvtFind', id);
+  },
+
+  generateCode() {
+    return ApiClient.call('apiDvtGenerateCode');
+  }
+};
+</script>

@@ -1,0 +1,57 @@
+<script>
+// =================================================================
+//  SHARED BUSINESS SERVICE: CUSTOMER SERVICE (CustomerService)
+//  Sprint 7.0 — Business logic validation layer. Calls CustomerRepository.
+// =================================================================
+const CustomerService = {
+  load() {
+    return CustomerService.handleResponse_(CustomerRepository.load());
+  },
+
+  save(payload) {
+    if (!payload.tenKH || !payload.tenKH.trim()) {
+      return Promise.reject(new Error('Tên khách hàng không được để trống!'));
+    }
+    return CustomerService.handleResponse_(CustomerRepository.create(payload));
+  },
+
+  update(payload) {
+    if (!payload.maKH) {
+      return Promise.reject(new Error('Thiếu mã khách hàng để cập nhật!'));
+    }
+    if (!payload.tenKH || !payload.tenKH.trim()) {
+      return Promise.reject(new Error('Tên khách hàng không được để trống!'));
+    }
+    return CustomerService.handleResponse_(CustomerRepository.update(payload));
+  },
+
+  find(maKH) {
+    return CustomerService.handleResponse_(CustomerRepository.find(maKH));
+  },
+
+  remove(maKH) {
+    return CustomerService.handleResponse_(CustomerRepository.remove(maKH));
+  },
+
+  setOpeningDebt(payload) {
+    if (!payload.maKH) {
+      return Promise.reject(new Error('Thiếu mã khách hàng!'));
+    }
+    const soTien = Number(payload.soTien);
+    if (!Number.isFinite(soTien) || soTien < 0) {
+      return Promise.reject(new Error('Số tiền không hợp lệ!'));
+    }
+    return CustomerService.handleResponse_(CustomerRepository.setOpeningDebt(payload));
+  },
+
+  handleResponse_(promise) {
+    return promise.then(res => {
+      if (res.success) {
+        return res.data;
+      } else {
+        throw new Error(res.message || 'Lỗi không xác định ở tầng dữ liệu');
+      }
+    });
+  }
+};
+</script>

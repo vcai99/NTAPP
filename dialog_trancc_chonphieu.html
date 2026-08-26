@@ -1,0 +1,381 @@
+<style>
+/* =================================================================
+   CSS SCOPED FOR "CHỌN PHIẾU" DIALOG — TRẢ HÀNG NCC (.tnccc-)
+   Sprint 13 — 2 tab theo đúng workflow TheLight
+   (Huong_dan_tra_hang_NCC_Thelight.pdf).
+   ================================================================= */
+#nh-ov-trancc-chonphieu { transition: opacity .2s ease-in-out, visibility .2s ease-in-out; }
+.tnccc-dlg-wrap {
+  width: 92vw; max-width: 1100px; height: 78vh;
+  background: #16213e; border-radius: 8px; border: 1px solid #0d3377;
+  box-shadow: 0 10px 30px rgba(0,0,0,.6);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.tnccc-dlg-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; border-bottom: 1px solid #0d3377; background: #0d2144; flex-shrink: 0;
+}
+.tnccc-dlg-title { font-size: 14px; font-weight: 700; color: #90caf9; }
+.tnccc-dlg-close { background: none; border: none; color: #ff5252; font-size: 22px; cursor: pointer; line-height: 1; padding: 0; }
+.tnccc-dlg-close:hover { color: #ff1744; }
+.tnccc-tabs { display: flex; background: #0d2144; border-bottom: 1px solid #0d3377; flex-shrink: 0; }
+.tnccc-tab { padding: 9px 16px; font-size: 12px; font-weight: 700; color: #90a4c0; cursor: pointer; border-bottom: 2px solid transparent; }
+.tnccc-tab.on { color: #90CAF9; border-bottom-color: #1976D2; }
+.tnccc-toolbar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; flex-wrap: wrap; flex-shrink: 0; background: #16213e; }
+.tnccc-inp { height: 28px; padding: 0 8px; background: #0d2144; border: 1px solid #1e4080; border-radius: 4px; color: #e0e0e0; font-size: 12px; }
+.tnccc-inp:focus { outline: none; border-color: #42a5f5; }
+.tnccc-body { flex: 1; overflow: auto; padding: 0 12px 12px; }
+.tnccc-tbl { width: 100%; border-collapse: collapse; min-width: 900px; }
+.tnccc-tbl th { background: #0a2040; color: #90a4c0; padding: 6px 8px; text-align: left; font-size: 11px; font-weight: 700; white-space: nowrap; border-bottom: 1px solid #0d3377; }
+.tnccc-tbl td { padding: 6px 8px; font-size: 12px; color: #e0e0e0; border-bottom: 1px solid #12294f; vertical-align: middle; }
+.tnccc-tbl tbody tr:hover { background: #0d2347; }
+.tnccc-sl-inp { width: 70px; height: 26px; padding: 0 6px; text-align: right; background: #0d2144; border: 1px solid #1e4080; border-radius: 4px; color: #fff; font-size: 12px; font-weight: 700; }
+.tnccc-sl-inp:focus { outline: none; border-color: #42a5f5; }
+.tnccc-empty { text-align: center; padding: 28px; color: #78909c; font-style: italic; }
+</style>
+
+<div class="ov" id="nh-ov-trancc-chonphieu" onclick="TranCCChonPhieuDialog._ovClick(event)">
+  <div class="tnccc-dlg-wrap">
+    <div class="tnccc-dlg-head">
+      <span class="tnccc-dlg-title">Danh sách phiếu nhập (<span id="tnccc-ten-ncc"></span>)</span>
+      <button class="tnccc-dlg-close" onclick="TranCCChonPhieuDialog.close()">&times;</button>
+    </div>
+
+    <div class="tnccc-tabs">
+      <div class="tnccc-tab on" id="tnccc-tab1">Danh sách Phiếu Nhập</div>
+      <div class="tnccc-tab" id="tnccc-tab2">Chi tiết Phiếu Nhập</div>
+    </div>
+
+    <!-- TAB 1: danh sách phiếu nhập của NCC (BR-NCC-03) -->
+    <div id="tnccc-panel1">
+      <div class="tnccc-toolbar">
+        <input id="tnccc-f-search" class="tnccc-inp" placeholder="Tìm số phiếu" style="width:150px">
+        <input id="tnccc-f-sp" class="tnccc-inp" placeholder="Tên sản phẩm, mã vạch (F3)" style="width:220px">
+        <select id="tnccc-f-thang" class="tnccc-inp"><option value="">Tháng</option></select>
+        <select id="tnccc-f-nam" class="tnccc-inp"><option value="">Năm</option></select>
+        <button class="btn btn-green btn-sm" id="tnccc-btn-search1">Tìm kiếm</button>
+      </div>
+      <div class="tnccc-body">
+        <table class="tnccc-tbl">
+          <thead>
+            <tr>
+              <th style="width:44px"></th>
+              <th style="width:44px">STT</th>
+              <th>Số phiếu</th>
+              <th>Ngày nhập</th>
+              <th>Tổng tiền</th>
+              <th>Chiết khấu</th>
+              <th>Sản phẩm</th>
+            </tr>
+          </thead>
+          <tbody id="tnccc-tbl1-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 2: chi tiết phiếu nhập đã chọn, nhập SL trả (BR-NCC-04/05) -->
+    <div id="tnccc-panel2" style="display:none">
+      <div class="tnccc-toolbar">
+        <input id="tnccc-f-search2" class="tnccc-inp" placeholder="Tìm mã, tên SP" style="width:220px">
+        <button class="btn btn-green btn-sm" id="tnccc-btn-apply">Áp dụng</button>
+      </div>
+      <div class="tnccc-body">
+        <table class="tnccc-tbl">
+          <thead>
+            <tr>
+              <th>Tên SP</th>
+              <th>ĐVT</th>
+              <th>Số lô</th>
+              <th>Hạn dùng</th>
+              <th style="text-align:right">SL đã nhập</th>
+              <th style="text-align:right">SL trả</th>
+              <th style="text-align:right">Giá nhập</th>
+              <th style="text-align:right">%VAT</th>
+              <th style="text-align:right">%CK</th>
+            </tr>
+          </thead>
+          <tbody id="tnccc-tbl2-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  DIALOG: TranCCChonPhieuDialog (dialog_trancc_chonphieu.html)
+//  Sprint 13 — "Chọn phiếu" (BR-NCC-03/04/05/06)
+//  REUSE: đọc phiếu nhập gốc qua apiPurchaseLoad/apiPurchaseFind (đã có
+//  sẵn từ Purchase), KHÔNG tạo API/schema phiếu nhập mới, KHÔNG ghi ngược
+//  lại PN_PHIEUNHAP/PN_CHITIET.
+//  Khác dialog_khachtra_chonphieu.html: KHÔNG copy dedup-by-soPhieu (đó là
+//  fix riêng cho 1 bug dữ liệu đã xác nhận ở PB_PHIEUBAN — không có bằng
+//  chứng PN_PHIEUNHAP gặp cùng vấn đề, không tự suy đoán áp dụng lại).
+// ════════════════════════════════════════════════════════════════
+const TranCCChonPhieuDialog = {
+  state: {
+    maNCC: '',
+    onApply: null,
+    allPhieu: [],       // toàn bộ apiPurchaseLoad(), lọc theo maNCC ở client
+    filteredPhieu: [],
+    currentSoPhieu: null,
+    currentKho: '',      // Kho của phiếu nhập gốc (PN_PHIEUNHAP.KhoNhap)
+    currentLines: []     // dòng chi tiết phiếu gốc đang xem ở tab 2 (kèm slTraLai nhập tay + slConLai)
+  },
+
+  dom: {},
+  initialized: false,
+
+  init() {
+    if (this.initialized) return;
+    this.dom = {
+      tenNcc: document.getElementById('tnccc-ten-ncc'),
+      tab1: document.getElementById('tnccc-tab1'),
+      tab2: document.getElementById('tnccc-tab2'),
+      panel1: document.getElementById('tnccc-panel1'),
+      panel2: document.getElementById('tnccc-panel2'),
+      fSearch: document.getElementById('tnccc-f-search'),
+      fSp: document.getElementById('tnccc-f-sp'),
+      fThang: document.getElementById('tnccc-f-thang'),
+      fNam: document.getElementById('tnccc-f-nam'),
+      btnSearch1: document.getElementById('tnccc-btn-search1'),
+      tbl1Body: document.getElementById('tnccc-tbl1-body'),
+      fSearch2: document.getElementById('tnccc-f-search2'),
+      btnApply: document.getElementById('tnccc-btn-apply'),
+      tbl2Body: document.getElementById('tnccc-tbl2-body')
+    };
+
+    let thangHtml = '<option value="">Tháng</option>';
+    for (let m = 1; m <= 12; m++) thangHtml += `<option value="${m}">Tháng ${m}</option>`;
+    this.dom.fThang.innerHTML = thangHtml;
+    const yNow = new Date().getFullYear();
+    let namHtml = '<option value="">Năm</option>';
+    for (let y = yNow; y >= yNow - 3; y--) namHtml += `<option value="${y}">${y}</option>`;
+    this.dom.fNam.innerHTML = namHtml;
+
+    this.dom.tab1.onclick = () => this.switchTab_(1);
+    this.dom.tab2.onclick = () => this.switchTab_(2);
+    this.dom.btnSearch1.onclick = () => this.applyFilter_();
+    this.dom.fSearch.oninput = () => this.applyFilter_();
+    this.dom.fSp.oninput = () => this.applyFilter_();
+    this.dom.fThang.onchange = () => this.applyFilter_();
+    this.dom.fNam.onchange = () => this.applyFilter_();
+    this.dom.fSearch2.oninput = () => this.renderTab2_();
+    this.dom.btnApply.onclick = () => this.doApply_();
+
+    this.initialized = true;
+  },
+
+  open(config) {
+    this.init();
+    this.state.maNCC = config.maNCC || '';
+    this.state.onApply = config.onApply || null;
+    this.dom.tenNcc.textContent = config.tenNCC || '';
+    this.dom.fSearch.value = '';
+    this.dom.fSp.value = '';
+    this.dom.fThang.value = '';
+    this.dom.fNam.value = '';
+    this.switchTab_(1);
+
+    const ov = document.getElementById('nh-ov-trancc-chonphieu');
+    if (ov) ov.classList.add('open');
+
+    this.dom.tbl1Body.innerHTML = `<tr><td colspan="7" class="tnccc-empty"><span class="spin"></span> Đang tải...</td></tr>`;
+    // [NCC-DEBUG] tạm thời (NCC-BUG-001/002 runtime audit, PHASE 6) — request
+    // gửi lên `apiPurchaseLoad` không có tham số (load full list, lọc client
+    // theo maNCC bên dưới) — log rõ maNCC đang dùng để lọc trước khi có kết quả.
+    console.log('[NCC-DEBUG] api request = apiPurchaseLoad() | filter maNCC =', JSON.stringify(this.state.maNCC));
+    ApiClient.call('apiPurchaseLoad')
+      .then(res => {
+        console.log('[NCC-DEBUG] api response count (raw, trước filter) =', res && res.success ? (res.data || []).length : 'FAILED: ' + (res && res.message));
+        if (!res || !res.success) {
+          this.dom.tbl1Body.innerHTML = `<tr><td colspan="7" class="tnccc-empty">Lỗi tải danh sách: ${(res && res.message) || 'Không xác định'}</td></tr>`;
+          return;
+        }
+        // BR-NCC-02: chỉ hiện phiếu nhập CỦA nhà cung cấp đang chọn.
+        this.state.allPhieu = (res.data || []).filter(p => String(p.maNCC || '') === String(this.state.maNCC || ''));
+        console.log('[NCC-DEBUG] api response count (sau filter maNCC) =', this.state.allPhieu.length);
+        this.applyFilter_();
+      })
+      .catch(err => {
+        this.dom.tbl1Body.innerHTML = `<tr><td colspan="7" class="tnccc-empty">Lỗi hệ thống: ${err.message}</td></tr>`;
+      });
+  },
+
+  close() {
+    const ov = document.getElementById('nh-ov-trancc-chonphieu');
+    if (ov) ov.classList.remove('open');
+  },
+
+  _ovClick(e) {
+    if (e.target.id === 'nh-ov-trancc-chonphieu') this.close();
+  },
+
+  switchTab_(n) {
+    this.dom.tab1.classList.toggle('on', n === 1);
+    this.dom.tab2.classList.toggle('on', n === 2);
+    this.dom.panel1.style.display = n === 1 ? 'block' : 'none';
+    this.dom.panel2.style.display = n === 2 ? 'block' : 'none';
+  },
+
+  applyFilter_() {
+    const soPhieu = (this.dom.fSearch.value || '').toLowerCase().trim();
+    const sp = (this.dom.fSp.value || '').toLowerCase().trim();
+    const thang = this.dom.fThang.value;
+    const nam = this.dom.fNam.value;
+
+    this.state.filteredPhieu = this.state.allPhieu.filter(p => {
+      if (soPhieu && !(p.soPhieu || '').toLowerCase().includes(soPhieu)) return false;
+      if (sp && !(p.sanPham || '').toLowerCase().includes(sp)) return false;
+      if (nam && !String(p.ngayNhap || '').includes(nam)) return false;
+      if (thang) {
+        const m = this.parseMonth_(p.ngayNhap);
+        if (m === null || m !== parseInt(thang)) return false;
+      }
+      return true;
+    });
+    this.renderTab1_();
+  },
+
+  // Ngày ở apiPurchaseLoad trả về dd/MM/yyyy (fmtDate()) — không dùng Date()
+  // vì Safari/GAS parse "dd/MM/yyyy" sai (hiểu nhầm MM/dd).
+  parseMonth_(s) {
+    const m = String(s || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return m ? parseInt(m[2]) : null;
+  },
+
+  renderTab1_() {
+    const list = this.state.filteredPhieu;
+    if (!list.length) {
+      this.dom.tbl1Body.innerHTML = `<tr><td colspan="7" class="tnccc-empty">Không có phiếu nhập phù hợp</td></tr>`;
+      return;
+    }
+    this.dom.tbl1Body.innerHTML = list.map((p, idx) => `
+      <tr>
+        <td><button class="btn btn-green btn-sm" onclick="TranCCChonPhieuDialog.chonPhieu_('${p.soPhieu}')">Chọn</button></td>
+        <td>${idx + 1}</td>
+        <td>${p.soPhieu}</td>
+        <td>${p.ngayNhap || '—'}</td>
+        <td style="text-align:right">${this.fmt(p.tongTien)}</td>
+        <td style="text-align:right">${this.fmt(p.summary ? p.summary.chietKhau : 0)}</td>
+        <td>${p.sanPham || ''}</td>
+      </tr>`).join('');
+  },
+
+  // Tải song song chi tiết phiếu gốc + SL đã trả trước đó
+  // (apiTranCCReturnedQty) để tính "SL còn trả" hiển thị (UX only — backend
+  // vẫn tự validate lại độc lập khi Lưu phiếu, xem
+  // backend_trancc_service.gs::enrichAndValidateLines_()). Lưu lại `kho`
+  // của phiếu gốc để truyền xuống khi Áp dụng.
+  chonPhieu_(soPhieu) {
+    this.state.currentSoPhieu = soPhieu;
+    this.switchTab_(2);
+    this.dom.tbl2Body.innerHTML = `<tr><td colspan="9" class="tnccc-empty"><span class="spin"></span> Đang tải...</td></tr>`;
+    Promise.all([
+      ApiClient.call('apiPurchaseFind', soPhieu),
+      ApiClient.call('apiTranCCReturnedQty', soPhieu).catch(() => ({ success: false, data: {} }))
+    ])
+      .then(([res, returnedRes]) => {
+        if (!res || !res.success) {
+          this.dom.tbl2Body.innerHTML = `<tr><td colspan="9" class="tnccc-empty">Lỗi tải chi tiết: ${(res && res.message) || 'Không xác định'}</td></tr>`;
+          return;
+        }
+        const returnedMap = (returnedRes && returnedRes.success) ? (returnedRes.data || {}) : {};
+        this.state.currentKho = res.data.khoNhap || 'Kho chính';
+        // slTraLai bắt đầu rỗng — user phải tự nhập, không suy đoán mặc định
+        // = SL đã nhập. slConLai = SL đã nhập - SL đã trả trước đó (PO
+        // Decision 2/6) — chỉ để UX (cap input + hiển thị), KHÔNG phải
+        // nguồn xác nhận cuối cùng.
+        this.state.currentLines = (res.data.lines || []).map(l => {
+          const key = String(l.maSP) + '|' + String(l.lo || '') + '|' + String(l.hsd || '');
+          const daTra = Number(returnedMap[key]) || 0;
+          const slConLai = Math.max(0, (Number(l.sl) || 0) - daTra);
+          return Object.assign({ slTraLai: null, daTra: daTra, slConLai: slConLai }, l);
+        });
+        this.dom.fSearch2.value = '';
+        this.renderTab2_();
+      })
+      .catch(err => {
+        this.dom.tbl2Body.innerHTML = `<tr><td colspan="9" class="tnccc-empty">Lỗi hệ thống: ${err.message}</td></tr>`;
+      });
+  },
+
+  renderTab2_() {
+    const q = (this.dom.fSearch2.value || '').toLowerCase().trim();
+    let lines = this.state.currentLines;
+    if (q) lines = lines.filter(l => (l.tenSP || '').toLowerCase().includes(q) || (l.maSP || '').toLowerCase().includes(q));
+
+    if (!lines.length) {
+      this.dom.tbl2Body.innerHTML = `<tr><td colspan="9" class="tnccc-empty">Không có sản phẩm</td></tr>`;
+      return;
+    }
+    this.dom.tbl2Body.innerHTML = lines.map(l => {
+      const idx = this.state.currentLines.indexOf(l);
+      // PO Decision 6: SL còn được trả = 0 -> không cho nhập thêm SL trả.
+      const daHetHan = l.slConLai <= 0;
+      const hint = daHetHan
+        ? '<span style="color:var(--red)">(đã trả hết)</span>'
+        : (l.daTra > 0 ? `<span style="color:var(--text2)">(còn ${this.fmt(l.slConLai)})</span>` : '');
+      return `
+        <tr>
+          <td>${l.tenSP}</td>
+          <td>${l.dvt || '—'}</td>
+          <td>${l.lo || '—'}</td>
+          <td>${l.hsd || '—'}</td>
+          <td style="text-align:right">${this.fmt(l.sl)}</td>
+          <td style="text-align:right">
+            <input class="tnccc-sl-inp" type="number" min="0" max="${l.slConLai}" ${daHetHan ? 'disabled' : ''} value="${l.slTraLai === null ? '' : l.slTraLai}" onchange="TranCCChonPhieuDialog.onSlTraLaiChange_(${idx}, this.value)">
+            <div style="font-size:10px;margin-top:2px">${hint}</div>
+          </td>
+          <td style="text-align:right">${this.fmt(l.donGia)}</td>
+          <td style="text-align:right">${this.fmt(l.vat)}</td>
+          <td style="text-align:right">${this.fmt(l.ck)}</td>
+        </tr>`;
+    }).join('');
+  },
+
+  onSlTraLaiChange_(idx, val) {
+    const v = val === '' ? null : Number(val);
+    const line = this.state.currentLines[idx];
+    if (v === null || isNaN(v) || v <= 0) {
+      line.slTraLai = null;
+      return;
+    }
+    // UX cap — backend validate lại độc lập, không tin số này: không cho
+    // nhập vượt slConLai (= SL đã nhập - SL đã trả trước đó CỦA ĐÚNG dòng
+    // này, tính từ apiTranCCReturnedQty ở chonPhieu_()).
+    line.slTraLai = Math.min(v, Number(line.slConLai) || 0);
+    if (line.slTraLai <= 0) line.slTraLai = null;
+  },
+
+  // BR-NCC-06: Áp dụng đưa CÁC DÒNG ĐÃ NHẬP SL trả (>0) về grid chính qua
+  // callback — KHÔNG post Inventory ở đây (PO Decision 1: post Inventory
+  // chỉ xảy ra khi Lưu phiếu ở màn chính thành công, Áp dụng chỉ đưa dòng
+  // vào chứng từ đang soạn).
+  doApply_() {
+    const chosen = this.state.currentLines.filter(l => l.slTraLai !== null && l.slTraLai > 0);
+    if (!chosen.length) {
+      toast('Chưa nhập SL trả cho dòng nào.', 'warn');
+      return;
+    }
+    if (typeof this.state.onApply === 'function') {
+      this.state.onApply(chosen.map(l => ({
+        soPhieuNhapGoc: this.state.currentSoPhieu,
+        kho: this.state.currentKho,
+        maSP: l.maSP, tenSP: l.tenSP, dvt: l.dvt, heSo: l.heSo,
+        soLo: l.lo, hanDung: l.hsd,
+        soLuong: l.slTraLai, giaNhap: l.donGia,
+        ck: Number(l.ck) || 0, vat: Number(l.vat) || 0
+      })));
+    }
+    this.close();
+  },
+
+  fmt(v) {
+    if (v === null || v === undefined) return '0';
+    const n = parseFloat(v) || 0;
+    if (n === 0) return '0';
+    return Math.round(n).toLocaleString('vi-VN');
+  }
+};
+</script>

@@ -1,0 +1,221 @@
+<style>
+/* =================================================================
+   CSS SCOPED FOR KIỂM KÊ CREATE DIALOG (.kkc-dlg-)
+   Đồng bộ Design System với dialog_ncc_editor.html / dialog_doctor_editor.html
+   ================================================================= */
+#nh-ov-kiemke-create {
+  transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+.kkc-dlg-wrap {
+  width: 480px;
+  max-width: 94%;
+  background: #16213e;
+  border-radius: 8px;
+  border: 1px solid #0d3377;
+  padding: 0;
+  box-shadow: 0 10px 30px rgba(0,0,0,.6);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.kkc-dlg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid #0d3377;
+  background: #0d2144;
+  flex-shrink: 0;
+}
+.kkc-dlg-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #90caf9;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.kkc-dlg-close {
+  background: none;
+  border: none;
+  color: #ff5252;
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+.kkc-dlg-close:hover { color: #ff1744; }
+.kkc-dlg-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #16213e;
+}
+.kkc-field { display: flex; flex-direction: column; gap: 4px; }
+.kkc-lbl { font-size: 11px; font-weight: 500; color: #90caf9; }
+.kkc-inp {
+  height: 30px;
+  background: #0d2144;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #e0e0e0;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+.kkc-inp::placeholder { color: #546e7a; }
+.kkc-inp:focus { border-color: #42a5f5; }
+textarea.kkc-inp { height: 56px; padding: 6px 8px; resize: vertical; font-family: Arial, sans-serif; }
+.kkc-dlg-foot {
+  padding: 12px 18px;
+  border-top: 1px solid #0d3377;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  background: #0d2144;
+  flex-shrink: 0;
+}
+.kkc-btn-save {
+  padding: 6px 16px;
+  background: #1565C0;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.kkc-btn-save:hover { background: #0d47a1; }
+.kkc-btn-save:disabled { background: #263850; color: #78909c; cursor: not-allowed; }
+.kkc-btn-cancel {
+  padding: 6px 14px;
+  background: #263850;
+  color: #ccc;
+  border: 1px solid #1e4080;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.kkc-btn-cancel:hover { background: #1e3060; }
+</style>
+
+<!-- ══ DIALOG: Thêm mới kiểm kê (đúng Bước 2 PDF) ══ -->
+<div class="ov" id="nh-ov-kiemke-create" onclick="KiemKeCreateEditor._ovClick(event)">
+  <div class="kkc-dlg-wrap">
+    <div class="kkc-dlg-head">
+      <span class="kkc-dlg-title">➕ Thêm mới kiểm kê</span>
+      <button class="kkc-dlg-close" onclick="KiemKeCreateEditor.close()">&times;</button>
+    </div>
+
+    <div class="kkc-dlg-body">
+      <div class="kkc-field">
+        <label class="kkc-lbl">Đợt kiểm kê</label>
+        <input id="kkc-dot" class="kkc-inp" placeholder="Kiểm kê tồn kho giữa kỳ">
+      </div>
+      <div class="kkc-field">
+        <label class="kkc-lbl">Ngày kiểm kê</label>
+        <input id="kkc-ngay" type="date" class="kkc-inp">
+      </div>
+      <div class="kkc-field">
+        <label class="kkc-lbl">Ghi chú</label>
+        <textarea id="kkc-ghichu" class="kkc-inp" placeholder="Ghi chú"></textarea>
+      </div>
+    </div>
+
+    <div class="kkc-dlg-foot">
+      <button class="kkc-btn-save" id="kkc-btn-save" onclick="KiemKeCreateEditor.save()">&#10003; Lưu lại</button>
+      <button class="kkc-btn-cancel" onclick="KiemKeCreateEditor.close()">&times; Thoát</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  DIALOG: KiemKeCreateEditor (dialog_kiemke_create.html)
+//  Sprint 11 — Thêm mới đợt kiểm kê
+// ════════════════════════════════════════════════════════════════
+const KiemKeCreateEditor = {
+  state: { onSaved: null },
+
+  open(config = {}) {
+    this.state.onSaved = config.onSaved || null;
+
+    document.getElementById('kkc-dot').value = '';
+    const today = new Date();
+    const iso = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    document.getElementById('kkc-ngay').value = iso;
+    document.getElementById('kkc-ghichu').value = '';
+
+    const btn = document.getElementById('kkc-btn-save');
+    if (btn) { btn.disabled = false; btn.innerHTML = '&#10003; Lưu lại'; }
+
+    const ov = document.getElementById('nh-ov-kiemke-create');
+    if (ov) ov.classList.add('open');
+
+    setTimeout(() => {
+      const inp = document.getElementById('kkc-dot');
+      if (inp) inp.focus();
+    }, 160);
+  },
+
+  close() {
+    const ov = document.getElementById('nh-ov-kiemke-create');
+    if (ov) ov.classList.remove('open');
+  },
+
+  save() {
+    const dotEl = document.getElementById('kkc-dot');
+    const dot = dotEl.value.trim();
+    if (!dot) {
+      toast('Đợt kiểm kê không được để trống!', 'warn');
+      dotEl.focus();
+      return;
+    }
+    const ngay = document.getElementById('kkc-ngay').value;
+    if (!ngay) {
+      toast('Vui lòng chọn ngày kiểm kê!', 'warn');
+      return;
+    }
+
+    const btn = document.getElementById('kkc-btn-save');
+    if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Đang lưu...'; }
+
+    const payload = {
+      dotKiemKe: dot,
+      ngayKiemKe: ngay,
+      ghiChu: document.getElementById('kkc-ghichu').value.trim()
+    };
+
+    ApiClient.call('apiKiemKeCreate', payload)
+      .then(res => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '&#10003; Lưu lại'; }
+        if (!res || !res.success) {
+          toast((res && res.message) || 'Lỗi tạo phiếu kiểm kê', 'warn');
+          return;
+        }
+        toast('Đã tạo phiếu kiểm kê: ' + res.data.dotKiemKe, 'ok');
+        this.close();
+        if (typeof this.state.onSaved === 'function') {
+          this.state.onSaved(res.data);
+        }
+      })
+      .catch(err => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '&#10003; Lưu lại'; }
+        toast('Lỗi hệ thống: ' + (err.message || err), 'err');
+      });
+  },
+
+  _ovClick(e) {
+    if (e.target.id === 'nh-ov-kiemke-create') this.close();
+  }
+};
+</script>
